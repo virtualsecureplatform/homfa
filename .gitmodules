@@ -1,0 +1,9 @@
+[submodule "thirdparty/spdlog"]
+	path = thirdparty/spdlog
+	url = https://github.com/gabime/spdlog
+[submodule "thirdparty/TFHEpp"]
+	path = thirdparty/TFHEpp
+	url = https://github.com/virtualsecureplatform/TFHEpp
+[submodule "thirdparty/backward-cpp"]
+	path = thirdparty/backward-cpp
+	url = https://github.com/bombela/backward-cpp
