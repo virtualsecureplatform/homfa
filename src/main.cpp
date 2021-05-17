@@ -10,11 +10,12 @@
 #include <spdlog/spdlog.h>
 #include <tfhe++.hpp>
 
-using TRGSWLvl1FFT = TFHEpp::TRGSWFFT<TFHEpp::lvl1param>;
-using TRLWELvl1 = TFHEpp::TRLWE<TFHEpp::lvl1param>;
-using PolyLvl1 = TFHEpp::Polynomial<TFHEpp::lvl1param>;
-using SecretKey = TFHEpp::SecretKey;
 using Lvl1 = TFHEpp::lvl1param;
+using TLWELvl1 = TFHEpp::TLWE<Lvl1>;
+using TRGSWLvl1FFT = TFHEpp::TRGSWFFT<Lvl1>;
+using TRLWELvl1 = TFHEpp::TRLWE<Lvl1>;
+using PolyLvl1 = TFHEpp::Polynomial<Lvl1>;
+using SecretKey = TFHEpp::SecretKey;
 
 TRLWELvl1 trivial_TRLWELvl1(const PolyLvl1 &src)
 {
@@ -36,6 +37,14 @@ void TRLWELvl1_add(TRLWELvl1 &out, const TRLWELvl1 &src)
         out[0][i] += src[0][i];
         out[1][i] += src[1][i];
     }
+}
+
+uint32_t phase_of_TLWELvl1(const TLWELvl1 &src, const SecretKey &skey)
+{
+    uint32_t phase = src[Lvl1::n];
+    for (size_t i = 0; i < Lvl1::n; i++)
+        phase -= src[i] * skey.key.lvl1[i];
+    return phase;
 }
 
 PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1 &src, const SecretKey &skey)
@@ -60,15 +69,20 @@ PolyLvl1 uint2weight(uint64_t n)
     return w;
 }
 
-void dump_weight(std::ostream &os, const PolyLvl1 &w)
+bool between_25_75(uint32_t n)
 {
     const uint32_t mu25 = 1u << 30, mu75 = (1u << 30) + (1u << 31);
+    return mu25 <= n && n <= mu75;
+}
+
+void dump_weight(std::ostream &os, const PolyLvl1 &w)
+{
     for (size_t i = 0; i < Lvl1::n; i++) {
         if (i % 32 == 0)
             os << "\n";
         else if (i % 8 == 0)
             os << " ";
-        if (mu25 <= w[i] && w[i] <= mu75)
+        if (between_25_75(w[i]))
             os << 1;
         else
             os << 0;
@@ -99,6 +113,7 @@ private:
     };
     std::vector<TableItem> table_;
     std::vector<std::vector<State>> states_at_depth_;
+    std::set<State> final_state_;
 
 public:
     Graph()
@@ -111,20 +126,19 @@ public:
         assert(ifs);
         int N;
         ifs >> N;
-        std::set<int> finalState;
         for (int i = 0; i < N; i++) {
             std::string no;
             int s0, s1;
             ifs >> no;
             ifs >> s0 >> s1;
             if (no.at(no.size() - 1) == '*')
-                finalState.insert(i);
+                final_state_.insert(i);
             table_.push_back(TableItem{i, s0, s1, 0, 0});
         }
         for (auto &&item : table_) {
-            if (finalState.contains(item.child0))
+            if (final_state_.contains(item.child0))
                 item.gain0 = 1;
-            if (finalState.contains(item.child1))
+            if (final_state_.contains(item.child1))
                 item.gain1 = 1;
         }
     }
@@ -132,6 +146,11 @@ public:
     size_t size() const
     {
         return table_.size();
+    }
+
+    bool is_final_state(State state) const
+    {
+        return final_state_.contains(state);
     }
 
     State next_state(State state, bool input) const
@@ -323,6 +342,112 @@ void det_wfa(const char *graph_filename, const char *input_filename)
     }
 }
 
+class OfflineFARunner {
+private:
+    Graph graph_;
+    std::vector<TRGSWLvl1FFT> input_;
+    std::vector<TRLWELvl1> weight_;
+    bool has_evaluated_;
+
+public:
+    OfflineFARunner(Graph graph, std::vector<TRGSWLvl1FFT> input)
+        : graph_(graph),
+          input_(input),
+          weight_(graph_.size(), trivial_TRLWELvl1_zero()),
+          has_evaluated_(false)
+    {
+        for (Graph::State st = 0; st < graph_.size(); st++)
+            if (graph_.is_final_state(st))
+                weight_.at(st)[1][0] = (1u << 31);  // 1/2
+
+        spdlog::info("Parameter:");
+        spdlog::info("\tMode:\t{}", "Offline FA Runner");
+        spdlog::info("\tInput size:\t{}", input_.size());
+        spdlog::info("\tState size:\t{}", graph_.size());
+        spdlog::info("\tWeight size:\t{}", weight_.size());
+        spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+        spdlog::info("");
+    }
+
+    TLWELvl1 result() const
+    {
+        auto w = weight_.at(graph_.initial_state());
+        TLWELvl1 ret;
+        TFHEpp::SampleExtractIndex<Lvl1>(ret, w, 0);
+        return ret;
+    }
+
+    void eval()
+    {
+        assert(!has_evaluated_);
+        has_evaluated_ = true;
+
+        size_t total_cnt_cmux = 0;
+        std::vector<TRLWELvl1> out(weight_.size(), trivial_TRLWELvl1_zero());
+        for (int j = input_.size() - 1; j >= 0; --j) {
+            auto states = graph_.states_at_depth(j);
+            std::for_each(std::execution::par, states.begin(), states.end(),
+                          [&](auto &&q) {
+                              TRLWELvl1 w0, w1;
+                              next_weight(w1, j, q, true);
+                              next_weight(w0, j, q, false);
+                              TFHEpp::CMUXFFT<Lvl1>(out.at(q), input_.at(j), w1,
+                                                    w0);
+                          });
+            {
+                using std::swap;
+                swap(out, weight_);
+            }
+
+            // FIXME: bootstrapping for weight_
+
+            spdlog::debug("[{}] #CMUX : ", states.size());
+            total_cnt_cmux += states.size();
+        }
+        spdlog::info("Total #CMUX : {}", total_cnt_cmux);
+    }
+
+private:
+    void next_weight(TRLWELvl1 &out, int j, Graph::State from, bool input) const
+    {
+        Graph::State to = graph_.next_state(from, input);
+        out = weight_.at(to);
+    }
+};
+
+void offline_dfa(const char *graph_filename, const char *input_filename)
+{
+    SecretKey skey;
+
+    const std::vector<bool> plain_input = [&] {
+        std::ifstream ifs{input_filename};
+        assert(ifs);
+        std::vector<bool> ret;
+        while (ifs) {
+            int ch = ifs.get();
+            if (ch == EOF)
+                break;
+            for (int i = 0; i < 8; i++)
+                ret.push_back(((static_cast<uint8_t>(ch) >> i) & 1u) != 0);
+        }
+        return ret;
+    }();
+    std::vector<TRGSWLvl1FFT> input;
+    for (bool b : plain_input)
+        input.emplace_back(
+            TFHEpp::trgswfftSymEncrypt<Lvl1>(b, Lvl1::α, skey.key.lvl1));
+
+    Graph gr{graph_filename};
+    gr.reserve_states_at_depth(input.size());
+
+    OfflineFARunner runner{gr, input};
+    runner.eval();
+
+    TLWELvl1 enc_res = runner.result();
+    uint32_t res = phase_of_TLWELvl1(enc_res, skey);
+    spdlog::info("Result (bool): {}", between_25_75(res));
+}
+
 int main(int argc, char **argv)
 {
     if (argc != 3) {
@@ -330,7 +455,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    det_wfa(argv[1], argv[2]);
+    // det_wfa(argv[1], argv[2]);
+    offline_dfa(argv[1], argv[2]);
 
     return 0;
 }
