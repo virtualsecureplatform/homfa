@@ -7,6 +7,7 @@
 #include <sstream>
 #include <thread>
 
+#include <spdlog/spdlog.h>
 #include <tfhe++.hpp>
 
 using TRGSWLvl1FFT = TFHEpp::TRGSWFFT<TFHEpp::lvl1param>;
@@ -59,21 +60,26 @@ PolyLvl1 uint2weight(uint64_t n)
     return w;
 }
 
-std::string weight2bitstring(const PolyLvl1 &w)
+void dump_weight(std::ostream &os, const PolyLvl1 &w)
 {
     const uint32_t mu25 = 1u << 30, mu75 = (1u << 30) + (1u << 31);
-    std::stringstream ss;
     for (size_t i = 0; i < Lvl1::n; i++) {
         if (i % 32 == 0)
-            ss << "\n";
+            os << "\n";
         else if (i % 8 == 0)
-            ss << " ";
+            os << " ";
         if (mu25 <= w[i] && w[i] <= mu75)
-            ss << 1;
+            os << 1;
         else
-            ss << 0;
+            os << 0;
     }
-    ss << "\n";
+    os << "\n";
+}
+
+std::string weight2bitstring(const PolyLvl1 &w)
+{
+    std::stringstream ss;
+    dump_weight(ss, w);
     return ss.str();
 }
 
@@ -196,14 +202,13 @@ public:
           shift_interval_(1),
           secret_key_(std::move(secret_key))
     {
-        std::cerr << "Parameter:\n"
-                  << "\tInput size:\t" << input_.size() << "\n"
-                  << "\tState size:\t" << graph_.size() << "\n"
-                  << "\tWeight Num Scale:\t" << weight_num_scale_ << "\n"
-                  << "\tWeight size:\t" << weight_.size() << "\n"
-                  << "\tConcurrency:\t" << std::thread::hardware_concurrency()
-                  << "\n"
-                  << "=====\n";
+        spdlog::info("Parameter:");
+        spdlog::info("\tInput size:\t{}", input_.size());
+        spdlog::info("\tState size:\t{}", graph_.size());
+        spdlog::info("\tWeight Num Scale:\t{}", weight_num_scale_);
+        spdlog::info("\tWeight size:\t{}", weight_.size());
+        spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+        spdlog::info("");
         //<< "\tShift width:\t" << shift_width_ << "\n"
         //<< "\tShift interval:\t" << shift_interval_ << "\n"
     }
@@ -250,10 +255,10 @@ public:
                 using std::swap;
                 swap(out, weight_);
             }
-            std::cerr << "[" << j << "] #CMUX : " << states.size() << "\n";
+            spdlog::debug("[{}] #CMUX : ", states.size());
             total_cnt_cmux += states.size();
         }
-        std::cerr << "Total #CMUX : " << total_cnt_cmux << "\n";
+        spdlog::info("Total #CMUX : {}", total_cnt_cmux);
     }
 
 private:
@@ -304,19 +309,24 @@ void det_wfa(const char *graph_filename, const char *input_filename)
     Graph gr{graph_filename};
     gr.reserve_states_at_depth(input.size());
 
-    DetWFARunner runner{gr, input, skey};
+    // DetWFARunner runner{gr, input, skey};
+    DetWFARunner runner{gr, input};
     runner.eval();
     std::vector<TRLWELvl1> enc_res = runner.result();
 
-    std::cout << "Result (bitstr):\n";
-    for (auto &&t : enc_res)
-        std::cout << weight2bitstring(phase_of_TRLWELvl1(t, skey)) << "\n";
+    spdlog::info("Result (bitstr):");
+    {
+        std::stringstream ss;
+        for (auto &&t : enc_res)
+            dump_weight(ss, phase_of_TRLWELvl1(t, skey));
+        spdlog::info(ss.str());
+    }
 }
 
 int main(int argc, char **argv)
 {
     if (argc != 3) {
-        fprintf(stderr, "Usage: %s AUTOMATON-SPEC-FILE INPUT-FILE", argv[0]);
+        spdlog::error("Usage: {} AUTOMATON-SPEC-FILE INPUT-FILE", argv[0]);
         return 1;
     }
 
