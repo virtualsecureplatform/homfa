@@ -204,8 +204,8 @@ public:
 
 class DetWFARunner {
 private:
-    Graph graph_;
-    std::vector<TRGSWLvl1FFT> input_;
+    const Graph &graph_;
+    const std::vector<TRGSWLvl1FFT> &input_;
     size_t weight_num_scale_;
     std::vector<TRLWELvl1> weight_;
     bool has_evaluated_;
@@ -213,10 +213,10 @@ private:
     std::optional<SecretKey> secret_key_;
 
 public:
-    DetWFARunner(Graph graph, std::vector<TRGSWLvl1FFT> input,
+    DetWFARunner(const Graph &graph, const std::vector<TRGSWLvl1FFT> &input,
                  std::optional<SecretKey> secret_key = std::nullopt)
-        : graph_(std::move(graph)),
-          input_(std::move(input)),
+        : graph_(graph),
+          input_(input),
           weight_num_scale_(1 + input_.size() / Lvl1::n),
           weight_(weight_num_scale_ * graph_.size(), trivial_TRLWELvl1_zero()),
           has_evaluated_(false),
@@ -350,14 +350,14 @@ class OfflineFARunner {
     const static size_t BOOT_INTERVAL = 8000;
 
 private:
-    Graph graph_;
-    std::vector<TRGSWLvl1FFT> input_;
+    const Graph &graph_;
+    const std::vector<TRGSWLvl1FFT> &input_;
     std::vector<TRLWELvl1> weight_;
     bool has_evaluated_;
     std::shared_ptr<GateKey> gate_key_;
 
 public:
-    OfflineFARunner(Graph graph, std::vector<TRGSWLvl1FFT> input,
+    OfflineFARunner(const Graph &graph, const std::vector<TRGSWLvl1FFT> &input,
                     std::shared_ptr<GateKey> gate_key = nullptr)
         : graph_(graph),
           input_(input),
