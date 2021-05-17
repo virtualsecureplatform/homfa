@@ -358,7 +358,9 @@ public:
     {
         for (Graph::State st = 0; st < graph_.size(); st++)
             if (graph_.is_final_state(st))
-                weight_.at(st)[1][0] = (1u << 31);  // 1/2
+                weight_.at(st)[1][0] = (1u << 29);  // 1/8
+            else
+                weight_.at(st)[1][0] = -(1u << 29);  // -1/8
 
         spdlog::info("Parameter:");
         spdlog::info("\tMode:\t{}", "Offline FA Runner");
@@ -444,8 +446,8 @@ void offline_dfa(const char *graph_filename, const char *input_filename)
     runner.eval();
 
     TLWELvl1 enc_res = runner.result();
-    uint32_t res = phase_of_TLWELvl1(enc_res, skey);
-    spdlog::info("Result (bool): {}", between_25_75(res));
+    bool res = TFHEpp::tlweSymDecrypt<Lvl1>(enc_res, skey.key.lvl1);
+    spdlog::info("Result (bool): {}", res);
 }
 
 int main(int argc, char **argv)
