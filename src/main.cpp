@@ -345,22 +345,75 @@ void det_wfa(const char *graph_filename, const char *input_filename)
     }
 }
 
+template <class T>
+class InputStream {
+public:
+    InputStream()
+    {
+    }
+    virtual ~InputStream()
+    {
+    }
+
+    virtual size_t size() const = 0;
+    virtual T next() = 0;
+};
+
+class ReversedTRGSWLvl1InputStreamFromPlainFile
+    : public InputStream<TRGSWLvl1FFT> {
+private:
+    const SecretKey &skey_;
+    std::vector<bool> data_;
+    std::vector<bool>::reverse_iterator head_;
+
+public:
+    ReversedTRGSWLvl1InputStreamFromPlainFile(const SecretKey &skey,
+                                              const char *filename)
+        : skey_(skey)
+    {
+        std::ifstream ifs{filename};
+        assert(ifs);
+        while (ifs) {
+            int ch = ifs.get();
+            if (ch == EOF)
+                break;
+            for (int i = 0; i < 8; i++)
+                data_.push_back(((static_cast<uint8_t>(ch) >> i) & 1u) != 0);
+        }
+        head_ = data_.rbegin();
+    }
+
+    size_t size() const override
+    {
+        return data_.rend() - head_;
+    }
+
+    TRGSWLvl1FFT next() override
+    {
+        assert(size() != 0);
+        auto ret =
+            TFHEpp::trgswfftSymEncrypt<Lvl1>(*head_, Lvl1::α, skey_.key.lvl1);
+        head_++;
+        return ret;
+    }
+};
+
 class OfflineFARunner {
     // Interval for bootstrapping
     const static size_t BOOT_INTERVAL = 8000;
 
 private:
     const Graph &graph_;
-    const std::vector<TRGSWLvl1FFT> &input_;
+    InputStream<TRGSWLvl1FFT> &input_stream_;
     std::vector<TRLWELvl1> weight_;
     bool has_evaluated_;
     std::shared_ptr<GateKey> gate_key_;
 
 public:
-    OfflineFARunner(const Graph &graph, const std::vector<TRGSWLvl1FFT> &input,
+    OfflineFARunner(const Graph &graph, InputStream<TRGSWLvl1FFT> &input_stream,
                     std::shared_ptr<GateKey> gate_key = nullptr)
         : graph_(graph),
-          input_(input),
+          input_stream_(input_stream),
           weight_(graph_.size(), trivial_TRLWELvl1_zero()),
           has_evaluated_(false),
           gate_key_(std::move(gate_key))
@@ -373,7 +426,7 @@ public:
 
         spdlog::info("Parameter:");
         spdlog::info("\tMode:\t{}", "Offline FA Runner");
-        spdlog::info("\tInput size:\t{}", input_.size());
+        spdlog::info("\tInput size:\t{}", input_stream.size());
         spdlog::info("\tState size:\t{}", graph_.size());
         spdlog::info("\tWeight size:\t{}", weight_.size());
         spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
@@ -393,24 +446,24 @@ public:
         assert(!has_evaluated_);
         has_evaluated_ = true;
 
-        size_t total_cnt_cmux = 0;
+        size_t input_size = input_stream_.size(), total_cnt_cmux = 0;
         std::vector<TRLWELvl1> out(weight_.size(), trivial_TRLWELvl1_zero());
-        for (int j = input_.size() - 1; j >= 0; --j) {
+        for (int j = input_size - 1; j >= 0; --j) {
             auto states = graph_.states_at_depth(j);
+            TRGSWLvl1FFT input = input_stream_.next();
             std::for_each(std::execution::par, states.begin(), states.end(),
                           [&](auto &&q) {
                               TRLWELvl1 w0, w1;
                               next_weight(w1, j, q, true);
                               next_weight(w0, j, q, false);
-                              TFHEpp::CMUXFFT<Lvl1>(out.at(q), input_.at(j), w1,
-                                                    w0);
+                              TFHEpp::CMUXFFT<Lvl1>(out.at(q), input, w1, w0);
                           });
             {
                 using std::swap;
                 swap(out, weight_);
             }
 
-            if (size_t cur = input_.size() - j;
+            if (size_t cur = input_size - j;
                 gate_key_ && cur != 0 && cur % BOOT_INTERVAL == 0) {
                 spdlog::info("Bootstrapping occurred");
                 bootstrapping_of_weight();
@@ -451,28 +504,12 @@ void offline_dfa(const char *graph_filename, const char *input_filename)
     SecretKey skey;
     auto gkey = std::make_shared<GateKey>(skey);
 
-    const std::vector<bool> plain_input = [&] {
-        std::ifstream ifs{input_filename};
-        assert(ifs);
-        std::vector<bool> ret;
-        while (ifs) {
-            int ch = ifs.get();
-            if (ch == EOF)
-                break;
-            for (int i = 0; i < 8; i++)
-                ret.push_back(((static_cast<uint8_t>(ch) >> i) & 1u) != 0);
-        }
-        return ret;
-    }();
-    std::vector<TRGSWLvl1FFT> input;
-    for (bool b : plain_input)
-        input.emplace_back(
-            TFHEpp::trgswfftSymEncrypt<Lvl1>(b, Lvl1::α, skey.key.lvl1));
-
+    ReversedTRGSWLvl1InputStreamFromPlainFile input_stream{skey,
+                                                           input_filename};
     Graph gr{graph_filename};
-    gr.reserve_states_at_depth(input.size());
+    gr.reserve_states_at_depth(input_stream.size());
 
-    OfflineFARunner runner{gr, input, gkey};
+    OfflineFARunner runner{gr, input_stream, gkey};
     runner.eval();
 
     TLWELvl1 enc_res = runner.result();
