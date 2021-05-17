@@ -10,12 +10,15 @@
 #include <spdlog/spdlog.h>
 #include <tfhe++.hpp>
 
+using Lvl0 = TFHEpp::lvl0param;
+using TLWELvl0 = TFHEpp::TLWE<Lvl0>;
 using Lvl1 = TFHEpp::lvl1param;
 using TLWELvl1 = TFHEpp::TLWE<Lvl1>;
 using TRGSWLvl1FFT = TFHEpp::TRGSWFFT<Lvl1>;
 using TRLWELvl1 = TFHEpp::TRLWE<Lvl1>;
 using PolyLvl1 = TFHEpp::Polynomial<Lvl1>;
 using SecretKey = TFHEpp::SecretKey;
+using GateKey = TFHEpp::GateKey;
 
 TRLWELvl1 trivial_TRLWELvl1(const PolyLvl1 &src)
 {
@@ -343,18 +346,24 @@ void det_wfa(const char *graph_filename, const char *input_filename)
 }
 
 class OfflineFARunner {
+    // Interval for bootstrapping
+    const static size_t BOOT_INTERVAL = 8000;
+
 private:
     Graph graph_;
     std::vector<TRGSWLvl1FFT> input_;
     std::vector<TRLWELvl1> weight_;
     bool has_evaluated_;
+    std::shared_ptr<GateKey> gate_key_;
 
 public:
-    OfflineFARunner(Graph graph, std::vector<TRGSWLvl1FFT> input)
+    OfflineFARunner(Graph graph, std::vector<TRGSWLvl1FFT> input,
+                    std::shared_ptr<GateKey> gate_key = nullptr)
         : graph_(graph),
           input_(input),
           weight_(graph_.size(), trivial_TRLWELvl1_zero()),
-          has_evaluated_(false)
+          has_evaluated_(false),
+          gate_key_(std::move(gate_key))
     {
         for (Graph::State st = 0; st < graph_.size(); st++)
             if (graph_.is_final_state(st))
@@ -401,7 +410,11 @@ public:
                 swap(out, weight_);
             }
 
-            // FIXME: bootstrapping for weight_
+            if (size_t cur = input_.size() - j;
+                gate_key_ && cur != 0 && cur % BOOT_INTERVAL == 0) {
+                spdlog::info("Bootstrapping occurred");
+                bootstrapping_of_weight();
+            }
 
             spdlog::debug("[{}] #CMUX : ", states.size());
             total_cnt_cmux += states.size();
@@ -415,11 +428,28 @@ private:
         Graph::State to = graph_.next_state(from, input);
         out = weight_.at(to);
     }
+
+    void bootstrapping_of_weight()
+    {
+        assert(gate_key_);
+        const GateKey &gk = *gate_key_;
+        std::for_each(
+            std::execution::par, weight_.begin(), weight_.end(), [&](auto &&w) {
+                TLWELvl1 tlwel1;
+                TFHEpp::SampleExtractIndex<Lvl1>(tlwel1, w, 0);
+                TLWELvl0 tlwel0;
+                TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwel0, tlwel1,
+                                                              gk.ksk);
+                TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(
+                    w, tlwel0, gk.bkfftlvl01);
+            });
+    }
 };
 
 void offline_dfa(const char *graph_filename, const char *input_filename)
 {
     SecretKey skey;
+    auto gkey = std::make_shared<GateKey>(skey);
 
     const std::vector<bool> plain_input = [&] {
         std::ifstream ifs{input_filename};
@@ -442,7 +472,7 @@ void offline_dfa(const char *graph_filename, const char *input_filename)
     Graph gr{graph_filename};
     gr.reserve_states_at_depth(input.size());
 
-    OfflineFARunner runner{gr, input};
+    OfflineFARunner runner{gr, input, gkey};
     runner.eval();
 
     TLWELvl1 enc_res = runner.result();
