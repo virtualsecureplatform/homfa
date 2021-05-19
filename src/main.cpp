@@ -445,6 +445,14 @@ public:
         spdlog::info("\tState size:\t{}", graph_.size());
         spdlog::info("\tWeight size:\t{}", weight_.size());
         spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+
+        {
+            size_t total_cnt_cmux = 0;
+            for (size_t j = 0; j < input_stream_.size(); j++)
+                total_cnt_cmux += graph_.states_at_depth(j).size();
+            spdlog::info("\tTotal #CMUX:\t{}", total_cnt_cmux);
+        }
+
         spdlog::info("");
     }
 
@@ -464,7 +472,7 @@ public:
         assert(!has_evaluated_);
         has_evaluated_ = true;
 
-        size_t input_size = input_stream_.size(), total_cnt_cmux = 0;
+        size_t input_size = input_stream_.size();
         std::vector<TRLWELvl1> out(weight_.size(), trivial_TRLWELvl1_zero());
         for (int j = input_size - 1; j >= 0; --j) {
             auto states = graph_.states_at_depth(j);
@@ -488,9 +496,7 @@ public:
             }
 
             spdlog::debug("[{}] #CMUX : ", states.size());
-            total_cnt_cmux += states.size();
         }
-        spdlog::info("Total #CMUX : {}", total_cnt_cmux);
     }
 
 private:
