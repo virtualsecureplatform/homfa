@@ -190,20 +190,24 @@ public:
         states_at_depth_.shrink_to_fit();
         states_at_depth_.reserve(depth);
 
-        std::set<int> sts0, sts1;
-        sts0.insert(initial_state());
+        std::vector<bool> sts(size(), false);
+        sts.at(initial_state()) = true;
+        std::vector<State> tmp;
+        tmp.reserve(size());
         for (size_t i = 0; i < depth; i++) {
-            states_at_depth_.emplace_back(sts0.begin(), sts0.end());
+            for (Graph::State st = 0; st < size(); st++) {
+                if (sts.at(st))
+                    tmp.push_back(st);
+                sts.at(st) = false;
+            }
+            states_at_depth_.push_back(tmp);
 
-            sts1.clear();
-            for (State st : sts0) {
-                sts1.insert(next_state(st, false));
-                sts1.insert(next_state(st, true));
+            for (State st : tmp) {
+                sts.at(next_state(st, false)) = true;
+                sts.at(next_state(st, true)) = true;
             }
-            {
-                using std::swap;
-                swap(sts0, sts1);
-            }
+
+            tmp.clear();
         }
     }
 
