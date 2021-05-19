@@ -60,6 +60,17 @@ PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1 &src, const SecretKey &skey)
     return phase;
 }
 
+// w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
+void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKey &gk)
+{
+    TLWELvl1 tlwel1;
+    TFHEpp::SampleExtractIndex<Lvl1>(tlwel1, w, 0);
+    TLWELvl0 tlwel0;
+    TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwel0, tlwel1, gk.ksk);
+    TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(w, tlwel0,
+                                                               gk.bkfftlvl01);
+}
+
 PolyLvl1 uint2weight(uint64_t n)
 {
     PolyLvl1 w;
@@ -435,7 +446,10 @@ public:
 
     TLWELvl1 result() const
     {
-        auto w = weight_.at(graph_.initial_state());
+        assert(has_evaluated_);
+        TRLWELvl1 w = weight_.at(graph_.initial_state());
+        if (gate_key_)
+            do_SEI_IKS_GBTLWE2TRLWE(w, *gate_key_);
         TLWELvl1 ret;
         TFHEpp::SampleExtractIndex<Lvl1>(ret, w, 0);
         return ret;
@@ -485,17 +499,9 @@ private:
     void bootstrapping_of_weight()
     {
         assert(gate_key_);
-        const GateKey &gk = *gate_key_;
         std::for_each(
-            std::execution::par, weight_.begin(), weight_.end(), [&](auto &&w) {
-                TLWELvl1 tlwel1;
-                TFHEpp::SampleExtractIndex<Lvl1>(tlwel1, w, 0);
-                TLWELvl0 tlwel0;
-                TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwel0, tlwel1,
-                                                              gk.ksk);
-                TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(
-                    w, tlwel0, gk.bkfftlvl01);
-            });
+            std::execution::par, weight_.begin(), weight_.end(),
+            [&](TRLWELvl1 &w) { do_SEI_IKS_GBTLWE2TRLWE(w, *gate_key_); });
     }
 };
 
