@@ -486,45 +486,6 @@ public:
     }
 };
 
-
-class ReversedTRGSWLvl1InputStreamFromPlainFile
-    : public InputStream<TRGSWLvl1FFT> {
-private:
-    const SecretKey &skey_;
-    std::vector<bool> data_;
-    std::vector<bool>::reverse_iterator head_;
-
-public:
-    ReversedTRGSWLvl1InputStreamFromPlainFile(const std::string &filename,
-                                              const SecretKey &skey)
-        : skey_(skey)
-    {
-        std::ifstream ifs{filename};
-        assert(ifs);
-        while (ifs) {
-            int ch = ifs.get();
-            if (ch == EOF)
-                break;
-            for (int i = 0; i < 8; i++)
-                data_.push_back(((static_cast<uint8_t>(ch) >> i) & 1u) != 0);
-        }
-        head_ = data_.rbegin();
-    }
-
-    size_t size() const override
-    {
-        return data_.rend() - head_;
-    }
-
-    TRGSWLvl1FFT next() override
-    {
-        assert(size() != 0);
-        auto ret = encrypt_bit_to_TRGSWLvl1FFT(*head_, skey_);
-        head_++;
-        return ret;
-    }
-};
-
 class OfflineFARunner {
     // Interval for bootstrapping
     const static size_t BOOT_INTERVAL = 8000;
