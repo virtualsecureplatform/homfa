@@ -1,6 +1,8 @@
 add_executable(homfa
+    dfa.cpp
+    error.cpp
     main.cpp
-    error.cpp)
+)
 add_sanitizers(homfa)
 target_compile_options(homfa PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")
 target_compile_options(homfa PUBLIC "$<$<CONFIG:RELEASE>:${HOMFA_CXXFLAGS_RELEASE}>")
