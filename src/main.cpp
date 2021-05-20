@@ -588,27 +588,6 @@ private:
     }
 };
 
-void offline_dfa(const std::string &graph_filename,
-                 const std::string &input_filename)
-{
-    SecretKey skey;
-    auto gkey = std::make_shared<GateKey>(skey);
-
-    ReversedTRGSWLvl1InputStreamFromPlainFile input_stream{input_filename,
-                                                           skey};
-    // PreEncryptTRGSWLvl1InputStreamFromPlainFile input_stream{input_filename,
-    //                                                         skey};
-    Graph gr{graph_filename};
-    gr.reserve_states_at_depth(input_stream.size());
-
-    OfflineFARunner runner{gr, input_stream, gkey};
-    runner.eval();
-
-    TLWELvl1 enc_res = runner.result();
-    bool res = TFHEpp::tlweSymDecrypt<Lvl1>(enc_res, skey.key.lvl1);
-    spdlog::info("Result (bool): {}", res);
-}
-
 void do_genkey(const std::string &output_filename)
 {
     SecretKey skey;
