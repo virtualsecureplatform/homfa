@@ -71,6 +71,11 @@ void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKey &gk)
                                                                gk.bkfftlvl01);
 }
 
+TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey &skey)
+{
+    return TFHEpp::trgswfftSymEncrypt<Lvl1>(b, Lvl1::α, skey.key.lvl1);
+}
+
 PolyLvl1 uint2weight(uint64_t n)
 {
     PolyLvl1 w;
@@ -374,6 +379,51 @@ public:
     virtual T next() = 0;
 };
 
+class PreEncryptTRGSWLvl1InputStreamFromPlainFile
+    : public InputStream<TRGSWLvl1FFT> {
+private:
+    std::vector<TRGSWLvl1FFT> data_;
+    std::vector<TRGSWLvl1FFT>::reverse_iterator head_;
+
+public:
+    PreEncryptTRGSWLvl1InputStreamFromPlainFile(const char *filename,
+                                                const SecretKey &skey)
+    {
+        std::ifstream ifs{filename};
+        assert(ifs);
+        std::vector<bool> src;
+        while (ifs) {
+            int ch = ifs.get();
+            if (ch == EOF)
+                break;
+            for (int i = 0; i < 8; i++) {
+                bool b = ((static_cast<uint8_t>(ch) >> i) & 1u) != 0;
+                src.push_back(b);
+            }
+        }
+
+        data_.resize(src.size());
+        std::vector<size_t> indices(src.size());
+        std::iota(indices.begin(), indices.end(), 0);
+        std::for_each(
+            std::execution::par, indices.begin(), indices.end(), [&](size_t i) {
+                data_.at(i) = encrypt_bit_to_TRGSWLvl1FFT(src.at(i), skey);
+            });
+        head_ = data_.rbegin();
+    }
+
+    size_t size() const override
+    {
+        return data_.rend() - head_;
+    }
+
+    TRGSWLvl1FFT next() override
+    {
+        assert(size() != 0);
+        return *(head_++);
+    }
+};
+
 class ReversedTRGSWLvl1InputStreamFromPlainFile
     : public InputStream<TRGSWLvl1FFT> {
 private:
@@ -406,8 +456,7 @@ public:
     TRGSWLvl1FFT next() override
     {
         assert(size() != 0);
-        auto ret =
-            TFHEpp::trgswfftSymEncrypt<Lvl1>(*head_, Lvl1::α, skey_.key.lvl1);
+        auto ret = encrypt_bit_to_TRGSWLvl1FFT(*head_, skey_);
         head_++;
         return ret;
     }
@@ -520,8 +569,10 @@ void offline_dfa(const char *graph_filename, const char *input_filename)
     SecretKey skey;
     auto gkey = std::make_shared<GateKey>(skey);
 
-    ReversedTRGSWLvl1InputStreamFromPlainFile input_stream{skey,
-                                                           input_filename};
+    ReversedTRGSWLvl1InputStreamFromPlainFile input_stream{input_filename,
+                                                           skey};
+    // PreEncryptTRGSWLvl1InputStreamFromPlainFile input_stream{input_filename,
+    //                                                         skey};
     Graph gr{graph_filename};
     gr.reserve_states_at_depth(input_stream.size());
 
