@@ -1,3 +1,5 @@
+#include "error.hpp"
+
 #include <cassert>
 #include <execution>
 #include <fstream>
@@ -8,7 +10,85 @@
 #include <thread>
 
 #include <spdlog/spdlog.h>
+#include <CLI/CLI.hpp>
+#include <cereal/archives/portable_binary.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/vector.hpp>
 #include <tfhe++.hpp>
+
+template <class T>
+void readFromArchive(T &res, std::istream &is)
+{
+    cereal::PortableBinaryInputArchive ar{is};
+    ar(res);
+}
+
+template <class T>
+void readFromArchive(T &res, const std::string &path)
+{
+    try {
+        std::ifstream ifs{path, std::ios::binary};
+        assert(ifs && "Can't open the file to read from; maybe not found?");
+        readFromArchive<T>(res, ifs);
+    }
+    catch (std::exception &ex) {
+        error::die("Invalid archive: ", path);
+    }
+}
+
+template <class T>
+T readFromArchive(std::istream &is)
+{
+    T ret;
+    readFromArchive(ret, is);
+    return ret;
+}
+
+template <class T>
+T readFromArchive(const std::string &path)
+{
+    T ret;
+    readFromArchive(ret, path);
+    return ret;
+}
+
+template <class T>
+void writeToArchive(std::ostream &os, const T &src)
+{
+    cereal::PortableBinaryOutputArchive ar{os};
+    ar(src);
+}
+
+template <class T>
+void writeToArchive(const std::string &path, const T &src)
+{
+    try {
+        std::ofstream ofs{path, std::ios::binary};
+        assert(ofs && "Can't open the file to write in; maybe not allowed?");
+        return writeToArchive(ofs, src);
+    }
+    catch (std::exception &ex) {
+        spdlog::error(ex.what());
+        error::die("Unable to write into archive: ", path);
+    }
+}
+
+template <class T>
+bool isCorrectArchive(const std::string &path)
+{
+    try {
+        std::ifstream ifs{path, std::ios::binary};
+        if (!ifs)
+            return false;
+        T cont;
+        readFromArchive<T>(cont, ifs);
+        return true;
+    }
+    catch (std::exception &ex) {
+        return false;
+    }
+}
 
 using Lvl0 = TFHEpp::lvl0param;
 using TLWELvl0 = TFHEpp::TLWE<Lvl0>;
@@ -379,6 +459,33 @@ public:
     virtual T next() = 0;
 };
 
+class ReversedTRGSWLvl1InputStreamFromCtxtFile
+    : public InputStream<TRGSWLvl1FFT> {
+private:
+    std::vector<TRGSWLvl1FFT> data_;
+    std::vector<TRGSWLvl1FFT>::reverse_iterator head_;
+
+public:
+    ReversedTRGSWLvl1InputStreamFromCtxtFile(const std::string &filename)
+    {
+        std::ifstream ifs{filename};
+        assert(ifs);
+        data_ = readFromArchive<std::vector<TRGSWLvl1FFT>>(filename);
+        head_ = data_.rbegin();
+    }
+
+    size_t size() const override
+    {
+        return data_.rend() - head_;
+    }
+
+    TRGSWLvl1FFT next() override
+    {
+        assert(size() != 0);
+        return *(head_++);
+    }
+};
+
 class PreEncryptTRGSWLvl1InputStreamFromPlainFile
     : public InputStream<TRGSWLvl1FFT> {
 private:
@@ -386,7 +493,7 @@ private:
     std::vector<TRGSWLvl1FFT>::reverse_iterator head_;
 
 public:
-    PreEncryptTRGSWLvl1InputStreamFromPlainFile(const char *filename,
+    PreEncryptTRGSWLvl1InputStreamFromPlainFile(const std::string &filename,
                                                 const SecretKey &skey)
     {
         std::ifstream ifs{filename};
@@ -432,7 +539,7 @@ private:
     std::vector<bool>::reverse_iterator head_;
 
 public:
-    ReversedTRGSWLvl1InputStreamFromPlainFile(const char *filename,
+    ReversedTRGSWLvl1InputStreamFromPlainFile(const std::string &filename,
                                               const SecretKey &skey)
         : skey_(skey)
     {
@@ -564,7 +671,8 @@ private:
     }
 };
 
-void offline_dfa(const char *graph_filename, const char *input_filename)
+void offline_dfa(const std::string &graph_filename,
+                 const std::string &input_filename)
 {
     SecretKey skey;
     auto gkey = std::make_shared<GateKey>(skey);
@@ -584,15 +692,149 @@ void offline_dfa(const char *graph_filename, const char *input_filename)
     spdlog::info("Result (bool): {}", res);
 }
 
-int main(int argc, char **argv)
+void do_genkey(const std::string &output_filename)
 {
-    if (argc != 3) {
-        spdlog::error("Usage: {} AUTOMATON-SPEC-FILE INPUT-FILE", argv[0]);
-        return 1;
+    SecretKey skey;
+    writeToArchive(output_filename, skey);
+}
+
+void do_genbkey(const std::string &skey_filename,
+                const std::string &output_filename)
+{
+    auto skey = readFromArchive<SecretKey>(skey_filename);
+    auto bkey = std::make_shared<GateKey>(skey);
+    writeToArchive(output_filename, bkey);
+}
+
+void do_enc(const std::string &skey_filename, const std::string &input_filename,
+            const std::string &output_filename)
+{
+    auto skey = readFromArchive<SecretKey>(skey_filename);
+
+    std::ifstream ifs{input_filename};
+    assert(ifs);
+    std::vector<TRGSWLvl1FFT> data;
+    while (ifs) {
+        int ch = ifs.get();
+        if (ch == EOF)
+            break;
+        for (int i = 0; i < 8; i++) {
+            bool b = ((static_cast<uint8_t>(ch) >> i) & 1u) != 0;
+            data.push_back(encrypt_bit_to_TRGSWLvl1FFT(b, skey));
+        }
     }
 
-    // det_wfa(argv[1], argv[2]);
-    offline_dfa(argv[1], argv[2]);
+    writeToArchive(output_filename, data);
+}
+
+void do_run_offline_dfa(
+    const std::string &spec_filename, const std::string &input_filename,
+    const std::string &output_filename,
+    const std::optional<std::string> &bkey_filename = std::nullopt)
+{
+    ReversedTRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
+
+    Graph gr{spec_filename};
+    gr.reserve_states_at_depth(input_stream.size());
+
+    auto bkey = (bkey_filename
+                     ? readFromArchive<std::shared_ptr<GateKey>>(*bkey_filename)
+                     : nullptr);
+
+    OfflineFARunner runner{gr, input_stream, bkey};
+    runner.eval();
+
+    writeToArchive(output_filename, runner.result());
+}
+
+void do_dec(const std::string &skey_filename, const std::string &input_filename)
+{
+    auto skey = readFromArchive<SecretKey>(skey_filename);
+    auto enc_res = readFromArchive<TLWELvl1>(input_filename);
+    bool res = TFHEpp::tlweSymDecrypt<Lvl1>(enc_res, skey.key.lvl1);
+    spdlog::info("Result (bool): {}", res);
+}
+
+int main(int argc, char **argv)
+{
+    CLI::App app{"Homomorphic Final Answer"};
+    app.require_subcommand();
+
+    enum class TYPE {
+        GENKEY,
+        GENBKEY,
+        ENC,
+        RUN_OFFLINE_DFA,
+        DEC,
+    } type;
+
+    std::optional<std::string> spec, skey, bkey, input, output;
+
+    {
+        CLI::App *genkey = app.add_subcommand("genkey", "Generate secret key");
+        genkey->parse_complete_callback([&] { type = TYPE::GENKEY; });
+        genkey->add_option("--out", output)->required();
+    }
+    {
+        CLI::App *genbkey = app.add_subcommand(
+            "genbkey", "Generate bootstrapping key from secret key");
+        genbkey->parse_complete_callback([&] { type = TYPE::GENBKEY; });
+        genbkey->add_option("--key", skey)
+            ->required()
+            ->check(CLI::ExistingFile);
+        genbkey->add_option("--out", output)->required();
+    }
+    {
+        CLI::App *enc = app.add_subcommand("enc", "Encrypt input file");
+        enc->parse_complete_callback([&] { type = TYPE::ENC; });
+        enc->add_option("--key", skey)->required()->check(CLI::ExistingFile);
+        enc->add_option("--in", input)->required()->check(CLI::ExistingFile);
+        enc->add_option("--out", output)->required();
+    }
+    {
+        CLI::App *run =
+            app.add_subcommand("run-offline-dfa", "Run offline DFA");
+        run->parse_complete_callback([&] { type = TYPE::RUN_OFFLINE_DFA; });
+        run->add_option("--bkey", bkey)->check(CLI::ExistingFile);
+        run->add_option("--spec", spec)->required()->check(CLI::ExistingFile);
+        run->add_option("--in", input)->required()->check(CLI::ExistingFile);
+        run->add_option("--out", output)->required();
+    }
+    {
+        CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
+        dec->parse_complete_callback([&] { type = TYPE::DEC; });
+        dec->add_option("--key", skey)->required()->check(CLI::ExistingFile);
+        dec->add_option("--in", input)->required()->check(CLI::ExistingFile);
+    }
+
+    CLI11_PARSE(app, argc, argv);
+
+    switch (type) {
+    case TYPE::GENKEY:
+        assert(output);
+        do_genkey(*output);
+        break;
+
+    case TYPE::GENBKEY:
+        assert(skey && output);
+        do_genbkey(*skey, *output);
+        break;
+
+    case TYPE::ENC:
+        assert(skey && input && output);
+        do_enc(*skey, *input, *output);
+        break;
+
+    case TYPE::RUN_OFFLINE_DFA:
+        assert(spec && input && output);
+        do_run_offline_dfa(*spec, *input, *output, bkey);
+        break;
+
+    case TYPE::DEC:
+        assert(skey && input);
+        do_dec(*skey, *input);
+        break;
+    }
 
     return 0;
 }
