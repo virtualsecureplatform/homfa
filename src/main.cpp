@@ -432,8 +432,8 @@ private:
     std::vector<bool>::reverse_iterator head_;
 
 public:
-    ReversedTRGSWLvl1InputStreamFromPlainFile(const SecretKey &skey,
-                                              const char *filename)
+    ReversedTRGSWLvl1InputStreamFromPlainFile(const char *filename,
+                                              const SecretKey &skey)
         : skey_(skey)
     {
         std::ifstream ifs{filename};
