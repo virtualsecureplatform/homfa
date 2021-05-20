@@ -21,8 +21,21 @@ HOMFA=build/bin/homfa
 
 output_file=$(date +'homfa-bench-%Y%m%d%H%M%S.log')
 
+enc_run_dec(){
+    $HOMFA enc --key _test_sk --in "$2" --out _test_in
+    $HOMFA run-offline-dfa --bkey _test_bk --spec "$1" --in _test_in --out _test_out
+    $HOMFA dec --key _test_sk --in _test_out
+}
+
+[ -f _test_sk ] || $HOMFA genkey --out _test_sk
+[ -f _test_bk ] || $HOMFA genbkey --key _test_sk --out _test_bk
+
 for s in "${spec[@]}"; do
     for i in "${input[@]}"; do
-        $TIME $HOMFA "$s" "$i" 2>&1 | tee -a "$output_file"
+        $HOMFA enc --key _test_sk --in "$i" --out _test_in
+        $TIME $HOMFA run-offline-dfa --bkey _test_bk --spec "$s" --in _test_in --out _test_out 2>&1\
+            | tee -a "$output_file"
+        $HOMFA dec --key _test_sk --in _test_out | grep "Result (bool): true"
+        [ $? -eq 0 ] || exit 1
     done
 done
