@@ -486,50 +486,6 @@ public:
     }
 };
 
-class PreEncryptTRGSWLvl1InputStreamFromPlainFile
-    : public InputStream<TRGSWLvl1FFT> {
-private:
-    std::vector<TRGSWLvl1FFT> data_;
-    std::vector<TRGSWLvl1FFT>::reverse_iterator head_;
-
-public:
-    PreEncryptTRGSWLvl1InputStreamFromPlainFile(const std::string &filename,
-                                                const SecretKey &skey)
-    {
-        std::ifstream ifs{filename};
-        assert(ifs);
-        std::vector<bool> src;
-        while (ifs) {
-            int ch = ifs.get();
-            if (ch == EOF)
-                break;
-            for (int i = 0; i < 8; i++) {
-                bool b = ((static_cast<uint8_t>(ch) >> i) & 1u) != 0;
-                src.push_back(b);
-            }
-        }
-
-        data_.resize(src.size());
-        std::vector<size_t> indices(src.size());
-        std::iota(indices.begin(), indices.end(), 0);
-        std::for_each(
-            std::execution::par, indices.begin(), indices.end(), [&](size_t i) {
-                data_.at(i) = encrypt_bit_to_TRGSWLvl1FFT(src.at(i), skey);
-            });
-        head_ = data_.rbegin();
-    }
-
-    size_t size() const override
-    {
-        return data_.rend() - head_;
-    }
-
-    TRGSWLvl1FFT next() override
-    {
-        assert(size() != 0);
-        return *(head_++);
-    }
-};
 
 class ReversedTRGSWLvl1InputStreamFromPlainFile
     : public InputStream<TRGSWLvl1FFT> {
