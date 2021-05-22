@@ -26,6 +26,20 @@ TRLWELvl1 trivial_TRLWELvl1_zero()
     return ret;
 }
 
+TRLWELvl1 trivial_TRLWELvl1_minus_1over8()
+{
+    TRLWELvl1 ret = trivial_TRLWELvl1_zero();
+    ret[1][0] = -(1u << 29);  // -1/8
+    return ret;
+}
+
+TRLWELvl1 trivial_TRLWELvl1_1over8()
+{
+    TRLWELvl1 ret = trivial_TRLWELvl1_zero();
+    ret[1][0] = (1u << 29);  // 1/8
+    return ret;
+}
+
 // out += src
 void TRLWELvl1_add(TRLWELvl1 &out, const TRLWELvl1 &src)
 {
@@ -126,9 +140,11 @@ Graph::Graph(const std::string &filename)
         ifs >> s0 >> s1;
         if (no.at(no.size() - 1) == '*')
             final_state_.insert(i);
-        table_.push_back(TableItem{i, s0, s1, 0, 0});
+        table_.push_back(TableItem{i, s0, s1, {}, {}, 0, 0});
     }
     for (auto &&item : table_) {
+        table_.at(item.child0).parents0.push_back(item.index);
+        table_.at(item.child1).parents1.push_back(item.index);
         if (final_state_.contains(item.child0))
             item.gain0 = 1;
         if (final_state_.contains(item.child1))
@@ -150,6 +166,12 @@ Graph::State Graph::next_state(State state, bool input) const
 {
     auto &t = table_.at(state);
     return input ? t.child1 : t.child0;
+}
+
+std::vector<Graph::State> Graph::prev_states(State state, bool input) const
+{
+    auto &t = table_.at(state);
+    return input ? t.parents1 : t.parents0;
 }
 
 Graph::State Graph::initial_state() const
@@ -338,6 +360,26 @@ void det_wfa(const char *graph_filename, const char *input_filename)
     }
 }
 
+TRGSWLvl1InputStreamFromCtxtFile::TRGSWLvl1InputStreamFromCtxtFile(
+    const std::string &filename)
+{
+    std::ifstream ifs{filename};
+    assert(ifs);
+    data_ = readFromArchive<std::vector<TRGSWLvl1FFT>>(filename);
+    head_ = data_.begin();
+}
+
+size_t TRGSWLvl1InputStreamFromCtxtFile::size() const
+{
+    return data_.end() - head_;
+}
+
+TRGSWLvl1FFT TRGSWLvl1InputStreamFromCtxtFile::next()
+{
+    assert(size() != 0);
+    return *(head_++);
+}
+
 ReversedTRGSWLvl1InputStreamFromCtxtFile::
     ReversedTRGSWLvl1InputStreamFromCtxtFile(const std::string &filename)
 {
@@ -441,6 +483,79 @@ void OfflineFARunner::next_weight(TRLWELvl1 &out, int j, Graph::State from,
 }
 
 void OfflineFARunner::bootstrapping_of_weight()
+{
+    assert(gate_key_);
+    std::for_each(
+        std::execution::par, weight_.begin(), weight_.end(),
+        [&](TRLWELvl1 &w) { do_SEI_IKS_GBTLWE2TRLWE(w, *gate_key_); });
+}
+
+OnlineDFARunner::OnlineDFARunner(const Graph &graph,
+                                 std::shared_ptr<GateKey> gate_key)
+    : graph_(graph),
+      weight_(graph.size(), trivial_TRLWELvl1_zero()),
+      gate_key_(std::move(gate_key))
+{
+    for (Graph::State st = 0; st < graph_.size(); st++)
+        if (st == graph_.initial_state())
+            weight_.at(st)[1][0] = (1u << 29);  // 1/8
+        else
+            weight_.at(st)[1][0] = -(1u << 29);  // -1/8
+
+    spdlog::info("Parameter:");
+    spdlog::info("\tMode:\t{}", "Online FA Runner");
+    spdlog::info("\tState size:\t{}", graph_.size());
+    spdlog::info("\tWeight size:\t{}", weight_.size());
+    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+    spdlog::info("");
+}
+
+TLWELvl1 OnlineDFARunner::result()
+{
+    if (gate_key_)
+        bootstrap_weight();  // FIXME: is this necessary?
+    TRLWELvl1 acc = trivial_TRLWELvl1_minus_1over8(),
+              offset = trivial_TRLWELvl1_1over8();
+    for (Graph::State st = 0; st < graph_.size(); st++) {
+        if (graph_.is_final_state(st)) {
+            TRLWELvl1_add(acc, weight_.at(st));
+            TRLWELvl1_add(acc, offset);
+        }
+    }
+    if (gate_key_)
+        do_SEI_IKS_GBTLWE2TRLWE(acc, *gate_key_);
+    TLWELvl1 ret;
+    TFHEpp::SampleExtractIndex<Lvl1>(ret, acc, 0);
+    return ret;
+}
+
+void OnlineDFARunner::eval_one(const TRGSWLvl1FFT &input)
+{
+    std::vector<TRLWELvl1> out{weight_.size()};
+    for (Graph::State st = 0; st < graph_.size(); st++) {
+        std::vector<Graph::State> parents0 = graph_.prev_states(st, false),
+                                  parents1 = graph_.prev_states(st, true);
+        TRLWELvl1 acc0 = trivial_TRLWELvl1_minus_1over8(),
+                  acc1 = trivial_TRLWELvl1_minus_1over8(),
+                  offset = trivial_TRLWELvl1_1over8();
+        for (Graph::State p0 : parents0) {
+            TRLWELvl1_add(acc0, weight_.at(p0));
+            TRLWELvl1_add(acc0, offset);
+        }
+        for (Graph::State p1 : parents1) {
+            TRLWELvl1_add(acc1, weight_.at(p1));
+            TRLWELvl1_add(acc1, offset);
+        }
+        TFHEpp::CMUXFFT<Lvl1>(out.at(st), input, acc1, acc0);
+    }
+    {
+        using std::swap;
+        swap(out, weight_);
+    }
+    bootstrap_weight();
+}
+
+void OnlineDFARunner::bootstrap_weight()
 {
     assert(gate_key_);
     std::for_each(

@@ -70,6 +70,26 @@ void do_run_offline_dfa(
     writeToArchive(output_filename, runner.result());
 }
 
+void do_run_online_dfa(
+    const std::string &spec_filename, const std::string &input_filename,
+    const std::string &output_filename,
+    const std::optional<std::string> &bkey_filename = std::nullopt)
+{
+    TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
+    Graph gr{spec_filename};
+    auto bkey = (bkey_filename
+                     ? readFromArchive<std::shared_ptr<GateKey>>(*bkey_filename)
+                     : nullptr);
+    OnlineDFARunner runner{gr, bkey};
+
+    for (size_t i = 0; input_stream.size() != 0; i++) {
+        spdlog::debug("Processing input {}", i);
+        runner.eval_one(input_stream.next());
+    }
+
+    writeToArchive(output_filename, runner.result());
+}
+
 void do_dec(const std::string &skey_filename, const std::string &input_filename)
 {
     auto skey = readFromArchive<SecretKey>(skey_filename);
@@ -88,6 +108,7 @@ int main(int argc, char **argv)
         GENBKEY,
         ENC,
         RUN_OFFLINE_DFA,
+        RUN_ONLINE_DFA,
         DEC,
     } type;
 
@@ -124,6 +145,14 @@ int main(int argc, char **argv)
         run->add_option("--out", output)->required();
     }
     {
+        CLI::App *run = app.add_subcommand("run-online-dfa", "Run online DFA");
+        run->parse_complete_callback([&] { type = TYPE::RUN_ONLINE_DFA; });
+        run->add_option("--bkey", bkey)->check(CLI::ExistingFile);
+        run->add_option("--spec", spec)->required()->check(CLI::ExistingFile);
+        run->add_option("--in", input)->required()->check(CLI::ExistingFile);
+        run->add_option("--out", output)->required();
+    }
+    {
         CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
         dec->parse_complete_callback([&] { type = TYPE::DEC; });
         dec->add_option("--key", skey)->required()->check(CLI::ExistingFile);
@@ -151,6 +180,11 @@ int main(int argc, char **argv)
     case TYPE::RUN_OFFLINE_DFA:
         assert(spec && input && output);
         do_run_offline_dfa(*spec, *input, *output, bkey);
+        break;
+
+    case TYPE::RUN_ONLINE_DFA:
+        assert(spec && input && output);
+        do_run_online_dfa(*spec, *input, *output, bkey);
         break;
 
     case TYPE::DEC:
