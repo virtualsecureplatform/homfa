@@ -11,19 +11,19 @@
 #include <cereal/types/vector.hpp>
 
 template <class T>
-void readFromArchive(T &res, std::istream &is)
+void read_from_archive(T &res, std::istream &is)
 {
     cereal::PortableBinaryInputArchive ar{is};
     ar(res);
 }
 
 template <class T>
-void readFromArchive(T &res, const std::string &path)
+void read_from_archive(T &res, const std::string &path)
 {
     try {
         std::ifstream ifs{path, std::ios::binary};
         assert(ifs && "Can't open the file to read from; maybe not found?");
-        readFromArchive<T>(res, ifs);
+        read_from_archive<T>(res, ifs);
     }
     catch (std::exception &ex) {
         error::die("Invalid archive: ", path);
@@ -31,35 +31,35 @@ void readFromArchive(T &res, const std::string &path)
 }
 
 template <class T>
-T readFromArchive(std::istream &is)
+T read_from_archive(std::istream &is)
 {
     T ret;
-    readFromArchive(ret, is);
+    read_from_archive(ret, is);
     return ret;
 }
 
 template <class T>
-T readFromArchive(const std::string &path)
+T read_from_archive(const std::string &path)
 {
     T ret;
-    readFromArchive(ret, path);
+    read_from_archive(ret, path);
     return ret;
 }
 
 template <class T>
-void writeToArchive(std::ostream &os, const T &src)
+void write_to_archive(std::ostream &os, const T &src)
 {
     cereal::PortableBinaryOutputArchive ar{os};
     ar(src);
 }
 
 template <class T>
-void writeToArchive(const std::string &path, const T &src)
+void write_to_archive(const std::string &path, const T &src)
 {
     try {
         std::ofstream ofs{path, std::ios::binary};
         assert(ofs && "Can't open the file to write in; maybe not allowed?");
-        return writeToArchive(ofs, src);
+        return write_to_archive(ofs, src);
     }
     catch (std::exception &ex) {
         spdlog::error(ex.what());

@@ -365,7 +365,7 @@ TRGSWLvl1InputStreamFromCtxtFile::TRGSWLvl1InputStreamFromCtxtFile(
 {
     std::ifstream ifs{filename};
     assert(ifs);
-    data_ = readFromArchive<std::vector<TRGSWLvl1FFT>>(filename);
+    data_ = read_from_archive<std::vector<TRGSWLvl1FFT>>(filename);
     head_ = data_.begin();
 }
 
@@ -385,7 +385,7 @@ ReversedTRGSWLvl1InputStreamFromCtxtFile::
 {
     std::ifstream ifs{filename};
     assert(ifs);
-    data_ = readFromArchive<std::vector<TRGSWLvl1FFT>>(filename);
+    data_ = read_from_archive<std::vector<TRGSWLvl1FFT>>(filename);
     head_ = data_.rbegin();
 }
 

@@ -18,21 +18,21 @@
 void do_genkey(const std::string &output_filename)
 {
     SecretKey skey;
-    writeToArchive(output_filename, skey);
+    write_to_archive(output_filename, skey);
 }
 
 void do_genbkey(const std::string &skey_filename,
                 const std::string &output_filename)
 {
-    auto skey = readFromArchive<SecretKey>(skey_filename);
+    auto skey = read_from_archive<SecretKey>(skey_filename);
     auto bkey = std::make_shared<GateKey>(skey);
-    writeToArchive(output_filename, bkey);
+    write_to_archive(output_filename, bkey);
 }
 
 void do_enc(const std::string &skey_filename, const std::string &input_filename,
             const std::string &output_filename)
 {
-    auto skey = readFromArchive<SecretKey>(skey_filename);
+    auto skey = read_from_archive<SecretKey>(skey_filename);
 
     std::ifstream ifs{input_filename};
     assert(ifs);
@@ -47,7 +47,7 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
         }
     }
 
-    writeToArchive(output_filename, data);
+    write_to_archive(output_filename, data);
 }
 
 void do_run_offline_dfa(
@@ -60,14 +60,15 @@ void do_run_offline_dfa(
     Graph gr{spec_filename};
     gr.reserve_states_at_depth(input_stream.size());
 
-    auto bkey = (bkey_filename
-                     ? readFromArchive<std::shared_ptr<GateKey>>(*bkey_filename)
-                     : nullptr);
+    auto bkey =
+        (bkey_filename
+             ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
+             : nullptr);
 
     OfflineFARunner runner{gr, input_stream, bkey};
     runner.eval();
 
-    writeToArchive(output_filename, runner.result());
+    write_to_archive(output_filename, runner.result());
 }
 
 void do_run_online_dfa(
@@ -77,9 +78,10 @@ void do_run_online_dfa(
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr{spec_filename};
-    auto bkey = (bkey_filename
-                     ? readFromArchive<std::shared_ptr<GateKey>>(*bkey_filename)
-                     : nullptr);
+    auto bkey =
+        (bkey_filename
+             ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
+             : nullptr);
     OnlineDFARunner runner{gr, bkey};
 
     for (size_t i = 0; input_stream.size() != 0; i++) {
@@ -87,13 +89,13 @@ void do_run_online_dfa(
         runner.eval_one(input_stream.next());
     }
 
-    writeToArchive(output_filename, runner.result());
+    write_to_archive(output_filename, runner.result());
 }
 
 void do_dec(const std::string &skey_filename, const std::string &input_filename)
 {
-    auto skey = readFromArchive<SecretKey>(skey_filename);
-    auto enc_res = readFromArchive<TLWELvl1>(input_filename);
+    auto skey = read_from_archive<SecretKey>(skey_filename);
+    auto enc_res = read_from_archive<TLWELvl1>(input_filename);
     bool res = TFHEpp::tlweSymDecrypt<Lvl1>(enc_res, skey.key.lvl1);
     spdlog::info("Result (bool): {}", res);
 }
