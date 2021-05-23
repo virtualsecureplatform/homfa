@@ -117,6 +117,7 @@ private:
     const Graph &graph_;
     std::vector<TRLWELvl1> weight_;
     std::shared_ptr<GateKey> gate_key_;
+    size_t bootstrap_interval_, num_processed_inputs_;
 
 public:
     OnlineDFARunner(const Graph &graph,

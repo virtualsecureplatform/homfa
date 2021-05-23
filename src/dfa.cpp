@@ -501,7 +501,9 @@ OnlineDFARunner::OnlineDFARunner(const Graph &graph,
                                  std::shared_ptr<GateKey> gate_key)
     : graph_(graph),
       weight_(graph.size(), trivial_TRLWELvl1_zero()),
-      gate_key_(std::move(gate_key))
+      gate_key_(std::move(gate_key)),
+      bootstrap_interval_(0),
+      num_processed_inputs_(0)
 {
     for (Graph::State st = 0; st < graph_.size(); st++)
         if (st == graph_.initial_state())
@@ -509,11 +511,17 @@ OnlineDFARunner::OnlineDFARunner(const Graph &graph,
         else
             weight_.at(st)[1][0] = -(1u << 29);  // -1/8
 
+    // log_n(8000) = log(8000)/log(n)
+    assert(graph_.size() > 1);
+    bootstrap_interval_ = std::log(8000) / std::log(graph_.size());
+    assert(bootstrap_interval_ > 0);
+
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner");
     spdlog::info("\tState size:\t{}", graph_.size());
     spdlog::info("\tWeight size:\t{}", weight_.size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+    spdlog::info("\tBootstrap interval:\t{}", bootstrap_interval_);
     spdlog::info("");
 }
 
@@ -562,7 +570,9 @@ void OnlineDFARunner::eval_one(const TRGSWLvl1FFT &input)
         using std::swap;
         swap(out, weight_);
     }
-    bootstrap_weight();
+
+    if (++num_processed_inputs_ % bootstrap_interval_ == 0)
+        bootstrap_weight();
 }
 
 void OnlineDFARunner::bootstrap_weight()
