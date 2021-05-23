@@ -114,8 +114,11 @@ int main(int argc, char **argv)
         DEC,
     } type;
 
+    bool verbose = false, quiet = false;
     std::optional<std::string> spec, skey, bkey, input, output;
 
+    app.add_flag("--verbose", verbose, "");
+    app.add_flag("--quiet", quiet, "");
     {
         CLI::App *genkey = app.add_subcommand("genkey", "Generate secret key");
         genkey->parse_complete_callback([&] { type = TYPE::GENKEY; });
@@ -162,6 +165,11 @@ int main(int argc, char **argv)
     }
 
     CLI11_PARSE(app, argc, argv);
+
+    if (quiet)
+        spdlog::set_level(spdlog::level::err);
+    if (verbose)
+        spdlog::set_level(spdlog::level::debug);
 
     switch (type) {
     case TYPE::GENKEY:
