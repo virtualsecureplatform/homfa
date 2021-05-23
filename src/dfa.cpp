@@ -299,7 +299,7 @@ public:
                 using std::swap;
                 swap(out, weight_);
             }
-            spdlog::debug("[{}] #CMUX : ", states.size());
+            spdlog::debug("[{}] #CMUX : {}", states.size());
             total_cnt_cmux += states.size();
         }
         spdlog::info("Total #CMUX : {}", total_cnt_cmux);
@@ -478,7 +478,7 @@ void OfflineFARunner::eval()
             bootstrapping_of_weight();
         }
 
-        spdlog::debug("[{}] #CMUX : ", states.size());
+        spdlog::debug("[{}] #CMUX : {}", states.size());
     }
 }
 
