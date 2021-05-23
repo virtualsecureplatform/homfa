@@ -217,6 +217,13 @@ std::vector<Graph::State> Graph::states_at_depth(size_t depth) const
     return states_at_depth_.at(depth);
 }
 
+std::vector<Graph::State> Graph::all_states() const
+{
+    std::vector<State> ret(size());
+    std::iota(ret.begin(), ret.end(), 0);
+    return ret;
+}
+
 class DetWFARunner {
 private:
     const Graph &graph_;
@@ -532,22 +539,25 @@ TLWELvl1 OnlineDFARunner::result()
 void OnlineDFARunner::eval_one(const TRGSWLvl1FFT &input)
 {
     std::vector<TRLWELvl1> out{weight_.size()};
-    for (Graph::State st = 0; st < graph_.size(); st++) {
-        std::vector<Graph::State> parents0 = graph_.prev_states(st, false),
-                                  parents1 = graph_.prev_states(st, true);
-        TRLWELvl1 acc0 = trivial_TRLWELvl1_minus_1over8(),
-                  acc1 = trivial_TRLWELvl1_minus_1over8(),
-                  offset = trivial_TRLWELvl1_1over8();
-        for (Graph::State p0 : parents0) {
-            TRLWELvl1_add(acc0, weight_.at(p0));
-            TRLWELvl1_add(acc0, offset);
-        }
-        for (Graph::State p1 : parents1) {
-            TRLWELvl1_add(acc1, weight_.at(p1));
-            TRLWELvl1_add(acc1, offset);
-        }
-        TFHEpp::CMUXFFT<Lvl1>(out.at(st), input, acc1, acc0);
-    }
+    std::vector<Graph::State> states = graph_.all_states();
+    std::for_each(
+        std::execution::par, states.begin(), states.end(),
+        [&](Graph::State st) {
+            std::vector<Graph::State> parents0 = graph_.prev_states(st, false),
+                                      parents1 = graph_.prev_states(st, true);
+            TRLWELvl1 acc0 = trivial_TRLWELvl1_minus_1over8(),
+                      acc1 = trivial_TRLWELvl1_minus_1over8(),
+                      offset = trivial_TRLWELvl1_1over8();
+            for (Graph::State p0 : parents0) {
+                TRLWELvl1_add(acc0, weight_.at(p0));
+                TRLWELvl1_add(acc0, offset);
+            }
+            for (Graph::State p1 : parents1) {
+                TRLWELvl1_add(acc1, weight_.at(p1));
+                TRLWELvl1_add(acc1, offset);
+            }
+            TFHEpp::CMUXFFT<Lvl1>(out.at(st), input, acc1, acc0);
+        });
     {
         using std::swap;
         swap(out, weight_);

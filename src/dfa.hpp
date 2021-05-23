@@ -46,6 +46,7 @@ public:
     uint64_t gain(State from, bool input) const;
     void reserve_states_at_depth(size_t depth);
     std::vector<State> states_at_depth(size_t depth) const;
+    std::vector<State> all_states() const;
 };
 
 template <class T>
