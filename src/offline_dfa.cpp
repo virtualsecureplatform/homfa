@@ -72,7 +72,7 @@ void OfflineDFARunner::eval()
         if (size_t cur = input_size - j;
             gate_key_ && cur != 0 && cur % BOOT_INTERVAL == 0) {
             spdlog::info("Bootstrapping occurred");
-            bootstrapping_of_weight();
+            bootstrap_weight();
         }
 
         spdlog::debug("[{}] #CMUX : {}", states.size());
@@ -86,7 +86,7 @@ void OfflineDFARunner::next_weight(TRLWELvl1 &out, int j, Graph::State from,
     out = weight_.at(to);
 }
 
-void OfflineDFARunner::bootstrapping_of_weight()
+void OfflineDFARunner::bootstrap_weight()
 {
     assert(gate_key_);
     std::for_each(
