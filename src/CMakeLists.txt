@@ -1,5 +1,4 @@
 add_executable(homfa
-    dfa.cpp
     error.cpp
     graph.cpp
     main.cpp
