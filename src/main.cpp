@@ -66,7 +66,7 @@ void do_run_offline_dfa(
              ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
              : nullptr);
 
-    OfflineFARunner runner{gr, input_stream, bkey};
+    OfflineDFARunner runner{gr, input_stream, bkey};
     runner.eval();
 
     write_to_archive(output_filename, runner.result());

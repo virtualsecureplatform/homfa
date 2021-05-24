@@ -4,9 +4,9 @@
 
 #include <spdlog/spdlog.h>
 
-OfflineFARunner::OfflineFARunner(const Graph &graph,
-                                 InputStream<TRGSWLvl1FFT> &input_stream,
-                                 std::shared_ptr<GateKey> gate_key)
+OfflineDFARunner::OfflineDFARunner(const Graph &graph,
+                                   InputStream<TRGSWLvl1FFT> &input_stream,
+                                   std::shared_ptr<GateKey> gate_key)
     : graph_(graph),
       input_stream_(input_stream),
       weight_(graph_.size(), trivial_TRLWELvl1_zero()),
@@ -36,7 +36,7 @@ OfflineFARunner::OfflineFARunner(const Graph &graph,
     spdlog::info("");
 }
 
-TLWELvl1 OfflineFARunner::result() const
+TLWELvl1 OfflineDFARunner::result() const
 {
     assert(has_evaluated_);
     TRLWELvl1 w = weight_.at(graph_.initial_state());
@@ -47,7 +47,7 @@ TLWELvl1 OfflineFARunner::result() const
     return ret;
 }
 
-void OfflineFARunner::eval()
+void OfflineDFARunner::eval()
 {
     assert(!has_evaluated_);
     has_evaluated_ = true;
@@ -79,14 +79,14 @@ void OfflineFARunner::eval()
     }
 }
 
-void OfflineFARunner::next_weight(TRLWELvl1 &out, int j, Graph::State from,
-                                  bool input) const
+void OfflineDFARunner::next_weight(TRLWELvl1 &out, int j, Graph::State from,
+                                   bool input) const
 {
     Graph::State to = graph_.next_state(from, input);
     out = weight_.at(to);
 }
 
-void OfflineFARunner::bootstrapping_of_weight()
+void OfflineDFARunner::bootstrapping_of_weight()
 {
     assert(gate_key_);
     std::for_each(

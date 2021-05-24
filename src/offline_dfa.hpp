@@ -4,7 +4,7 @@
 #include "graph.hpp"
 #include "tfhepp_util.hpp"
 
-class OfflineFARunner {
+class OfflineDFARunner {
     // Interval for bootstrapping
     const static size_t BOOT_INTERVAL = 8000;
 
@@ -16,8 +16,9 @@ private:
     std::shared_ptr<GateKey> gate_key_;
 
 public:
-    OfflineFARunner(const Graph &graph, InputStream<TRGSWLvl1FFT> &input_stream,
-                    std::shared_ptr<GateKey> gate_key = nullptr);
+    OfflineDFARunner(const Graph &graph,
+                     InputStream<TRGSWLvl1FFT> &input_stream,
+                     std::shared_ptr<GateKey> gate_key = nullptr);
 
     TLWELvl1 result() const;
     void eval();
