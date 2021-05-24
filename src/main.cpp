@@ -1,6 +1,7 @@
 #include "archive.hpp"
-#include "dfa.hpp"
 #include "error.hpp"
+#include "offline_dfa.hpp"
+#include "online_dfa.hpp"
 
 #include <cassert>
 #include <execution>

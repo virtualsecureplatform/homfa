@@ -3,6 +3,8 @@ add_executable(homfa
     error.cpp
     graph.cpp
     main.cpp
+    offline_dfa.cpp
+    online_dfa.cpp
     tfhepp_util.cpp
 )
 add_sanitizers(homfa)
