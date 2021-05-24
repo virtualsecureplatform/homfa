@@ -3,6 +3,7 @@ add_executable(homfa
     error.cpp
     graph.cpp
     main.cpp
+    tfhepp_util.cpp
 )
 add_sanitizers(homfa)
 target_compile_options(homfa PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")

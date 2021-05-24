@@ -2,60 +2,10 @@
 #define HOMFA_DFA_HPP
 
 #include "graph.hpp"
+#include "tfhepp_util.hpp"
 
 #include <set>
 #include <vector>
-
-#include <tfhe++.hpp>
-
-using Lvl0 = TFHEpp::lvl0param;
-using TLWELvl0 = TFHEpp::TLWE<Lvl0>;
-using Lvl1 = TFHEpp::lvl1param;
-using TLWELvl1 = TFHEpp::TLWE<Lvl1>;
-using TRGSWLvl1FFT = TFHEpp::TRGSWFFT<Lvl1>;
-using TRLWELvl1 = TFHEpp::TRLWE<Lvl1>;
-using PolyLvl1 = TFHEpp::Polynomial<Lvl1>;
-using SecretKey = TFHEpp::SecretKey;
-using GateKey = TFHEpp::GateKey;
-
-template <class T>
-class InputStream {
-public:
-    InputStream()
-    {
-    }
-    virtual ~InputStream()
-    {
-    }
-
-    virtual size_t size() const = 0;
-    virtual T next() = 0;
-};
-
-class TRGSWLvl1InputStreamFromCtxtFile : public InputStream<TRGSWLvl1FFT> {
-private:
-    std::vector<TRGSWLvl1FFT> data_;
-    std::vector<TRGSWLvl1FFT>::iterator head_;
-
-public:
-    TRGSWLvl1InputStreamFromCtxtFile(const std::string &filename);
-
-    size_t size() const override;
-    TRGSWLvl1FFT next() override;
-};
-
-class ReversedTRGSWLvl1InputStreamFromCtxtFile
-    : public InputStream<TRGSWLvl1FFT> {
-private:
-    std::vector<TRGSWLvl1FFT> data_;
-    std::vector<TRGSWLvl1FFT>::reverse_iterator head_;
-
-public:
-    ReversedTRGSWLvl1InputStreamFromCtxtFile(const std::string &filename);
-
-    size_t size() const override;
-    TRGSWLvl1FFT next() override;
-};
 
 class OfflineFARunner {
     // Interval for bootstrapping
