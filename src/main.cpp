@@ -26,7 +26,7 @@ void do_genbkey(const std::string &skey_filename,
                 const std::string &output_filename)
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
-    auto bkey = std::make_shared<GateKey>(skey);
+    CloudKey bkey{skey};
     write_to_archive(output_filename, bkey);
 }
 
@@ -35,20 +35,36 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
 
+    // FIXME: We essentially don't need cuFHE for NTT.
+    auto gkey = std::make_shared<TFHEpp::GateKeywoFFT>(skey);
+    cufhe::Initialize(*gkey);
+
     std::ifstream ifs{input_filename};
     assert(ifs);
-    std::vector<TRGSWLvl1FFT> data;
+    EncryptedInput ret;
+    cufhe::cuFHETRGSWNTTlvl1 tmp;
     while (ifs) {
         int ch = ifs.get();
         if (ch == EOF)
             break;
         for (int i = 0; i < 8; i++) {
             bool b = ((static_cast<uint8_t>(ch) >> i) & 1u) != 0;
-            data.push_back(encrypt_bit_to_TRGSWLvl1FFT(b, skey));
+            TRGSWLvl1 c;
+            encrypt_bit_to_TRGSWLvl1(c, b, skey);
+
+            ret.trgsw_fft.emplace_back();
+            fft_TRGSWLvl1(ret.trgsw_fft.back(), c);
+
+            ret.trgsw_ntt.emplace_back();
+            // ntt_TRGSWLvl1(ret.trgsw_ntt.back(), c); // FIXME
+            cufhe::TRGSW2NTT(tmp, c, 0);
+            ret.trgsw_ntt.back() = tmp.trgswhost;
         }
     }
 
-    write_to_archive(output_filename, data);
+    write_to_archive(output_filename, ret);
+
+    cufhe::CleanUp();
 }
 
 void do_run_offline_dfa(
@@ -61,15 +77,34 @@ void do_run_offline_dfa(
     Graph gr{spec_filename};
     gr.reserve_states_at_depth(input_stream.size());
 
-    auto bkey =
-        (bkey_filename
-             ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
-             : nullptr);
+    CloudKey bkey;
+    if (bkey_filename)
+        bkey = read_from_archive<CloudKey>(*bkey_filename);
 
-    OfflineDFARunner runner{gr, input_stream, bkey};
+    OfflineDFARunner runner{gr, input_stream, bkey.gkfft};
     runner.eval();
 
     write_to_archive(output_filename, runner.result());
+}
+
+void do_gpu_run_offline_dfa(const std::string &spec_filename,
+                            const std::string &input_filename,
+                            const std::string &output_filename,
+                            const std::string &bkey_filename, int num_gpu)
+{
+    ReversedTRGSWLvl1NTTInputStreamFromCtxtFile input_stream{input_filename};
+    Graph gr{spec_filename};
+    gr.reserve_states_at_depth(input_stream.size());
+
+    auto bkey = read_from_archive<CloudKey>(bkey_filename);
+    cufhe::SetGPUNum(num_gpu);
+    cufhe::Initialize(*bkey.gk);
+
+    GPUOfflineDFARunner runner{gr, input_stream, true};
+    runner.eval();
+
+    write_to_archive(output_filename, runner.result());
+    cufhe::CleanUp();
 }
 
 void do_run_online_dfa(
@@ -79,15 +114,17 @@ void do_run_online_dfa(
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr{spec_filename};
-    auto bkey =
-        (bkey_filename
-             ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
-             : nullptr);
-    OnlineDFARunner runner{gr, bkey};
+    CloudKey bkey;
+    if (bkey_filename)
+        bkey = read_from_archive<CloudKey>(*bkey_filename);
+    OnlineDFARunner runner{gr, bkey.gkfft};
 
     for (size_t i = 0; input_stream.size() != 0; i++) {
         spdlog::debug("Processing input {}", i);
-        runner.eval_one(input_stream.next());
+
+        TRGSWLvl1FFT in;
+        input_stream.next(in);
+        runner.eval_one(in);
     }
 
     write_to_archive(output_filename, runner.result());
@@ -117,6 +154,7 @@ int main(int argc, char **argv)
 
     bool verbose = false, quiet = false;
     std::optional<std::string> spec, skey, bkey, input, output;
+    std::optional<int> gpu;
 
     app.add_flag("--verbose", verbose, "");
     app.add_flag("--quiet", quiet, "");
@@ -149,6 +187,7 @@ int main(int argc, char **argv)
         run->add_option("--spec", spec)->required()->check(CLI::ExistingFile);
         run->add_option("--in", input)->required()->check(CLI::ExistingFile);
         run->add_option("--out", output)->required();
+        run->add_option("--gpu", gpu);
     }
     {
         CLI::App *run = app.add_subcommand("run-online-dfa", "Run online DFA");
@@ -190,7 +229,13 @@ int main(int argc, char **argv)
 
     case TYPE::RUN_OFFLINE_DFA:
         assert(spec && input && output);
-        do_run_offline_dfa(*spec, *input, *output, bkey);
+        if (gpu) {
+            assert(bkey);
+            do_gpu_run_offline_dfa(*spec, *input, *output, *bkey, *gpu);
+        }
+        else {
+            do_run_offline_dfa(*spec, *input, *output, bkey);
+        }
         break;
 
     case TYPE::RUN_ONLINE_DFA:
