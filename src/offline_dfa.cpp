@@ -1,6 +1,7 @@
 #include "offline_dfa.hpp"
 
 #include <execution>
+#include <queue>
 
 #include <spdlog/spdlog.h>
 
@@ -98,6 +99,167 @@ void OfflineDFARunner::bootstrap_weight()
 }
 
 /* GPUOfflineDFARunner */
+
+class CUDARunner {
+    struct Node {
+        size_t input, state, timeToReady;
+        std::vector<Node *> out;
+
+        Node() : input(-1), state(-1), timeToReady(-1), out()
+        {
+        }
+    };
+
+    struct Stream {
+        cufhe::Stream st;
+        bool running;
+        Node *n;  // Running node
+
+        Stream() : st(), running(false), n(nullptr)
+        {
+            st.Create();
+        }
+        ~Stream()
+        {
+            st.Destroy();
+        }
+
+    private:
+        // Make Stream un-copyable
+        Stream(const Stream &) = delete;
+        Stream &operator=(const Stream &) = delete;
+    };
+
+private:
+    std::vector<std::shared_ptr<cufhe::cuFHETRLWElvl1>> weight_;
+    std::vector<Node> nodes_;
+    std::vector<Stream> streams_;
+    std::queue<Node *> runnable_;
+    std::vector<cufhe::cuFHETRGSWNTTlvl1> in_;
+    const Graph &graph_;
+    size_t current_in_size_, num_gates_to_finish_;
+
+public:
+    CUDARunner(size_t in_block_size, const Graph &graph)
+        : weight_((in_block_size + 1) * graph.size()),
+          nodes_(in_block_size * graph.size()),
+          streams_(800),
+          runnable_(),
+          in_(in_block_size),
+          graph_(graph),
+          current_in_size_(0)
+    {
+        for (auto &&w : weight_)
+            w = std::make_shared<cufhe::cuFHETRLWElvl1>();
+
+        for (size_t i = 0; i < in_.size(); i++) {
+            for (Graph::State q : graph.all_states()) {
+                auto &n = nodes_.at(i * graph.size() + q);
+                n.input = i;
+                n.state = q;
+            }
+        }
+    }
+
+    cufhe::cuFHETRLWElvl1 &result()
+    {
+        return *weight_.at(current_in_size_ * graph_.size() +
+                           graph_.initial_state());
+    }
+
+    void make_ouroboros(CUDARunner &that)
+    {
+        for (size_t i = 0; i < graph_.size(); i++) {
+            weight_.at(i) = that.weight_.at(in_.size() * graph_.size() + i);
+            that.weight_.at(i) = weight_.at(in_.size() * graph_.size() + i);
+        }
+    }
+
+    void set_initial_weight()
+    {
+        for (Graph::State st : graph_.all_states()) {
+            weight_.at(st)->trlwehost = graph_.is_final_state(st)
+                                            ? trivial_TRLWELvl1_1over8()
+                                            : trivial_TRLWELvl1_minus_1over8();
+        }
+    }
+
+    void prepare_next_run(InputStream<TRGSWLvl1NTT> &in_stream)
+    {
+        assert(runnable_.size() == 0);
+
+        for (auto &&n : nodes_) {
+            n.out.clear();
+            n.timeToReady = 2;
+        }
+
+        current_in_size_ = 0;
+        num_gates_to_finish_ = 0;
+        for (size_t i = 0; i < in_.size(); i++, current_in_size_++) {
+            if (in_stream.size() == 0)
+                break;
+            int j = in_stream.size() - 1;
+
+            in_stream.next(in_.at(i).trgswhost);
+
+            for (Graph::State q : graph_.states_at_depth(j)) {
+                num_gates_to_finish_++;
+                Node &n = nodes_.at(i * graph_.size() + q);
+
+                if (i == 0) {
+                    runnable_.push(&n);
+                    continue;
+                }
+
+                Graph::State q0 = graph_.next_state(q, false),
+                             q1 = graph_.next_state(q, true);
+                Node &n0 = nodes_.at((i - 1) * graph_.size() + q0),
+                     &n1 = nodes_.at((i - 1) * graph_.size() + q1);
+                n0.out.push_back(&n);
+                n1.out.push_back(&n);
+            }
+        }
+    }
+
+    void run()
+    {
+        while (num_gates_to_finish_ != 0) {
+            for (Stream &st : streams_) {
+                if (st.running) {
+                    if (!cufhe::StreamQuery(st.st))
+                        continue;
+
+                    for (Node *n : st.n->out) {
+                        if (--n->timeToReady != 0)
+                            continue;
+                        runnable_.push(n);
+                    }
+
+                    num_gates_to_finish_--;
+                    st.n = nullptr;
+                    st.running = false;
+                }
+                else if (!runnable_.empty()) {
+                    Node *n = runnable_.front();
+                    runnable_.pop();
+
+                    Graph::State q0 = graph_.next_state(n->state, false),
+                                 q1 = graph_.next_state(n->state, true);
+                    size_t in0_index = n->input * graph_.size() + q0,
+                           in1_index = n->input * graph_.size() + q1,
+                           out_index =
+                               (n->input + 1) * graph_.size() + n->state;
+                    cufhe::CMUXNTT(*weight_.at(out_index), in_.at(n->input),
+                                   *weight_.at(in1_index),
+                                   *weight_.at(in0_index), st.st);
+
+                    st.n = n;
+                    st.running = true;
+                }
+            }
+        }
+    }
+};
 
 class CUDAGraphBuilder {
     friend class CUDAGraph;
@@ -361,6 +523,22 @@ void GPUOfflineDFARunner::eval()
 {
     assert(!has_evaluated_);
 
+    auto run0 = std::make_shared<CUDARunner>(20, graph_);
+    auto run1 = std::make_shared<CUDARunner>(20, graph_);
+    run0->make_ouroboros(*run1);
+    run0->set_initial_weight();
+    run0->prepare_next_run(input_stream_);
+    while (input_stream_.size() != 0) {
+        run0->run();
+        run1->prepare_next_run(input_stream_);
+
+        using std::swap;
+        swap(run0, run1);
+    }
+    run0->run();
+    TFHEpp::SampleExtractIndex<Lvl1>(res_, run0->result().trlwehost, 0);
+
+    /*
     auto blk0 = std::make_shared<GPUCMUXBlock>(1, graph_);
     auto blk1 = std::make_shared<GPUCMUXBlock>(1, graph_);
     blk0->make_ouroboros(*blk1);
@@ -381,6 +559,7 @@ void GPUOfflineDFARunner::eval()
     blk0->run_async();
     blk0->synchronize();
     spdlog::debug("done");
+    */
 
     // if (can_bootstrap_) {
     //    cufhe::Ctxt tmp1;
@@ -391,7 +570,7 @@ void GPUOfflineDFARunner::eval()
     //    TFHEpp::SampleExtractIndex<Lvl1>(res_, tmp2.trlwehost, 0);
     //}
     // else {
-    TFHEpp::SampleExtractIndex<Lvl1>(res_, blk0->result().trlwehost, 0);
+    // TFHEpp::SampleExtractIndex<Lvl1>(res_, blk0->result().trlwehost, 0);
     //}
 
     has_evaluated_ = true;
