@@ -4,7 +4,6 @@
 #include <queue>
 
 #include <spdlog/spdlog.h>
-#include <ThreadPool.h>
 
 /* OfflineDFARunner */
 
@@ -532,16 +531,14 @@ void GPUOfflineDFARunner::eval()
 {
     assert(!has_evaluated_);
 
-    ThreadPool pool(1);
     auto run0 = std::make_shared<CUDARunner>(3, graph_);
     auto run1 = std::make_shared<CUDARunner>(3, graph_);
     run0->make_ouroboros(*run1);
     run0->set_initial_weight();
     run0->prepare_next_run(input_stream_);
     while (input_stream_.size() != 0) {
-        auto f = pool.enqueue([&run0]{run0->run();});
+        run0->run();
         run1->prepare_next_run(input_stream_);
-        f.wait();
 
         using std::swap;
         swap(run0, run1);
