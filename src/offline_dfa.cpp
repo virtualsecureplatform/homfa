@@ -556,12 +556,20 @@ void GPUOfflineDFARunner::eval()
         cufhe::TRGSWNTTlvl1CopyH2D(in, next_st());
         cufhe::Synchronize();
         auto states = graph_.states_at_depth(j);
-        for (Graph::State q : states) {
-            Graph::State q0 = graph_.next_state(q, false),
-                         q1 = graph_.next_state(q, true);
-            cufhe::gCMUXNTT(out2.at(q), in, out1.at(q1), out1.at(q0),
-                            next_st());
-        }
+        std::for_each(std::execution::par, states.begin(), states.end(),
+                      [&](Graph::State q) {
+                          Graph::State q0 = graph_.next_state(q, false),
+                                       q1 = graph_.next_state(q, true);
+                          cufhe::gCMUXNTT(
+                              out2.at(q), in, out1.at(q1), out1.at(q0),
+                              sts.at((next_st_index + q) & ((1 << 9) - 1)));
+                      });
+        // for (Graph::State q : states) {
+        //    Graph::State q0 = graph_.next_state(q, false),
+        //                 q1 = graph_.next_state(q, true);
+        //    cufhe::gCMUXNTT(out2.at(q), in, out1.at(q1), out1.at(q0),
+        //                    next_st());
+        //}
         {
             using std::swap;
             swap(out1, out2);
