@@ -163,8 +163,11 @@ public:
 
     cufhe::cuFHETRLWElvl1 &result()
     {
-        return *weight_.at(current_in_size_ * graph_.size() +
-                           graph_.initial_state());
+        cufhe::cuFHETRLWElvl1 &w = *weight_.at(
+            current_in_size_ * graph_.size() + graph_.initial_state());
+        cufhe::TRLWElvl1CopyD2H(w, 0);
+        cufhe::Synchronize();
+        return w;
     }
 
     void make_ouroboros(CUDARunner &that)
@@ -181,7 +184,9 @@ public:
             weight_.at(st)->trlwehost = graph_.is_final_state(st)
                                             ? trivial_TRLWELvl1_1over8()
                                             : trivial_TRLWELvl1_minus_1over8();
+            cufhe::TRLWElvl1CopyH2D(*weight_.at(st), 0);
         }
+        cufhe::Synchronize();
     }
 
     void prepare_next_run(InputStream<TRGSWLvl1NTT> &in_stream)
@@ -201,6 +206,7 @@ public:
             int j = in_stream.size() - 1;
 
             in_stream.next(in_.at(i).trgswhost);
+            cufhe::TRGSWNTTlvl1CopyH2D(in_.at(i), streams_.at(0).st);
 
             for (Graph::State q : graph_.states_at_depth(j)) {
                 num_gates_to_finish_++;
@@ -219,6 +225,8 @@ public:
                 n1.out.push_back(&n);
             }
         }
+
+        cudaStreamSynchronize(streams_.at(0).st.st());
     }
 
     void run()
@@ -249,9 +257,9 @@ public:
                            in1_index = n->input * graph_.size() + q1,
                            out_index =
                                (n->input + 1) * graph_.size() + n->state;
-                    cufhe::CMUXNTT(*weight_.at(out_index), in_.at(n->input),
-                                   *weight_.at(in1_index),
-                                   *weight_.at(in0_index), st.st);
+                    cufhe::gCMUXNTT(*weight_.at(out_index), in_.at(n->input),
+                                    *weight_.at(in1_index),
+                                    *weight_.at(in0_index), st.st);
 
                     st.n = n;
                     st.running = true;
@@ -523,8 +531,8 @@ void GPUOfflineDFARunner::eval()
 {
     assert(!has_evaluated_);
 
-    auto run0 = std::make_shared<CUDARunner>(20, graph_);
-    auto run1 = std::make_shared<CUDARunner>(20, graph_);
+    auto run0 = std::make_shared<CUDARunner>(3, graph_);
+    auto run1 = std::make_shared<CUDARunner>(3, graph_);
     run0->make_ouroboros(*run1);
     run0->set_initial_weight();
     run0->prepare_next_run(input_stream_);
