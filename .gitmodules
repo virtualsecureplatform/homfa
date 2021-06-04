@@ -16,3 +16,6 @@
 [submodule "thirdparty/cuFHE"]
 	path = thirdparty/cuFHE
 	url = https://github.com/virtualsecureplatform/cuFHE.git
+[submodule "thirdparty/ThreadPool"]
+	path = thirdparty/ThreadPool
+	url = https://github.com/progschj/ThreadPool
