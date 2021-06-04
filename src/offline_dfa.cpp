@@ -531,6 +531,51 @@ void GPUOfflineDFARunner::eval()
 {
     assert(!has_evaluated_);
 
+    std::vector<cufhe::Stream> sts(1 << 9);
+    for (auto &&st : sts)
+        st.Create();
+    const size_t mask = (1 << 9) - 1;
+    size_t next_st_index = 0;
+    auto next_st = [&next_st_index, &sts, mask]() -> cufhe::Stream & {
+        return sts.at(next_st_index++ & mask);
+    };
+
+    std::vector<cufhe::cuFHETRLWElvl1> out1(graph_.size()), out2(graph_.size());
+    for (Graph::State q : graph_.all_states()) {
+        out1.at(q).trlwehost = graph_.is_final_state(q)
+                                   ? trivial_TRLWELvl1_1over8()
+                                   : trivial_TRLWELvl1_minus_1over8();
+        cufhe::TRLWElvl1CopyH2D(out1.at(q), next_st());
+    }
+    cufhe::Synchronize();
+
+    cufhe::cuFHETRGSWNTTlvl1 in;
+    size_t input_size = input_stream_.size();
+    for (int j = input_size - 1; j >= 0; --j) {
+        input_stream_.next(in.trgswhost);
+        cufhe::TRGSWNTTlvl1CopyH2D(in, next_st());
+        cufhe::Synchronize();
+        auto states = graph_.states_at_depth(j);
+        for (Graph::State q : states) {
+            Graph::State q0 = graph_.next_state(q, false),
+                         q1 = graph_.next_state(q, true);
+            cufhe::gCMUXNTT(out2.at(q), in, out1.at(q1), out1.at(q0),
+                            next_st());
+        }
+        {
+            using std::swap;
+            swap(out1, out2);
+        }
+        cufhe::Synchronize();
+        // spdlog::debug("CMUX {}", j);
+    }
+
+    cufhe::cuFHETRLWElvl1 &w = out1.at(graph_.initial_state());
+    cufhe::TRLWElvl1CopyD2H(w, 0);
+    cufhe::Synchronize();
+    TFHEpp::SampleExtractIndex<Lvl1>(res_, w.trlwehost, 0);
+
+    /*
     auto run0 = std::make_shared<CUDARunner>(3, graph_);
     auto run1 = std::make_shared<CUDARunner>(3, graph_);
     run0->make_ouroboros(*run1);
@@ -545,6 +590,7 @@ void GPUOfflineDFARunner::eval()
     }
     run0->run();
     TFHEpp::SampleExtractIndex<Lvl1>(res_, run0->result().trlwehost, 0);
+    */
 
     /*
     auto blk0 = std::make_shared<GPUCMUXBlock>(1, graph_);
