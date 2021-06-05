@@ -5,7 +5,7 @@
 #include <spdlog/spdlog.h>
 
 OnlineDFARunner::OnlineDFARunner(const Graph &graph,
-                                 std::shared_ptr<GateKey> gate_key)
+                                 std::shared_ptr<GateKeyFFT> gate_key)
     : graph_(graph),
       weight_(graph.size(), trivial_TRLWELvl1_zero()),
       gate_key_(std::move(gate_key)),

@@ -6,7 +6,7 @@ TRGSWLvl1InputStreamFromCtxtFile::TRGSWLvl1InputStreamFromCtxtFile(
 {
     std::ifstream ifs{filename};
     assert(ifs);
-    data_ = read_from_archive<std::vector<TRGSWLvl1FFT>>(filename);
+    data_ = read_from_archive<EncryptedInput>(filename).trgsw_fft;
     head_ = data_.begin();
 }
 
@@ -15,10 +15,10 @@ size_t TRGSWLvl1InputStreamFromCtxtFile::size() const
     return data_.end() - head_;
 }
 
-TRGSWLvl1FFT TRGSWLvl1InputStreamFromCtxtFile::next()
+void TRGSWLvl1InputStreamFromCtxtFile::next(TRGSWLvl1FFT &out)
 {
     assert(size() != 0);
-    return *(head_++);
+    out = *(head_++);
 }
 
 ReversedTRGSWLvl1InputStreamFromCtxtFile::
@@ -26,7 +26,7 @@ ReversedTRGSWLvl1InputStreamFromCtxtFile::
 {
     std::ifstream ifs{filename};
     assert(ifs);
-    data_ = read_from_archive<std::vector<TRGSWLvl1FFT>>(filename);
+    data_ = read_from_archive<EncryptedInput>(filename).trgsw_fft;
     head_ = data_.rbegin();
 }
 
@@ -35,10 +35,30 @@ size_t ReversedTRGSWLvl1InputStreamFromCtxtFile::size() const
     return data_.rend() - head_;
 }
 
-TRGSWLvl1FFT ReversedTRGSWLvl1InputStreamFromCtxtFile::next()
+void ReversedTRGSWLvl1InputStreamFromCtxtFile::next(TRGSWLvl1FFT &out)
 {
     assert(size() != 0);
-    return *(head_++);
+    out = *(head_++);
+}
+
+ReversedTRGSWLvl1NTTInputStreamFromCtxtFile::
+    ReversedTRGSWLvl1NTTInputStreamFromCtxtFile(const std::string &filename)
+{
+    std::ifstream ifs{filename};
+    assert(ifs);
+    data_ = read_from_archive<EncryptedInput>(filename).trgsw_ntt;
+    head_ = data_.rbegin();
+}
+
+size_t ReversedTRGSWLvl1NTTInputStreamFromCtxtFile::size() const
+{
+    return data_.rend() - head_;
+}
+
+void ReversedTRGSWLvl1NTTInputStreamFromCtxtFile::next(TRGSWLvl1NTT &out)
+{
+    assert(size() != 0);
+    out = *(head_++);
 }
 
 TRLWELvl1 trivial_TRLWELvl1(const PolyLvl1 &src)
@@ -96,7 +116,7 @@ PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1 &src, const SecretKey &skey)
 }
 
 // w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
-void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKey &gk)
+void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKeyFFT &gk)
 {
     TLWELvl1 tlwel1;
     TFHEpp::SampleExtractIndex<Lvl1>(tlwel1, w, 0);
@@ -110,6 +130,22 @@ TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey &skey)
 {
     return TFHEpp::trgswfftSymEncrypt<Lvl1>(b, Lvl1::α, skey.key.lvl1);
 }
+
+void encrypt_bit_to_TRGSWLvl1(TRGSWLvl1 &out, bool b, const SecretKey &skey)
+{
+    out = TFHEpp::trgswSymEncrypt<Lvl1>(b, Lvl1::α, skey.key.lvl1);
+}
+
+void fft_TRGSWLvl1(TRGSWLvl1FFT &out, const TRGSWLvl1 &in)
+{
+    out = TFHEpp::ApplyFFT2trgsw<Lvl1>(in);
+}
+
+/* FIXME
+void ntt_TRGSWLvl1(TRGSWLvl1NTT &out, const TRGSWLvl1 &in)
+{
+}
+*/
 
 PolyLvl1 uint2weight(uint64_t n)
 {

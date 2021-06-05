@@ -16,25 +16,33 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-project(homfa LANGUAGES CXX)
+project(homfa LANGUAGES CXX CUDA)
 
 find_package(Threads REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(Sanitizers)
 find_package(Backward)
 
-#set(USE_CGGI19 1)
-add_subdirectory(thirdparty/TFHEpp)
+add_subdirectory(thirdparty/cuFHE)
 add_subdirectory(thirdparty/spdlog)
 
 set(HOMFA_CXXFLAGS -Wall -Wextra -pedantic -Wno-sign-compare)
 set(HOMFA_CXXFLAGS_DEBUG   ${IYOKAN_CXXFLAGS} -O0 -g3)
 set(HOMFA_CXXFLAGS_RELEASE ${IYOKAN_CXXFLAGS} -O3 -march=native -g3)
 set(HOMFA_INCLUDE_DIRS
+    ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/CLI11/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cuFHE/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/spdlog/include>
 )
-set(HOMFA_LIBS tfhe++ Threads::Threads OpenMP::OpenMP_CXX Backward::Backward tbb)
+set(HOMFA_LIBS
+    ${CUDA_LIBRARIES}
+    cufhe_gpu
+    Threads::Threads
+    OpenMP::OpenMP_CXX
+    Backward::Backward
+    tbb
+)
 set(HOMFA_COMPILE_DEFINITIONS )
 
 set(CMAKE_C_FLAGS "")

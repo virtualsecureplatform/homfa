@@ -2,6 +2,7 @@
 #define HOMFA_ARCHIVE_HPP
 
 #include "error.hpp"
+#include "tfhepp_util.hpp"
 
 #include <fstream>
 
@@ -66,5 +67,36 @@ void write_to_archive(const std::string &path, const T &src)
         error::die("Unable to write into archive: ", path);
     }
 }
+
+struct CloudKey {
+    std::shared_ptr<GateKey> gk;
+    std::shared_ptr<GateKeyFFT> gkfft;
+
+    CloudKey() : gk(nullptr), gkfft(nullptr)
+    {
+    }
+    CloudKey(const SecretKey &sk)
+    {
+        gk = std::make_shared<GateKey>(sk);
+        gkfft = std::make_shared<GateKeyFFT>(*gk);
+    }
+
+    template <class Archive>
+    void serialize(Archive &ar)
+    {
+        ar(gk, gkfft);
+    }
+};
+
+struct EncryptedInput {
+    std::vector<TRGSWLvl1FFT> trgsw_fft;  // For TFHEpp
+    std::vector<TRGSWLvl1NTT> trgsw_ntt;  // For cuFHE
+
+    template <class Archive>
+    void serialize(Archive &ar)
+    {
+        ar(trgsw_fft, trgsw_ntt);
+    }
+};
 
 #endif
