@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 
+TEST0=build/bin/test0
 HOMFA=build/bin/homfa
 
 failwith(){
@@ -41,6 +42,7 @@ check_false(){
 [ -f _test_bk ] || $HOMFA genbkey --key _test_sk --out _test_bk
 
 ### Now start testing
+$TEST0
 #### Offline DFA
 check_true  offline-dfa test/01.spec test/01-01.in # [1, 1] * 8 * 100
 check_false offline-dfa test/01.spec test/01-02.in # [1, 0] * 8 * 100

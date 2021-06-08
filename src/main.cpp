@@ -58,7 +58,7 @@ void do_run_offline_dfa(
 {
     ReversedTRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
 
-    Graph gr{spec_filename};
+    Graph gr = Graph::from_file(spec_filename).minimized();
     gr.reserve_states_at_depth(input_stream.size());
 
     auto bkey =
@@ -78,7 +78,7 @@ void do_run_online_dfa(
     const std::optional<std::string> &bkey_filename = std::nullopt)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
-    Graph gr{spec_filename};
+    Graph gr = Graph::from_file(spec_filename);
     auto bkey =
         (bkey_filename
              ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)

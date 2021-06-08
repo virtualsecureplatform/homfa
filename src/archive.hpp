@@ -26,7 +26,7 @@ void read_from_archive(T &res, const std::string &path)
         read_from_archive<T>(res, ifs);
     }
     catch (std::exception &ex) {
-        error::die("Invalid archive: ", path);
+        error::die("Invalid archive: {}", path);
     }
 }
 
@@ -63,7 +63,7 @@ void write_to_archive(const std::string &path, const T &src)
     }
     catch (std::exception &ex) {
         spdlog::error(ex.what());
-        error::die("Unable to write into archive: ", path);
+        error::die("Unable to write into archive: {}", path);
     }
 }
 

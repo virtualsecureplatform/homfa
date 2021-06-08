@@ -17,3 +17,23 @@ set_target_properties(homfa
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 install(TARGETS homfa DESTINATION bin)
+
+add_executable(test0
+    error.cpp
+    graph.cpp
+    test0.cpp
+    offline_dfa.cpp
+    online_dfa.cpp
+    tfhepp_util.cpp
+)
+add_sanitizers(test0)
+target_compile_options(test0 PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")
+target_compile_options(test0 PUBLIC "$<$<CONFIG:RELEASE>:${HOMFA_CXXFLAGS_RELEASE}>")
+target_link_libraries(test0 ${HOMFA_LIBS})
+target_include_directories(test0 PRIVATE ${HOMFA_INCLUDE_DIRS})
+target_compile_definitions(test0 PRIVATE ${HOMFA_COMPILE_DEFINITIONS})
+set_target_properties(test0
+    PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+install(TARGETS test0 DESTINATION bin)

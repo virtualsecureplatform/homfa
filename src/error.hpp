@@ -23,12 +23,7 @@ template <class... Args>
 {
     using namespace backward;
 
-    // Print error message
-    {
-        std::stringstream ss;
-        (ss << ... << args);
-        spdlog::error(ss.str());
-    }
+    spdlog::error(std::forward<Args>(args)...);
 
 #ifndef NDEBUG
     {
