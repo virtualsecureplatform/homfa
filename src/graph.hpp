@@ -46,6 +46,7 @@ public:
     Graph removed_unreachable() const;
     Graph grouped_nondistinguishable() const;
     void dump(std::ostream& os) const;
+    void dump_dot(std::ostream& os) const;
 };
 
 Graph::NFADelta reversed_nfa_delta(const Graph::NFADelta& src);

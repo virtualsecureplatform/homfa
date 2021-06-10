@@ -389,6 +389,28 @@ void Graph::dump(std::ostream &os) const
     }
 }
 
+void Graph::dump_dot(std::ostream &os) const
+{
+    os << "digraph \"graph\" {\n"
+       << "rankdir=\"LR\""
+       << "  node[shape=\"circle\"]\n"
+       << "  I [label=\"\", style=invis, width=0]\n"
+       << "  I -> " << initial_state() << "\n";
+    for (Graph::State q : all_states()) {
+        Graph::State q0 = next_state(q, false), q1 = next_state(q, true);
+        os << "  " << q << " [label=\"" << q << "\""
+           << (is_final_state(q) ? ", peripheries=2" : "") << "]";
+        if (q0 == q1) {
+            os << "  " << q << " -> " << q0 << " [label=\"0,1\"]\n";
+        }
+        else {
+            os << "  " << q << " -> " << q0 << " [label=\"0\"]\n";
+            os << "  " << q << " -> " << q1 << " [label=\"1\"]\n";
+        }
+    }
+    os << "}\n";
+}
+
 Graph::NFADelta reversed_nfa_delta(const Graph::NFADelta &src)
 {
     std::vector<std::vector<Graph::State>> prev0(src.size()), prev1(src.size());
