@@ -94,6 +94,20 @@ void test_graph_dump()
                                "6",   "6", "6",  //
                            }));
     }
+    {
+        Graph gr = Graph::from_file("test/09.spec");
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0*", "1", "2",  //
+                               "1",   "0", "0",  //
+                               "2",   "3", "3",  //
+                               "3*",  "4", "5",  //
+                               "4",   "0", "6",  //
+                               "5",   "3", "6",  //
+                               "6",   "6", "6",  //
+                           }));
+    }
 }
 
 void test_graph_reversed()
