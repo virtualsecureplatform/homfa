@@ -2,7 +2,10 @@
 
 #include <cassert>
 #include <iostream>
+#include <queue>
 #include <sstream>
+
+#include <spdlog/spdlog.h>
 
 std::string expected_dump(const std::vector<std::string>& s)
 {
@@ -178,9 +181,46 @@ void test_graph_minimized()
     }
 }
 
+void test_monitor()
+{
+    {
+        Graph gr = Graph::from_ltl_formula("!F(red & X(yellow))");
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0*", "1", "2",  //
+                               "1",   "0", "0",  //
+                               "2",   "3", "3",  //
+                               "3*",  "4", "5",  //
+                               "4",   "0", "6",  //
+                               "5",   "3", "6",  //
+                               "6",   "6", "6",  //
+                           }));
+    }
+    {
+        Graph gr = Graph::from_ltl_formula("G(press -> red W green)");
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0*", "1", "2",   //
+                               "1",   "3", "3",   //
+                               "2",   "4", "5",   //
+                               "3",   "0", "0",   //
+                               "4",   "6", "0",   //
+                               "5",   "7", "0",   //
+                               "6",   "6", "6",   //
+                               "7*",  "8", "8",   //
+                               "8",   "9", "10",  //
+                               "9",   "6", "0",   //
+                               "10",  "7", "0",   //
+                           }));
+    }
+}
+
 int main()
 {
     test_graph_dump();
     test_graph_reversed();
     test_graph_minimized();
+    test_monitor();
 }
