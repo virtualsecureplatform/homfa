@@ -93,8 +93,24 @@ Graph Graph::from_file(const std::string &filename)
         if (q0s.size() != 1 || q1s.size() != 1)
             is_dfa = false;
     }
+    if (init_sts.size() == 0)
+        init_sts.insert(0);
     if (init_sts.size() != 1)
         is_dfa = false;
+
+    /*
+    for (auto &&[q, q0s, q1s] : delta) {
+        std::stringstream ss;
+        ss << q << "\t|";
+        for (Graph::State q0 : q0s)
+            ss << q0 << ",";
+        ss << "|\t|";
+        for (Graph::State q1 : q1s)
+            ss << q1 << ",";
+        ss << "|";
+        spdlog::info(ss.str());
+    }
+    */
 
     if (is_dfa) {
         assert(init_sts.size() == 1);
