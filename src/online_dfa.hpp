@@ -22,4 +22,25 @@ private:
     void bootstrap_weight();
 };
 
+class OnlineDFARunner2 {
+    // Interval for bootstrapping
+    const static size_t BOOT_INTERVAL = 8000;
+
+private:
+    const Graph &graph_;
+    std::vector<TRLWELvl1> weight_;
+    std::shared_ptr<GateKey> gate_key_;
+    size_t num_processed_inputs_;
+
+public:
+    OnlineDFARunner2(const Graph &graph,
+                     std::shared_ptr<GateKey> gate_key = nullptr);
+
+    TLWELvl1 result() const;
+    void eval_one(const TRGSWLvl1FFT &input);
+
+private:
+    void bootstrap_weight();
+};
+
 #endif

@@ -93,6 +93,27 @@ void do_run_online_dfa(
     write_to_archive(output_filename, runner.result());
 }
 
+void do_run_online_dfa2(
+    const std::string &spec_filename, const std::string &input_filename,
+    const std::string &output_filename,
+    const std::optional<std::string> &bkey_filename = std::nullopt)
+{
+    TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
+    Graph gr = Graph::from_file(spec_filename).reversed();
+    auto bkey =
+        (bkey_filename
+             ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
+             : nullptr);
+    OnlineDFARunner2 runner{gr, bkey};
+
+    for (size_t i = 0; input_stream.size() != 0; i++) {
+        spdlog::debug("Processing input {}", i);
+        runner.eval_one(input_stream.next());
+    }
+
+    write_to_archive(output_filename, runner.result());
+}
+
 void do_dec(const std::string &skey_filename, const std::string &input_filename)
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
@@ -195,7 +216,8 @@ int main(int argc, char **argv)
 
     case TYPE::RUN_ONLINE_DFA:
         assert(spec && input && output);
-        do_run_online_dfa(*spec, *input, *output, bkey);
+        // do_run_online_dfa(*spec, *input, *output, bkey);
+        do_run_online_dfa2(*spec, *input, *output, bkey);
         break;
 
     case TYPE::DEC:
