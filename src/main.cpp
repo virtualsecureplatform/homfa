@@ -122,6 +122,12 @@ void do_dec(const std::string &skey_filename, const std::string &input_filename)
     spdlog::info("Result (bool): {}", res);
 }
 
+void do_ltl2dot(const std::string &fml, size_t num_vars)
+{
+    Graph gr = Graph::from_ltl_formula(fml, num_vars);
+    gr.dump_dot(std::cout);
+}
+
 int main(int argc, char **argv)
 {
     CLI::App app{"Homomorphic Final Answer"};
@@ -134,10 +140,13 @@ int main(int argc, char **argv)
         RUN_OFFLINE_DFA,
         RUN_ONLINE_DFA,
         DEC,
+        LTL2DOT,
     } type;
 
     bool verbose = false, quiet = false;
     std::optional<std::string> spec, skey, bkey, input, output;
+    std::string formula;
+    std::optional<size_t> num_vars;
 
     app.add_flag("--verbose", verbose, "");
     app.add_flag("--quiet", quiet, "");
@@ -185,6 +194,13 @@ int main(int argc, char **argv)
         dec->add_option("--key", skey)->required()->check(CLI::ExistingFile);
         dec->add_option("--in", input)->required()->check(CLI::ExistingFile);
     }
+    {
+        CLI::App *ltl2dot =
+            app.add_subcommand("ltl2dot", "Convert LTL to dot script");
+        ltl2dot->parse_complete_callback([&] { type = TYPE::LTL2DOT; });
+        ltl2dot->add_option("formula", formula)->required();
+        ltl2dot->add_option("#vars", num_vars)->required();
+    }
 
     CLI11_PARSE(app, argc, argv);
 
@@ -223,6 +239,11 @@ int main(int argc, char **argv)
     case TYPE::DEC:
         assert(skey && input);
         do_dec(*skey, *input);
+        break;
+
+    case TYPE::LTL2DOT:
+        assert(num_vars);
+        do_ltl2dot(formula, *num_vars);
         break;
     }
 
