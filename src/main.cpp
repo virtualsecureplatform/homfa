@@ -122,10 +122,13 @@ void do_dec(const std::string &skey_filename, const std::string &input_filename)
     spdlog::info("Result (bool): {}", res);
 }
 
-void do_ltl2dot(const std::string &fml, size_t num_vars)
+void do_ltl2dot(const std::string &fml, size_t num_vars, bool minimized)
 {
     Graph gr = Graph::from_ltl_formula(fml, num_vars);
-    gr.dump_dot(std::cout);
+    if (minimized)
+        gr.minimized().dump_dot(std::cout);
+    else
+        gr.dump_dot(std::cout);
 }
 
 int main(int argc, char **argv)
@@ -143,7 +146,7 @@ int main(int argc, char **argv)
         LTL2DOT,
     } type;
 
-    bool verbose = false, quiet = false;
+    bool verbose = false, quiet = false, minimized = false;
     std::optional<std::string> spec, skey, bkey, input, output;
     std::string formula;
     std::optional<size_t> num_vars;
@@ -198,6 +201,7 @@ int main(int argc, char **argv)
         CLI::App *ltl2dot =
             app.add_subcommand("ltl2dot", "Convert LTL to dot script");
         ltl2dot->parse_complete_callback([&] { type = TYPE::LTL2DOT; });
+        ltl2dot->add_flag("--minimized", minimized);
         ltl2dot->add_option("formula", formula)->required();
         ltl2dot->add_option("#vars", num_vars)->required();
     }
@@ -243,7 +247,7 @@ int main(int argc, char **argv)
 
     case TYPE::LTL2DOT:
         assert(num_vars);
-        do_ltl2dot(formula, *num_vars);
+        do_ltl2dot(formula, *num_vars, minimized);
         break;
     }
 
