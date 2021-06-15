@@ -490,12 +490,11 @@ Graph Graph::removed_unreachable() const
     while (!que.empty()) {
         State q = que.front();
         que.pop();
-        reachable.insert(q);
-        State q0 = next_state(q, false), q1 = next_state(q, true);
-        if (!reachable.contains(q0))
-            que.push(q0);
-        if (!reachable.contains(q1))
-            que.push(q1);
+        auto [it, inserted] = reachable.insert(q);
+        if (!inserted)
+            continue;
+        que.push(next_state(q, false));
+        que.push(next_state(q, true));
     }
 
     std::unordered_map<State, State> old2new;

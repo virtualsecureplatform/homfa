@@ -155,10 +155,7 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
 
         rgen.seed();
 
-        Graph gr = Graph::from_ltl_formula(fml, num_ap);
-        std::optional<Graph> mgr_opt;
-        if (gr.size() < 30)  // FIXME
-            mgr_opt.emplace(gr.minimized());
+        Graph gr = Graph::from_ltl_formula(fml, num_ap), mgr = gr.minimized();
 
         spot::parsed_formula pf = spot::parse_infix_psl(fml);
         assert(!pf.format_errors(std::cerr));
@@ -167,9 +164,8 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
         trans.set_pref(spot::postprocessor::Deterministic);
         spot::twa_graph_ptr aut = trans.run(pf.f);
 
-        log1->info("{}\t{}\t{}\t{}\t{}", fml, gr.size(),
-                   mgr_opt ? mgr_opt->size() : 0, aut->ap().size(),
-                   aut->num_states());
+        log1->info("{}\t{}\t{}\t{}\t{}", fml, gr.size(), mgr.size(),
+                   aut->ap().size(), aut->num_states());
 
         for (size_t i = 0; i < num_test; i++) {
             std::vector<bool> in =
@@ -179,12 +175,10 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
             if (expected != got1)
                 error::die("[{}] [{}] [{}] {} != {}", fml, i + 1, bvec2str(in),
                            expected, got1);
-            if (mgr_opt) {
-                bool got2 = check_if_accept(aut, *mgr_opt, in, num_ap);
-                if (expected != got2)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(in), expected, got2);
-            }
+            bool got2 = check_if_accept(aut, mgr, in, num_ap);
+            if (expected != got2)
+                error::die("[{}] [{}] [{}] {} != {}", fml, i + 1, bvec2str(in),
+                           expected, got2);
         }
     }
 }
