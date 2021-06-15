@@ -1,0 +1,100 @@
+Xp1 R ((Gp2 R p3) W p4)
+1
+(!p2 W p1) & X((p0 & p3) | (!p0 & !p3))
+G(p2 & X(p0 | (!p2 M G!p3)))
+Xp2
+G(X!p0 | (p3 W p4))
+XGp3
+0
+Gp3
+!p0
+F(!p2 | Gp2)
+Gp1
+G((!p0 & p1 & p2) | (p0 & (!p1 | !p2)))
+Gp2
+p2 | Gp1
+p1
+p0 & p4 & G!p3
+X!p3
+!p2
+!p1 | X!p3
+(p3 W Gp2) W X((!p0 & X!p2) | (p0 & Xp2))
+p3
+Gp0
+X(p4 W ((p0 & p3) | (!p0 & !p3)))
+(p4 & ((!p1 & Xp0) | (p1 & X!p0))) | (!p4 & ((!p1 & X!p0) | (p1 & Xp0)))
+!p2 | p3 | !p4 | X(!p4 R !p2)
+!p1 | (p1 & ((!p0 & p4) | (p0 & !p4)))
+G(!p0 | X!p2)
+X((p1 & ((!p0 & !p1 & !p2) | (p1 & (p0 | p2)))) | (!p1 & ((!p1 & (p0 | p2)) | (!p0 & p1 & !p2))))
+p0
+G!p3
+F(!p1 | Gp1)
+G!p1
+XXG(!p0 | p2)
+X(!p3 & X!p0)
+Gp4
+(p0 | Xp3) R (!p0 | (p1 W p4))
+(p0 U XGp0) W ((p0 W Gp1) R p3)
+p3 R Xp2
+G(p0 | p1)
+XG(p0 & X(p0 W (!p3 | XXG(p1 | Fp2))))
+F(p1 | (!p0 & !p3) | G!p3 | G!p1)
+Xp0 & (p2 W p3)
+G(p2 & F!p2)
+(p0 | !p2) & (!p0 W p2)
+(!p4 | X!p2) W (p2 | X(p2 M !p4))
+G(((p3 & p4) | (!p3 & !p4)) & X(((p3 & p4) | (!p3 & !p4)) W XG!p1))
+(!p3 & p4) | (p3 & !p4)
+Xp3 & (!p0 R p1)
+(Gp0 | Gp1) M Xp1
+XG!p4
+XG(p4 | XXGp0)
+(p1 & !p4) R p2
+XGp2
+!p1 & !p3 & (p0 | G!p1)
+G!p2
+p2 | !p4 | G(p1 & p4)
+G((!p3 M !p4) | (!p4 W !p2))
+Xp3
+(p1 & !p3 & X!p1) | ((!p1 | p3) & Xp1)
+(p2 & !p3) | (!p2 & p3) | G(!p2 | !p3)
+(p3 W p1) W G!p2
+Xp4 | Gp1
+XG!p2
+!p3 | !p4
+!p0 | p1 | X!p1 | Gp0
+G!p0 | Gp0
+!p3 W X!p0
+XX(!p0 | p2)
+X!p4
+p2 | Gp0
+p3 | Xp2
+Gp2 | Xp1
+G(XGp4 | (!p2 R p4))
+(p0 & X!p3) | (!p0 & Xp3)
+Xp1
+p2
+!p4
+X(((Fp0 & XG!p1) | (G!p0 & XFp1)) R !p0)
+!p0 | Gp0
+!p3 & !p4
+XXG!p3
+XG(p3 & XXG((!p2 & !p3) | (p2 & p3)))
+X((((!p0 & p4) | (p0 & !p4)) & (!p0 R !p4)) | (((p0 & p4) | (!p0 & !p4)) & (p0 U p4)))
+G!p0
+!p0 | Gp3
+G(p1 & p4 & X((p1 & p4) W F!p1))
+p2 | X!p2
+G((!p2 & !p4) | (p2 & p4))
+G(!p0 | XG(!p0 | Gp0))
+!p4 | (!p0 & p1) | (p0 & !p1)
+X(!p2 | !p4)
+p0 & p4 & X((p0 & p4) W Xp2)
+p4 | Gp0
+G!p2 R !p0
+p4 | Xp2
+p0 W p1
+Gp0 | (p2 & X!p3)
+X(p3 R p0)
+XX((!p3 W Xp2) W (p2 | p4))

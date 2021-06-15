@@ -192,7 +192,7 @@ Graph Graph::from_nfa(const std::set<State> &q0n, const std::set<State> &Fn,
     return Graph{get_or_create_state(q0n), Ff, df};
 }
 
-Graph Graph::from_ltl_formula(const std::string &formula)
+Graph Graph::from_ltl_formula(const std::string &formula, size_t var_size)
 {
     spot::parsed_formula pf = spot::parse_infix_psl(formula);
     assert(!pf.format_errors(std::cerr));
@@ -208,6 +208,7 @@ Graph Graph::from_ltl_formula(const std::string &formula)
             all = bdd_high(all);
             var2idx.emplace(v, var2idx.size());
         }
+        assert(var2idx.size() <= var_size);
     }
 
     size_t ns = aut->num_states();
@@ -289,7 +290,7 @@ Graph Graph::from_ltl_formula(const std::string &formula)
 
             std::set<Graph::State> visited;
             std::queue<std::tuple<Graph::State, size_t, Graph::State>> que;
-            que.push({bdd2rst.at(bddtrue), var2idx.size(), dst});
+            que.push({bdd2rst.at(bddtrue), var_size, dst});
             std::optional<Graph::State> src_alt;
             while (!que.empty()) {
                 auto [cur_rq, cur_var_idx, cur_q] = que.front();
@@ -533,7 +534,7 @@ Graph Graph::grouped_nondistinguishable() const
         }
     }
     while (!que.empty()) {
-        auto &&[ql, qr] = que.front();
+        auto [ql, qr] = que.front();
         que.pop();
         assert(ql < qr);
         for (bool in : std::vector{true, false}) {

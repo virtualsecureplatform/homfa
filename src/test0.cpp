@@ -1,11 +1,18 @@
+#include "error.hpp"
 #include "graph.hpp"
 
 #include <cassert>
 #include <iostream>
 #include <queue>
+#include <random>
 #include <sstream>
 
 #include <spdlog/spdlog.h>
+#include <spot/misc/bddlt.hh>
+#include <spot/misc/minato.hh>
+#include <spot/tl/parse.hh>
+#include <spot/twaalgos/hoa.hh>
+#include <spot/twaalgos/translate.hh>
 
 std::string expected_dump(const std::vector<std::string>& s)
 {
@@ -198,7 +205,7 @@ void test_graph_minimized()
 void test_monitor()
 {
     {
-        Graph gr = Graph::from_ltl_formula("!F(red & X(yellow))");
+        Graph gr = Graph::from_ltl_formula("!F(red & X(yellow))", 2);
         std::stringstream ss;
         gr.dump(ss);
         assert(ss.str() == expected_dump({
@@ -212,7 +219,7 @@ void test_monitor()
                            }));
     }
     {
-        Graph gr = Graph::from_ltl_formula("G(press -> red W green)");
+        Graph gr = Graph::from_ltl_formula("G(press -> red W green)", 3);
         std::stringstream ss;
         gr.dump(ss);
         assert(ss.str() == expected_dump({
