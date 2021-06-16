@@ -194,211 +194,16 @@ Graph Graph::from_nfa(const std::set<State> &q0n, const std::set<State> &Fn,
 
 Graph Graph::from_ltl_formula(const std::string &formula, size_t var_size)
 {
-    spot::parsed_formula pf = spot::parse_infix_psl(formula);
-    assert(!pf.format_errors(std::cerr));
-    spot::translator trans;
-    trans.set_type(spot::postprocessor::Monitor);
-    spot::twa_graph_ptr aut = trans.run(pf.f);
-
-    std::unordered_map<int, size_t> var2idx;
-    {
-        bdd all = aut->ap_vars();
-        while (all != bddtrue) {
-            int v = bdd_var(all);
-            all = bdd_high(all);
-            var2idx.emplace(v, var2idx.size());
-        }
-        assert(var2idx.size() <= var_size);
-    }
-
-    size_t ns = aut->num_states();
-    Graph::NFADelta delta;
-    for (Graph::State i = 0; i < ns; i++)
-        delta.push_back({i, {}, {}});
-    for (Graph::State src = 0; src < ns; src++) {
-        spdlog::debug("{}/{}", src, ns);
-        for (auto &t : aut->out(src)) {
-            Graph::State dst = t.dst;
-
-            spdlog::debug("{} {}", src, t.dst);
-
-            std::vector<std::tuple<Graph::State, std::vector<Graph::State>,
-                                   std::vector<Graph::State>, bdd>>
-                reversed;
-            std::map<bdd, Graph::State, spot::bdd_less_than> bdd2rst;
-            {
-                auto get = [&](bdd b) {
-                    auto it = bdd2rst.find(b);
-                    if (it != bdd2rst.end())
-                        return it->second;
-                    Graph::State q = reversed.size();
-                    reversed.push_back({q, {}, {}, b});
-                    bdd2rst.emplace(b, q);
-                    return q;
-                };
-
-                std::queue<bdd> que;
-                que.push(t.cond);
-                reversed.push_back({0, {}, {}, t.cond});
-                bdd2rst.emplace(t.cond, 0);
-                std::set<bdd, spot::bdd_less_than> visited;
-                while (!que.empty()) {
-                    bdd node = que.front();
-                    que.pop();
-
-                    if (visited.contains(node))
-                        continue;
-                    visited.emplace(node);
-
-                    if (node == bddtrue || node == bddfalse)
-                        continue;
-
-                    bdd low = bdd_low(node), high = bdd_high(node);
-                    Graph::State q = bdd2rst.at(node), q0 = get(low),
-                                 q1 = get(high);
-                    std::get<1>(reversed.at(q0)).push_back(q);
-                    std::get<2>(reversed.at(q1)).push_back(q);
-                    que.push(low);
-                    que.push(high);
-                }
-            }
-
-            /*
-            for (size_t i = 0; i < reversed.size(); i++) {
-                auto&& [i_, q0s, q1s, b_] = reversed.at(i);
-                std::cerr << i << "\t" << i_ << "\t|";
-                for (Graph::State q0 : q0s)
-                    std::cerr << q0 << ",";
-                std::cerr << "|\t|";
-                for (Graph::State q1 : q1s)
-                    std::cerr << q1 << ",";
-                std::cerr << "|\n";
-            }
-            std::cerr << "\n";
-            */
-
-            std::unordered_map<Graph::State, Graph::State> rst2st;
-            auto get = [&](Graph::State rq) {
-                auto it = rst2st.find(rq);
-                if (it != rst2st.end())
-                    return it->second;
-                Graph::State q = delta.size();
-                delta.push_back({q, {}, {}});
-                rst2st.emplace(rq, q);
-                return q;
-            };
-
-            std::set<Graph::State> visited;
-            std::queue<std::tuple<Graph::State, size_t, Graph::State>> que;
-            que.push({bdd2rst.at(bddtrue), var_size, dst});
-            std::optional<Graph::State> src_alt;
-            while (!que.empty()) {
-                auto [cur_rq, cur_var_idx, cur_q] = que.front();
-                que.pop();
-
-                if (visited.contains(cur_rq))
-                    continue;
-                visited.insert(cur_rq);
-
-                auto &&[q_, q0s, q1s, b_] = reversed.at(cur_rq);
-
-                if (cur_var_idx == 0) {
-                    assert(q0s.empty() && q1s.empty() && !src_alt);
-                    src_alt.emplace(cur_q);
-                    continue;
-                }
-
-                if (q0s.empty() && q1s.empty()) {
-                    assert(!src_alt);
-                    while (cur_var_idx > 0) {
-                        cur_var_idx--;
-                        Graph::State q = delta.size();
-                        delta.push_back({q, {cur_q}, {cur_q}});
-                        cur_q = q;
-                    }
-                    src_alt.emplace(cur_q);
-                    continue;
-                }
-
-                for (Graph::State q0 : q0s) {
-                    bdd b = std::get<3>(reversed.at(q0));
-                    size_t q0_var_idx = var2idx.at(bdd_var(b));
-                    size_t cidx = cur_var_idx;
-                    Graph::State cq = cur_q;
-                    spdlog::debug("{}", cidx);
-                    while (cidx > q0_var_idx + 1) {
-                        cidx--;
-                        Graph::State q = delta.size();
-                        delta.push_back({q, {cq}, {cq}});
-                        cq = q;
-                        spdlog::debug("{}", cidx);
-                    }
-                    Graph::State next = get(q0);
-                    std::get<1>(delta.at(next)).push_back(cq);
-                    que.push({q0, q0_var_idx, next});
-                }
-                for (Graph::State q1 : q1s) {
-                    bdd b = std::get<3>(reversed.at(q1));
-                    size_t q1_var_idx = var2idx.at(bdd_var(b));
-                    size_t cidx = cur_var_idx;
-                    Graph::State cq = cur_q;
-                    while (cidx > q1_var_idx + 1) {
-                        cidx--;
-                        Graph::State q = delta.size();
-                        delta.push_back({q, {cq}, {cq}});
-                        cq = q;
-                    }
-                    Graph::State next = get(q1);
-                    std::get<2>(delta.at(next)).push_back(cq);
-                    que.push({q1, q1_var_idx, next});
-                }
-            }
-            {
-                assert(src_alt);
-                spdlog::debug("{}", *src_alt);
-                auto [src_alt_, q0s, q1s] = delta.at(*src_alt);
-                assert(q0s.size() <= 1 && q1s.size() <= 1);
-                if (q0s.size() == 1)
-                    std::get<1>(delta.at(src)).push_back(q0s.at(0));
-                if (q1s.size() == 1)
-                    std::get<2>(delta.at(src)).push_back(q1s.at(0));
-
-                spdlog::debug("{} {} END TABLE BEGIN", src, dst);
-                /*
-                for (size_t i = 0; i < delta.size(); i++) {
-                    auto&& [i_, q0s, q1s] = delta.at(i);
-                    std::cerr << i << "\t" << i_ << "\t|";
-                    for (Graph::State q0 : q0s)
-                        std::cerr << q0 << ",";
-                    std::cerr << "|\t|";
-                    for (Graph::State q1 : q1s)
-                        std::cerr << q1 << ",";
-                    std::cerr << "|\n";
-                }
-                */
-                spdlog::debug("{} {} END TABLE END", src, dst);
-            }
-        }
-    }
-
-    /*
-    for (auto&& [i, q0s, q1s] : delta) {
-        std::cerr << i << "\t";
-        for (Graph::State q0 : q0s)
-            std::cerr << q0 << ",";
-        std::cerr << "\t";
-        for (Graph::State q1 : q1s)
-            std::cerr << q1 << ",";
-        std::cerr << "\n";
-    }
-    */
-
-    std::set<Graph::State> init_sts = {static_cast<Graph::State>(
-                               aut->get_init_state_number())},
-                           final_sts;
-    for (Graph::State i = 0; i < ns; i++)
-        final_sts.insert(i);
+    auto [init_sts, final_sts, delta] = ltl_to_nfa_tuple(formula, var_size);
     return Graph::from_nfa(init_sts, final_sts, delta);
+}
+
+Graph Graph::from_ltl_formula_reversed(const std::string &formula,
+                                       size_t var_size)
+{
+    auto [init_sts, final_sts, delta] = ltl_to_nfa_tuple(formula, var_size);
+    NFADelta delta_rev = reversed_nfa_delta(delta);
+    return Graph::from_nfa(final_sts, init_sts, delta_rev);
 }
 
 size_t Graph::size() const
@@ -640,19 +445,229 @@ void Graph::dump_dot(std::ostream &os) const
     os << "}\n";
 }
 
-Graph::NFADelta reversed_nfa_delta(const Graph::NFADelta &src)
+std::tuple<std::set<Graph::State>, std::set<Graph::State>, Graph::NFADelta>
+Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size)
 {
-    std::vector<std::vector<Graph::State>> prev0(src.size()), prev1(src.size());
-    for (Graph::State q = 0; q < src.size(); q++) {
+    spot::parsed_formula pf = spot::parse_infix_psl(formula);
+    assert(!pf.format_errors(std::cerr));
+    spot::translator trans;
+    trans.set_type(spot::postprocessor::Monitor);
+    spot::twa_graph_ptr aut = trans.run(pf.f);
+
+    std::unordered_map<int, size_t> var2idx;
+    {
+        bdd all = aut->ap_vars();
+        while (all != bddtrue) {
+            int v = bdd_var(all);
+            all = bdd_high(all);
+            var2idx.emplace(v, var2idx.size());
+        }
+        assert(var2idx.size() <= var_size);
+    }
+
+    size_t ns = aut->num_states();
+    NFADelta delta;
+    for (State i = 0; i < ns; i++)
+        delta.push_back({i, {}, {}});
+    for (State src = 0; src < ns; src++) {
+        spdlog::debug("{}/{}", src, ns);
+        for (auto &t : aut->out(src)) {
+            State dst = t.dst;
+
+            spdlog::debug("{} {}", src, t.dst);
+
+            std::vector<
+                std::tuple<State, std::vector<State>, std::vector<State>, bdd>>
+                reversed;
+            std::map<bdd, State, spot::bdd_less_than> bdd2rst;
+            {
+                auto get = [&](bdd b) {
+                    auto it = bdd2rst.find(b);
+                    if (it != bdd2rst.end())
+                        return it->second;
+                    State q = reversed.size();
+                    reversed.push_back({q, {}, {}, b});
+                    bdd2rst.emplace(b, q);
+                    return q;
+                };
+
+                std::queue<bdd> que;
+                que.push(t.cond);
+                reversed.push_back({0, {}, {}, t.cond});
+                bdd2rst.emplace(t.cond, 0);
+                std::set<bdd, spot::bdd_less_than> visited;
+                while (!que.empty()) {
+                    bdd node = que.front();
+                    que.pop();
+
+                    if (visited.contains(node))
+                        continue;
+                    visited.emplace(node);
+
+                    if (node == bddtrue || node == bddfalse)
+                        continue;
+
+                    bdd low = bdd_low(node), high = bdd_high(node);
+                    State q = bdd2rst.at(node), q0 = get(low), q1 = get(high);
+                    std::get<1>(reversed.at(q0)).push_back(q);
+                    std::get<2>(reversed.at(q1)).push_back(q);
+                    que.push(low);
+                    que.push(high);
+                }
+            }
+
+            /*
+            for (size_t i = 0; i < reversed.size(); i++) {
+                auto&& [i_, q0s, q1s, b_] = reversed.at(i);
+                std::cerr << i << "\t" << i_ << "\t|";
+                for (State q0 : q0s)
+                    std::cerr << q0 << ",";
+                std::cerr << "|\t|";
+                for (State q1 : q1s)
+                    std::cerr << q1 << ",";
+                std::cerr << "|\n";
+            }
+            std::cerr << "\n";
+            */
+
+            std::unordered_map<State, State> rst2st;
+            auto get = [&](State rq) {
+                auto it = rst2st.find(rq);
+                if (it != rst2st.end())
+                    return it->second;
+                State q = delta.size();
+                delta.push_back({q, {}, {}});
+                rst2st.emplace(rq, q);
+                return q;
+            };
+
+            std::set<State> visited;
+            std::queue<std::tuple<State, size_t, State>> que;
+            que.push({bdd2rst.at(bddtrue), var_size, dst});
+            std::optional<State> src_alt;
+            while (!que.empty()) {
+                auto [cur_rq, cur_var_idx, cur_q] = que.front();
+                que.pop();
+
+                if (visited.contains(cur_rq))
+                    continue;
+                visited.insert(cur_rq);
+
+                auto &&[q_, q0s, q1s, b_] = reversed.at(cur_rq);
+
+                if (cur_var_idx == 0) {
+                    assert(q0s.empty() && q1s.empty() && !src_alt);
+                    src_alt.emplace(cur_q);
+                    continue;
+                }
+
+                if (q0s.empty() && q1s.empty()) {
+                    assert(!src_alt);
+                    while (cur_var_idx > 0) {
+                        cur_var_idx--;
+                        State q = delta.size();
+                        delta.push_back({q, {cur_q}, {cur_q}});
+                        cur_q = q;
+                    }
+                    src_alt.emplace(cur_q);
+                    continue;
+                }
+
+                for (State q0 : q0s) {
+                    bdd b = std::get<3>(reversed.at(q0));
+                    size_t q0_var_idx = var2idx.at(bdd_var(b));
+                    size_t cidx = cur_var_idx;
+                    State cq = cur_q;
+                    spdlog::debug("{}", cidx);
+                    while (cidx > q0_var_idx + 1) {
+                        cidx--;
+                        State q = delta.size();
+                        delta.push_back({q, {cq}, {cq}});
+                        cq = q;
+                        spdlog::debug("{}", cidx);
+                    }
+                    State next = get(q0);
+                    std::get<1>(delta.at(next)).push_back(cq);
+                    que.push({q0, q0_var_idx, next});
+                }
+                for (State q1 : q1s) {
+                    bdd b = std::get<3>(reversed.at(q1));
+                    size_t q1_var_idx = var2idx.at(bdd_var(b));
+                    size_t cidx = cur_var_idx;
+                    State cq = cur_q;
+                    while (cidx > q1_var_idx + 1) {
+                        cidx--;
+                        State q = delta.size();
+                        delta.push_back({q, {cq}, {cq}});
+                        cq = q;
+                    }
+                    State next = get(q1);
+                    std::get<2>(delta.at(next)).push_back(cq);
+                    que.push({q1, q1_var_idx, next});
+                }
+            }
+            {
+                assert(src_alt);
+                spdlog::debug("{}", *src_alt);
+                auto [src_alt_, q0s, q1s] = delta.at(*src_alt);
+                assert(q0s.size() <= 1 && q1s.size() <= 1);
+                if (q0s.size() == 1)
+                    std::get<1>(delta.at(src)).push_back(q0s.at(0));
+                if (q1s.size() == 1)
+                    std::get<2>(delta.at(src)).push_back(q1s.at(0));
+
+                spdlog::debug("{} {} END TABLE BEGIN", src, dst);
+                /*
+                for (size_t i = 0; i < delta.size(); i++) {
+                    auto&& [i_, q0s, q1s] = delta.at(i);
+                    std::cerr << i << "\t" << i_ << "\t|";
+                    for (State q0 : q0s)
+                        std::cerr << q0 << ",";
+                    std::cerr << "|\t|";
+                    for (State q1 : q1s)
+                        std::cerr << q1 << ",";
+                    std::cerr << "|\n";
+                }
+                */
+                spdlog::debug("{} {} END TABLE END", src, dst);
+            }
+        }
+    }
+
+    /*
+    for (auto&& [i, q0s, q1s] : delta) {
+        std::cerr << i << "\t";
+        for (State q0 : q0s)
+            std::cerr << q0 << ",";
+        std::cerr << "\t";
+        for (State q1 : q1s)
+            std::cerr << q1 << ",";
+        std::cerr << "\n";
+    }
+    */
+
+    std::set<State> init_sts = {static_cast<State>(
+                        aut->get_init_state_number())},
+                    final_sts;
+    for (State i = 0; i < ns; i++)
+        final_sts.insert(i);
+
+    return std::make_tuple(init_sts, final_sts, delta);
+}
+
+Graph::NFADelta Graph::reversed_nfa_delta(const NFADelta &src)
+{
+    std::vector<std::vector<State>> prev0(src.size()), prev1(src.size());
+    for (State q = 0; q < src.size(); q++) {
         auto &&[q_, q0s, q1s] = src.at(q);
-        for (Graph::State q0 : q0s)
+        for (State q0 : q0s)
             prev0.at(q0).push_back(q);
-        for (Graph::State q1 : q1s)
+        for (State q1 : q1s)
             prev1.at(q1).push_back(q);
     }
 
-    Graph::NFADelta ret(src.size());
-    for (Graph::State q = 0; q < src.size(); q++)
+    NFADelta ret(src.size());
+    for (State q = 0; q < src.size(); q++)
         ret.at(q) = std::make_tuple(q, prev0.at(q), prev1.at(q));
     return ret;
 }

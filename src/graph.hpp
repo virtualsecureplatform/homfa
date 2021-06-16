@@ -33,6 +33,8 @@ public:
                           const std::set<State>& final_sts,
                           const NFADelta& delta);
     static Graph from_ltl_formula(const std::string& formula, size_t var_size);
+    static Graph from_ltl_formula_reversed(const std::string& formula,
+                                           size_t var_size);
 
     size_t size() const;
     bool is_final_state(State state) const;
@@ -48,8 +50,11 @@ public:
     Graph grouped_nondistinguishable() const;
     void dump(std::ostream& os) const;
     void dump_dot(std::ostream& os) const;
-};
 
-Graph::NFADelta reversed_nfa_delta(const Graph::NFADelta& src);
+private:
+    static std::tuple<std::set<State>, std::set<State>, NFADelta>
+    ltl_to_nfa_tuple(const std::string& formula, size_t var_size);
+    static NFADelta reversed_nfa_delta(const NFADelta& src);
+};
 
 #endif
