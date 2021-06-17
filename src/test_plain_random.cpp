@@ -167,7 +167,13 @@ template <class Logger>
 void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
                            Logger& log1, Logger& log2)
 {
-    std::mt19937 rgen;
+    std::vector<std::vector<bool>> rand_bvec;
+    {
+        std::mt19937 rgen;
+        for (size_t i = 0; i < num_test - 100; i++)
+            rand_bvec.push_back(random_bvec(rgen, num_ap));
+    }
+
     std::string fml;
     size_t cnt = 0;
     while (std::getline(is, fml)) {
@@ -175,8 +181,6 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
             std::cerr << ".";
         log2->info(fml);
         log2->flush();
-
-        rgen.seed();
 
         Graph gr = Graph::from_ltl_formula(fml, num_ap), mgr = gr.minimized(),
               rgr = gr.reversed(), mrgr = rgr.minimized(),
@@ -198,7 +202,7 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
 
         for (size_t i = 0; i < num_test; i++) {
             std::vector<bool> in_src = i < 100 ? int2bvec(i + 1, num_ap)
-                                               : random_bvec(rgen, num_ap),
+                                               : rand_bvec.at(i - 100),
                               in = permutate_input_bits(perm_tbl, in_src),
                               rin(in.rbegin(), in.rend());
 
