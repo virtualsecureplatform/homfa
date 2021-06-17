@@ -17,6 +17,34 @@
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/translate.hh>
 
+void nfa_dump_dot(std::ostream &os, const std::set<Graph::State> &init_sts,
+                  const std::set<Graph::State> &final_sts,
+                  const Graph::NFADelta &delta)
+{
+    os << "digraph \"graph\" {\n"
+       << "rankdir=\"LR\""
+       << "  node[shape=\"circle\"]\n"
+       << "  I [label=\"\", style=invis, width=0]\n"
+       << "  I -> I0\n"
+       << "  I0 [label=\"\"]\n";
+    for (Graph::State q : init_sts)
+        os << "  I0 -> " << q << " [label=\"ε\"]\n";
+    for (auto &&[q, q0s, q1s] : delta) {
+        os << "  " << q << " [label=\"" << q << "\""
+           << (final_sts.contains(q) ? ", peripheries=2" : "") << "]";
+        for (Graph::State q0 : q0s) {
+            if (std::find(q1s.begin(), q1s.end(), q0) == q1s.end())
+                os << "  " << q << " -> " << q0 << " [label=\"0\"]\n";
+            else
+                os << "  " << q << " -> " << q0 << " [label=\"0,1\"]\n";
+        }
+        for (Graph::State q1 : q1s)
+            if (std::find(q0s.begin(), q0s.end(), q1) == q0s.end())
+                os << "  " << q << " -> " << q1 << " [label=\"1\"]\n";
+    }
+    os << "}\n";
+}
+
 Graph::Graph()
 {
 }
