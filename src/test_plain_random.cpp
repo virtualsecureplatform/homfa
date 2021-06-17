@@ -16,6 +16,16 @@
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/translate.hh>
 
+template <class T>
+std::string vec2str(const std::vector<T>& src)
+{
+    std::stringstream ss;
+    for (auto&& b : src) {
+        ss << b << ",";
+    }
+    return ss.str();
+}
+
 bool check_if_accept(spot::twa_graph_ptr aut, const Graph& graph,
                      const std::vector<bool>& src)
 {
