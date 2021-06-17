@@ -53,10 +53,10 @@ bool check_if_accept(spot::twa_graph_ptr aut, const std::vector<bool>& src,
     }
 
     size_t input_size = src.size() / input_kind_size;
-    std::vector<unsigned> qs;
-    qs.push_back(aut->get_init_state_number());
+    std::set<unsigned> qs;
+    qs.insert(aut->get_init_state_number());
     for (size_t i = 0; i < input_size; i++) {
-        std::vector<unsigned> next_qs;
+        std::set<unsigned> next_qs;
         for (unsigned q : qs) {
             for (const auto& t : aut->out(q)) {
                 bdd n = t.cond;
@@ -69,7 +69,7 @@ bool check_if_accept(spot::twa_graph_ptr aut, const std::vector<bool>& src,
                         n = bdd_low(n);
                 }
                 if (n == bddtrue)
-                    next_qs.push_back(t.dst);
+                    next_qs.insert(t.dst);
             }
         }
         if (next_qs.empty())
