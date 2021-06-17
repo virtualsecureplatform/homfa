@@ -68,10 +68,8 @@ bool check_if_accept(spot::twa_graph_ptr aut, const std::vector<bool>& src,
                     else
                         n = bdd_low(n);
                 }
-                if (n == bddtrue) {
+                if (n == bddtrue)
                     next_qs.push_back(t.dst);
-                    break;
-                }
             }
         }
         if (next_qs.empty())
@@ -189,7 +187,6 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
         assert(!pf.format_errors(std::cerr));
         spot::translator trans;
         trans.set_type(spot::postprocessor::Monitor);
-        trans.set_pref(spot::postprocessor::Deterministic);
         spot::twa_graph_ptr aut = trans.run(pf.f);
 
         std::vector<size_t> perm_tbl =
