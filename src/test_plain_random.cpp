@@ -165,7 +165,7 @@ std::vector<bool> permutate_input_bits(const std::vector<size_t>& tbl,
 
 template <class Logger>
 void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
-                           Logger& log1, Logger& log2)
+                           Logger& log1)
 {
     std::vector<std::vector<bool>> rand_bvec;
     {
@@ -179,8 +179,6 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
     while (std::getline(is, fml)) {
         if (++cnt % 1000 == 0)
             std::cerr << ".";
-        log2->info(fml);
-        log2->flush();
 
         Graph gr = Graph::from_ltl_formula(fml, num_ap), mgr = gr.minimized(),
               rgr = gr.reversed(), mrgr = rgr.minimized(),
@@ -250,18 +248,15 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
 
 int main(int argc, char** argv)
 {
-    if (argc != 3) {
-        spdlog::error("Usage: {} LOG-FILE1 LOG-FILE2", argv[0]);
+    if (argc != 2) {
+        spdlog::error("Usage: {} LOG-FILE1", argv[0]);
         return 1;
     }
 
     auto max_size = 1024 * 1024 * 1;
     auto logger1 = spdlog::basic_logger_mt("random log1", argv[1]);
-    auto logger2 =
-        spdlog::rotating_logger_mt("random log2", argv[2], max_size, 1);
     logger1->set_pattern("%v");
-    logger2->set_pattern("%v");
 
-    test_from_ltl_formula(std::cin, 5, 300, logger1, logger2);
+    test_from_ltl_formula(std::cin, 5, 300, logger1);
     return 0;
 }
