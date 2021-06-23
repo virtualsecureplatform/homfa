@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-BUILD_BIN=build/bin
+BUILD_BIN=${BUILD_BIN:-"build/bin"}
 TEST0=$BUILD_BIN/test0
 TEST_PLAIN_RANDOM=$BUILD_BIN/test_plain_random
 HOMFA=$BUILD_BIN/homfa
@@ -45,7 +45,7 @@ check_false(){
 
 ### Now start testing
 $TEST0
-cat test/safety_ltl_5ap.txt | $TEST_PLAIN_RANDOM _test_random.log1 _test_random.log2
+cat test/safety_ltl_5ap.txt | $TEST_PLAIN_RANDOM _test_random.log
 #### Offline DFA
 check_true  offline-dfa test/01.spec test/01-01.in # [1, 1] * 8 * 100
 check_false offline-dfa test/01.spec test/01-02.in # [1, 0] * 8 * 100
@@ -60,4 +60,4 @@ check_false online-dfa test/01.spec test/01-02.in # [1, 0] * 8 * 100
 check_true  online-dfa test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
 
 ### Clean up temporary files
-rm _test_sk _test_bk _test_in _test_out _test_random.log1 _test_random.log2
+rm _test_sk _test_bk _test_in _test_out _test_random.log
