@@ -11,7 +11,7 @@ class OfflineDFARunner {
 private:
     const Graph &graph_;
     InputStream<TRGSWLvl1FFT> &input_stream_;
-    std::vector<TRLWELvl1> weight_;
+    std::vector<RedundantTRLWELvl1> weight_;
     bool has_evaluated_;
     std::shared_ptr<GateKey> gate_key_;
 

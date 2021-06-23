@@ -9,15 +9,16 @@ OfflineDFARunner::OfflineDFARunner(const Graph &graph,
                                    std::shared_ptr<GateKey> gate_key)
     : graph_(graph),
       input_stream_(input_stream),
-      weight_(graph_.size(), trivial_TRLWELvl1_zero()),
+      weight_(graph_.size()),
       has_evaluated_(false),
       gate_key_(std::move(gate_key))
 {
-    for (Graph::State st = 0; st < graph_.size(); st++)
+    for (Graph::State st = 0; st < graph_.size(); st++) {
         if (graph_.is_final_state(st))
-            weight_.at(st)[1][0] = (1u << 29);  // 1/8
+            weight_.at(st).s = RedundantTRLWELvl1::TRIVIAL_1;
         else
-            weight_.at(st)[1][0] = -(1u << 29);  // -1/8
+            weight_.at(st).s = RedundantTRLWELvl1::TRIVIAL_0;
+    }
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Offline FA Runner");
@@ -39,11 +40,20 @@ OfflineDFARunner::OfflineDFARunner(const Graph &graph,
 TLWELvl1 OfflineDFARunner::result() const
 {
     assert(has_evaluated_);
-    TRLWELvl1 w = weight_.at(graph_.initial_state());
+    RedundantTRLWELvl1 w = weight_.at(graph_.initial_state());
+    switch (w.s) {
+    case RedundantTRLWELvl1::TRIVIAL_0:
+        return trivial_TLWELvl1_minus_1over8();
+    case RedundantTRLWELvl1::TRIVIAL_1:
+        return trivial_TLWELvl1_1over8();
+    default:
+        break;
+    }
+
     if (gate_key_)
-        do_SEI_IKS_GBTLWE2TRLWE(w, *gate_key_);
+        do_SEI_IKS_GBTLWE2TRLWE(w.c, *gate_key_);
     TLWELvl1 ret;
-    TFHEpp::SampleExtractIndex<Lvl1>(ret, w, 0);
+    TFHEpp::SampleExtractIndex<Lvl1>(ret, w.c, 0);
     return ret;
 }
 
@@ -52,8 +62,22 @@ void OfflineDFARunner::eval()
     assert(!has_evaluated_);
     has_evaluated_ = true;
 
+    const TRLWELvl1 tri0 = trivial_TRLWELvl1_minus_1over8(),
+                    tri1 = trivial_TRLWELvl1_1over8();
+    auto remove_redundancy =
+        [&](const RedundantTRLWELvl1 &r) -> const TRLWELvl1 & {
+        switch (r.s) {
+        case RedundantTRLWELvl1::TRIVIAL_0:
+            return tri0;
+        case RedundantTRLWELvl1::TRIVIAL_1:
+            return tri1;
+        default:
+            return r.c;
+        }
+    };
+
     size_t input_size = input_stream_.size();
-    std::vector<TRLWELvl1> out(weight_.size(), trivial_TRLWELvl1_zero());
+    std::vector<RedundantTRLWELvl1> out(weight_.size());
     for (int j = input_size - 1; j >= 0; --j) {
         auto states = graph_.states_at_depth(j);
         TRGSWLvl1FFT input = input_stream_.next();
@@ -61,8 +85,19 @@ void OfflineDFARunner::eval()
                       [&](auto &&q) {
                           Graph::State q0 = graph_.next_state(q, false),
                                        q1 = graph_.next_state(q, true);
-                          TFHEpp::CMUXFFT<Lvl1>(out.at(q), input,
-                                                weight_.at(q1), weight_.at(q0));
+                          const RedundantTRLWELvl1 &rw0 = weight_.at(q0),
+                                                   &rw1 = weight_.at(q1);
+
+                          if (rw0.s != RedundantTRLWELvl1::NON_TRIVIAL &&
+                              rw0.s == rw1.s) {
+                              out.at(q).s = rw0.s;
+                              return;
+                          }
+
+                          const TRLWELvl1 &w0 = remove_redundancy(rw0),
+                                          &w1 = remove_redundancy(rw1);
+                          TFHEpp::CMUXFFT<Lvl1>(out.at(q).c, input, w1, w0);
+                          out.at(q).s = RedundantTRLWELvl1::NON_TRIVIAL;
                       });
         {
             using std::swap;
@@ -83,6 +118,8 @@ void OfflineDFARunner::bootstrap_weight(
     assert(gate_key_);
     std::for_each(std::execution::par, targets.begin(), targets.end(),
                   [&](Graph::State q) {
-                      do_SEI_IKS_GBTLWE2TRLWE(weight_.at(q), *gate_key_);
+                      RedundantTRLWELvl1 &rw = weight_.at(q);
+                      if (rw.s == RedundantTRLWELvl1::NON_TRIVIAL)
+                          do_SEI_IKS_GBTLWE2TRLWE(rw.c, *gate_key_);
                   });
 }

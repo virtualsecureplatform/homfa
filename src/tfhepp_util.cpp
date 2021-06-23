@@ -54,6 +54,20 @@ TRLWELvl1 trivial_TRLWELvl1_zero()
     return ret;
 }
 
+TLWELvl1 trivial_TLWELvl1_minus_1over8()
+{
+    TLWELvl1 ret = {};
+    ret[Lvl1::n] = -(1u << 29);  // -1/8
+    return ret;
+}
+
+TLWELvl1 trivial_TLWELvl1_1over8()
+{
+    TLWELvl1 ret = {};
+    ret[Lvl1::n] = (1u << 29);  // 1/8
+    return ret;
+}
+
 TRLWELvl1 trivial_TRLWELvl1_minus_1over8()
 {
     TRLWELvl1 ret = trivial_TRLWELvl1_zero();

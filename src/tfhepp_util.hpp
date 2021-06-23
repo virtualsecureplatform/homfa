@@ -52,6 +52,17 @@ public:
     TRGSWLvl1FFT next() override;
 };
 
+struct RedundantTRLWELvl1 {
+    enum {
+        TRIVIAL_0,
+        TRIVIAL_1,
+        NON_TRIVIAL,
+    } s;
+    TRLWELvl1 c;
+};
+
+TLWELvl1 trivial_TLWELvl1_minus_1over8();
+TLWELvl1 trivial_TLWELvl1_1over8();
 TRLWELvl1 trivial_TRLWELvl1(const PolyLvl1 &src);
 TRLWELvl1 trivial_TRLWELvl1_zero();
 TRLWELvl1 trivial_TRLWELvl1_minus_1over8();
