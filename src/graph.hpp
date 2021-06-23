@@ -21,6 +21,7 @@ private:
     std::vector<TableItem> table_;
     std::vector<std::vector<State>> states_at_depth_;
     std::set<State> final_state_;
+    std::vector<bool> final_state_vec_;
     State init_state_;
 
 public:
@@ -39,7 +40,7 @@ public:
     size_t size() const;
     bool is_final_state(State state) const;
     State next_state(State state, bool input) const;
-    std::vector<State> prev_states(State state, bool input) const;
+    const std::vector<State>& prev_states(State state, bool input) const;
     State initial_state() const;
     void reserve_states_at_depth(size_t depth);
     std::vector<State> states_at_depth(size_t depth) const;

@@ -17,6 +17,42 @@
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/translate.hh>
 
+// Thanks to:
+// https://helloacm.com/the-union-find-disjoint-set-implementation-in-java/
+class UnionFind {
+private:
+    std::vector<int> g_;
+
+public:
+    UnionFind(int size) : g_(size)
+    {
+        std::iota(g_.begin(), g_.end(), 0);
+    }
+
+    int find(int x)
+    {
+        if (x == g_.at(x))
+            return x;
+        return g_.at(x) = find(g_.at(x));
+    }
+
+    void unite(int x, int y)
+    {
+        int px = find(x), py = find(y);
+        if (px != py)
+            g_.at(px) = py;
+    }
+
+    int size()
+    {
+        int ans = 0;
+        for (int i = 0; i < g_.size(); i++)
+            if (i == g_.at(i))
+                ans++;
+        return ans;
+    }
+};
+
 void nfa_dump_dot(std::ostream &os, const std::set<Graph::State> &init_sts,
                   const std::set<Graph::State> &final_sts,
                   const Graph::NFADelta &delta)
@@ -54,6 +90,7 @@ Graph::Graph(State init_st, const std::set<State> &final_sts,
     : table_(),
       states_at_depth_(),
       final_state_(final_sts),
+      final_state_vec_(delta.size(), false),
       init_state_(init_st)
 {
     for (auto &&[q, q0, q1] : delta)
@@ -62,6 +99,8 @@ Graph::Graph(State init_st, const std::set<State> &final_sts,
         table_.at(item.child0).parents0.push_back(item.index);
         table_.at(item.child1).parents1.push_back(item.index);
     }
+    for (State q : final_sts)
+        final_state_vec_.at(q) = true;
 }
 
 Graph Graph::from_file(const std::string &filename)
@@ -241,7 +280,8 @@ size_t Graph::size() const
 
 bool Graph::is_final_state(State state) const
 {
-    return final_state_.contains(state);
+    // return final_state_.contains(state);
+    return final_state_vec_.at(state);
 }
 
 Graph::State Graph::next_state(State state, bool input) const
@@ -250,9 +290,10 @@ Graph::State Graph::next_state(State state, bool input) const
     return input ? t.child1 : t.child0;
 }
 
-std::vector<Graph::State> Graph::prev_states(State state, bool input) const
+const std::vector<Graph::State> &Graph::prev_states(State state,
+                                                    bool input) const
 {
-    auto &t = table_.at(state);
+    const TableItem &t = table_.at(state);
     return input ? t.parents1 : t.parents0;
 }
 
@@ -354,14 +395,15 @@ Graph Graph::removed_unreachable() const
 Graph Graph::grouped_nondistinguishable() const
 {
     // Table-filling algorithm
-    std::vector<bool> table(size() * size(), false);  // FIXME: use only half
+    size_t siz = size();
+    std::vector<bool> table(siz * siz, false);  // FIXME: use only half
     std::queue<std::pair<State, State>> que;
-    for (State qa = 0; qa < size(); qa++) {
-        for (State qb = qa + 1; qb < size(); qb++) {
+    for (State qa = 0; qa < siz; qa++) {
+        for (State qb = qa + 1; qb < siz; qb++) {
             bool qa_final = is_final_state(qa), qb_final = is_final_state(qb);
             if (qa_final && !qb_final || !qa_final && qb_final) {
-                que.push(std::make_pair(qa, qb));
-                table.at(qa + qb * size()) = true;
+                que.emplace(qa, qb);
+                table.at(qa + qb * siz) = true;
             }
         }
     }
@@ -369,16 +411,17 @@ Graph Graph::grouped_nondistinguishable() const
         auto [ql, qr] = que.front();
         que.pop();
         assert(ql < qr);
-        for (bool in : std::vector{true, false}) {
+        const static bool bv[] = {true, false};
+        for (bool in : bv) {
             for (State qa : prev_states(ql, in)) {
                 for (State qb : prev_states(qr, in)) {
-                    if (qa < qb && !table.at(qa + size() * qb)) {
-                        table.at(qa + size() * qb) = true;
-                        que.push(std::make_pair(qa, qb));
+                    if (qa < qb && !table.at(qa + siz * qb)) {
+                        table.at(qa + siz * qb) = true;
+                        que.emplace(qa, qb);
                     }
-                    else if (qa > qb && !table.at(qb + size() * qa)) {
-                        table.at(qb + size() * qa) = true;
-                        que.push(std::make_pair(qb, qa));
+                    else if (qa > qb && !table.at(qb + siz * qa)) {
+                        table.at(qb + siz * qa) = true;
+                        que.emplace(qb, qa);
                     }
                 }
             }
@@ -387,24 +430,24 @@ Graph Graph::grouped_nondistinguishable() const
 
     // Group the states
     // FIXME: must find more efficient way. maybe union-find?
-    std::vector<std::set<State>> st;
-    auto find_contains = [&st](State q) {
-        return std::find_if(st.begin(), st.end(),
-                            [q](auto &s) { return s.contains(q); });
-    };
-    for (State q : all_states())
-        st.push_back({q});
-    for (State qa = 0; qa < size(); qa++) {
-        for (State qb = qa + 1; qb < size(); qb++) {
-            bool equiv = !table.at(qa + qb * size());
+    UnionFind uf(siz);
+    for (State qa = 0; qa < siz; qa++) {
+        for (State qb = qa + 1; qb < siz; qb++) {
+            bool equiv = !table.at(qa + qb * siz);
             if (!equiv)
                 continue;
-            auto ita = find_contains(qa), itb = find_contains(qb);
-            assert(ita != st.end() && itb != st.end());
-            if (ita == itb)
-                continue;
-            ita->insert(itb->begin(), itb->end());
-            st.erase(itb);
+            uf.unite(qa, qb);
+        }
+    }
+    std::vector<int> uf2st(siz, -1);
+    std::vector<std::set<State>> st(uf.size());
+    {
+        size_t next = 0;
+        for (State q : all_states()) {
+            int uf_i = uf.find(q);
+            if (uf2st.at(uf_i) == -1)
+                uf2st.at(uf_i) = next++;
+            st.at(uf2st.at(uf_i)).insert(q);
         }
     }
 
@@ -424,11 +467,8 @@ Graph Graph::grouped_nondistinguishable() const
         if (final)
             final_sts.insert(q);
 
-        auto q0_it = find_contains(next_state(repr, false)),
-             q1_it = find_contains(next_state(repr, true));
-        assert(q0_it != st.end() && q1_it != st.end());
-        State q0 = q0_it - st.begin(), q1 = q1_it - st.begin();
-
+        State q0 = uf2st.at(uf.find(next_state(repr, false))),
+              q1 = uf2st.at(uf.find(next_state(repr, true)));
         delta.emplace_back(q, q0, q1);
     }
 
