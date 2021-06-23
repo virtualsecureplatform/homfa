@@ -26,8 +26,7 @@ std::string vec2str(const std::vector<T>& src)
     return ss.str();
 }
 
-bool check_if_accept(spot::twa_graph_ptr aut, const Graph& graph,
-                     const std::vector<bool>& src)
+bool check_if_accept(const Graph& graph, const std::vector<bool>& src)
 {
     Graph::State q = graph.initial_state();
     for (bool b : src)
@@ -207,37 +206,37 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
             bool expected = check_if_accept(aut, in_src, num_ap);
 
             {
-                bool got = check_if_accept(aut, gr, in);
+                bool got = check_if_accept(gr, in);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(in), expected, got);
             }
             {
-                bool got = check_if_accept(aut, mgr, in);
+                bool got = check_if_accept(mgr, in);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(in), expected, got);
             }
             {
-                bool got = check_if_accept(aut, rgr, rin);
+                bool got = check_if_accept(rgr, rin);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(rin), expected, got);
             }
             {
-                bool got = check_if_accept(aut, mrgr, rin);
+                bool got = check_if_accept(mrgr, rin);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(rin), expected, got);
             }
             {
-                bool got = check_if_accept(aut, rgr2, rin);
+                bool got = check_if_accept(rgr2, rin);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(rin), expected, got);
             }
             {
-                bool got = check_if_accept(aut, mrgr2, rin);
+                bool got = check_if_accept(mrgr2, rin);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(rin), expected, got);
