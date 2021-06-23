@@ -677,7 +677,7 @@ Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size)
     std::set<State> init_sts = {static_cast<State>(
                         aut->get_init_state_number())},
                     final_sts;
-    for (State i = 0; i < ns; i++)
+    for (State i = 0; i < delta.size(); i++)
         final_sts.insert(i);
 
     return std::make_tuple(init_sts, final_sts, delta);
