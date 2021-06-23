@@ -66,6 +66,19 @@ void do_run_offline_dfa(
              ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
              : nullptr);
 
+    spdlog::info("Parameter:");
+    spdlog::info("\tMode:\t{}", "Offline FA Runner");
+    spdlog::info("\tInput size:\t{}", input_stream.size());
+    spdlog::info("\tState size:\t{}", gr.size());
+    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+    {
+        size_t total_cnt_cmux = 0;
+        for (size_t j = 0; j < input_stream.size(); j++)
+            total_cnt_cmux += gr.states_at_depth(j).size();
+        spdlog::info("\tTotal #CMUX:\t{}", total_cnt_cmux);
+    }
+    spdlog::info("");
+
     OfflineDFARunner runner{gr, input_stream, bkey};
     runner.eval();
 

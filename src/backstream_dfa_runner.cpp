@@ -79,7 +79,7 @@ void BackstreamDFARunner::eval(const TRGSWLvl1FFT &input)
 
     num_processed_inputs_++;
     if (gate_key_ && num_processed_inputs_ % BOOT_INTERVAL == 0) {
-        spdlog::info("Bootstrapping occurred");
+        spdlog::debug("Bootstrapping occurred");
         bootstrap_weight(*states);
     }
 }
