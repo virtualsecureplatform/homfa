@@ -74,8 +74,6 @@ void OfflineDFARunner::eval()
             spdlog::info("Bootstrapping occurred");
             bootstrapping_of_weight();
         }
-
-        spdlog::debug("[{}] #CMUX : {}", states.size());
     }
 }
 
