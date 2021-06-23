@@ -1,4 +1,5 @@
 add_executable(homfa
+    backstream_dfa_runner.cpp
     error.cpp
     graph.cpp
     main.cpp
@@ -19,6 +20,7 @@ set_target_properties(homfa
 install(TARGETS homfa DESTINATION bin)
 
 add_executable(test0
+    backstream_dfa_runner.cpp
     error.cpp
     graph.cpp
     test0.cpp
@@ -39,6 +41,7 @@ set_target_properties(test0
 install(TARGETS test0 DESTINATION bin)
 
 add_executable(test_plain_random
+    backstream_dfa_runner.cpp
     error.cpp
     graph.cpp
     test_plain_random.cpp

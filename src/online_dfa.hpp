@@ -1,6 +1,7 @@
 #ifndef HOMFA_ONLINE_DFA_HPP
 #define HOMFA_ONLINE_DFA_HPP
 
+#include "backstream_dfa_runner.hpp"
 #include "graph.hpp"
 #include "tfhepp_util.hpp"
 
@@ -23,14 +24,8 @@ private:
 };
 
 class OnlineDFARunner2 {
-    // Interval for bootstrapping
-    const static size_t BOOT_INTERVAL = 8000;
-
 private:
-    const Graph &graph_;
-    std::vector<TRLWELvl1> weight_;
-    std::shared_ptr<GateKey> gate_key_;
-    size_t num_processed_inputs_;
+    BackstreamDFARunner runner_;
 
 public:
     OnlineDFARunner2(const Graph &graph,
@@ -38,9 +33,6 @@ public:
 
     TLWELvl1 result() const;
     void eval_one(const TRGSWLvl1FFT &input);
-
-private:
-    void bootstrap_weight();
 };
 
 #endif
