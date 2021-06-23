@@ -59,10 +59,10 @@ void OfflineDFARunner::eval()
         TRGSWLvl1FFT input = input_stream_.next();
         std::for_each(std::execution::par, states.begin(), states.end(),
                       [&](auto &&q) {
-                          TRLWELvl1 w0, w1;
-                          next_weight(w1, j, q, true);
-                          next_weight(w0, j, q, false);
-                          TFHEpp::CMUXFFT<Lvl1>(out.at(q), input, w1, w0);
+                          Graph::State q0 = graph_.next_state(q, false),
+                                       q1 = graph_.next_state(q, true);
+                          TFHEpp::CMUXFFT<Lvl1>(out.at(q), input,
+                                                weight_.at(q1), weight_.at(q0));
                       });
         {
             using std::swap;
@@ -75,13 +75,6 @@ void OfflineDFARunner::eval()
             bootstrap_weight(states);
         }
     }
-}
-
-void OfflineDFARunner::next_weight(TRLWELvl1 &out, int j, Graph::State from,
-                                   bool input) const
-{
-    Graph::State to = graph_.next_state(from, input);
-    out = weight_.at(to);
 }
 
 void OfflineDFARunner::bootstrap_weight(

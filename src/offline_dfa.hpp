@@ -24,8 +24,6 @@ public:
     void eval();
 
 private:
-    void next_weight(TRLWELvl1 &out, int j, Graph::State from,
-                     bool input) const;
     void bootstrap_weight(const std::vector<Graph::State> &targets);
 };
 
