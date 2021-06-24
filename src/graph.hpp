@@ -9,16 +9,14 @@
 class Graph {
 public:
     using State = int;
+    // index, next when 0, next when 1
     using DFADelta = std::vector<std::tuple<State, State, State>>;
     using NFADelta =
         std::vector<std::tuple<State, std::vector<State>, std::vector<State>>>;
 
 private:
-    struct TableItem {
-        State index, child0, child1;
-        std::vector<State> parents0, parents1;
-    };
-    std::vector<TableItem> table_;
+    DFADelta delta_;
+    std::vector<std::vector<State>> parents0_, parents1_;
     std::vector<std::vector<State>> states_at_depth_;
     std::set<State> final_state_;
     std::vector<bool> final_state_vec_;

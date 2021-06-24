@@ -87,17 +87,17 @@ Graph::Graph()
 
 Graph::Graph(State init_st, const std::set<State> &final_sts,
              const DFADelta &delta)
-    : table_(),
+    : delta_(delta),
+      parents0_(delta.size()),
+      parents1_(delta.size()),
       states_at_depth_(),
       final_state_(final_sts),
       final_state_vec_(delta.size(), false),
       init_state_(init_st)
 {
-    for (auto &&[q, q0, q1] : delta)
-        table_.push_back(TableItem{q, q0, q1, {}, {}});
-    for (auto &&item : table_) {
-        table_.at(item.child0).parents0.push_back(item.index);
-        table_.at(item.child1).parents1.push_back(item.index);
+    for (auto &&[q, q0, q1] : delta) {
+        parents0_.at(q0).push_back(q);
+        parents1_.at(q1).push_back(q);
     }
     for (State q : final_sts)
         final_state_vec_.at(q) = true;
@@ -275,7 +275,7 @@ Graph Graph::from_ltl_formula_reversed(const std::string &formula,
 
 size_t Graph::size() const
 {
-    return table_.size();
+    return delta_.size();
 }
 
 bool Graph::is_final_state(State state) const
@@ -286,15 +286,17 @@ bool Graph::is_final_state(State state) const
 
 Graph::State Graph::next_state(State state, bool input) const
 {
-    auto &t = table_.at(state);
-    return input ? t.child1 : t.child0;
+    auto &t = delta_.at(state);
+    return input ? std::get<2>(t) : std::get<1>(t);
 }
 
 const std::vector<Graph::State> &Graph::prev_states(State state,
                                                     bool input) const
 {
-    const TableItem &t = table_.at(state);
-    return input ? t.parents1 : t.parents0;
+    if (input)
+        return parents1_.at(state);
+    else
+        return parents0_.at(state);
 }
 
 Graph::State Graph::initial_state() const
@@ -381,11 +383,11 @@ Graph Graph::removed_unreachable() const
         if (reachable.contains(q))
             final_sts.insert(old2new.at(q));
     DFADelta delta(reachable.size());
-    for (auto &&entry : table_) {
-        if (!reachable.contains(entry.index))
+    for (auto &&[index, child0, child1] : delta_) {
+        if (!reachable.contains(index))
             continue;
-        State q = old2new.at(entry.index), q0 = old2new.at(entry.child0),
-              q1 = old2new.at(entry.child1);
+        State q = old2new.at(index), q0 = old2new.at(child0),
+              q1 = old2new.at(child1);
         delta.at(q) = std::make_tuple(q, q0, q1);
     }
 
