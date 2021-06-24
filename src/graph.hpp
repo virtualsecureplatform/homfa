@@ -47,6 +47,7 @@ public:
     Graph minimized() const;
     Graph removed_unreachable() const;
     Graph grouped_nondistinguishable() const;
+    Graph negated() const;
     void dump(std::ostream& os) const;
     void dump_dot(std::ostream& os) const;
 

@@ -477,6 +477,15 @@ Graph Graph::grouped_nondistinguishable() const
     return Graph{init_st, final_sts, delta};
 }
 
+Graph Graph::negated() const
+{
+    std::set<State> new_final;
+    for (Graph::State q : all_states())
+        if (!is_final_state(q))
+            new_final.insert(q);
+    return Graph{init_state_, new_final, delta_};
+}
+
 void Graph::dump(std::ostream &os) const
 {
     for (Graph::State q : all_states()) {

@@ -238,10 +238,106 @@ void test_monitor()
     }
 }
 
+void test_negated()
+{
+    {
+        Graph gr = Graph::from_file("test/02.spec").negated();
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0*", "1", "0",  //
+                               "1", "2", "1",    //
+                               "2", "0", "1",    //
+                           }));
+    }
+    {
+        Graph gr = Graph::from_file("test/03.spec").negated();
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               "0", "1", "0",   //
+                               ">1", "0", "1",  //
+                           }));
+    }
+    {
+        Graph gr = Graph::from_file("test/04.spec").negated();
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0*", "1", "2",  //
+                               "1*", "0", "3",   //
+                               "2", "4", "5",    //
+                               "3", "4", "5",    //
+                               "4", "4", "5",    //
+                               "5*", "5", "5",   //
+                           }));
+    }
+    {
+        Graph gr = Graph::from_file("test/06.spec").negated();
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0*", "1", "0",  //
+                               "1",   "2", "3",  //
+                               "2",   "0", "4",  //
+                               "3",   "3", "3",  //
+                               "4",   "5", "4",  //
+                               "5*",  "6", "7",  //
+                               "6*",  "4", "0",  //
+                               "7*",  "7", "7",  //
+                           }));
+    }
+    {
+        Graph gr = Graph::from_file("test/07.spec").negated();
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0", "1", "2",  //
+                               "1*", "3", "4",  //
+                               "2*", "3", "5",  //
+                               "3*", "3", "3",  //
+                               "4*", "6", "7",  //
+                               "5",  "8", "8",  //
+                               "6*", "4", "3",  //
+                               "7*", "5", "3",  //
+                               "8*", "5", "5",  //
+                           }));
+    }
+    {
+        Graph gr = Graph::from_file("test/08.spec").negated();
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0", "1", "2",  //
+                               "1",  "0", "0",  //
+                               "2",  "3", "3",  //
+                               "3",  "4", "5",  //
+                               "4",  "0", "6",  //
+                               "5",  "3", "6",  //
+                               "6*", "6", "6",  //
+                           }));
+    }
+    {
+        Graph gr = Graph::from_file("test/09.spec").negated();
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0", "1", "2",  //
+                               "1*", "0", "0",  //
+                               "2*", "3", "3",  //
+                               "3",  "4", "5",  //
+                               "4*", "0", "6",  //
+                               "5*", "3", "6",  //
+                               "6*", "6", "6",  //
+                           }));
+    }
+}
+
 int main()
 {
     test_graph_dump();
     test_graph_reversed();
     test_graph_minimized();
     test_monitor();
+    test_negated();
 }
