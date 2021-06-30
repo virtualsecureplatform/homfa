@@ -16,6 +16,32 @@
 #include <CLI/CLI.hpp>
 #include <tfhe++.hpp>
 
+// Bootstrapping key in the broad sense
+struct BKey {
+    std::shared_ptr<GateKey> gkey;
+    std::shared_ptr<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>
+        tlwel1_trlwel1_ikskey;
+
+    BKey()
+    {
+    }
+
+    BKey(const SecretKey &skey)
+        : gkey(std::make_shared<GateKey>(skey)),
+          tlwel1_trlwel1_ikskey(
+              std::make_shared<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>())
+    {
+        TFHEpp::tlwe2trlweikskkgen<TFHEpp::lvl11param>(*tlwel1_trlwel1_ikskey,
+                                                       skey);
+    }
+
+    template <class Archive>
+    void serialize(Archive &ar)
+    {
+        ar(gkey, tlwel1_trlwel1_ikskey);
+    }
+};
+
 void do_genkey(const std::string &output_filename)
 {
     SecretKey skey;
@@ -26,7 +52,7 @@ void do_genbkey(const std::string &skey_filename,
                 const std::string &output_filename)
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
-    auto bkey = std::make_shared<GateKey>(skey);
+    BKey bkey{skey};
     write_to_archive(output_filename, bkey);
 }
 
@@ -61,10 +87,7 @@ void do_run_offline_dfa(
     Graph gr = Graph::from_file(spec_filename).minimized();
     gr.reserve_states_at_depth(input_stream.size());
 
-    auto bkey =
-        (bkey_filename
-             ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
-             : nullptr);
+    auto bkey = read_from_archive<BKey>(*bkey_filename);
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Offline FA Runner");
@@ -79,7 +102,7 @@ void do_run_offline_dfa(
     }
     spdlog::info("");
 
-    OfflineDFARunner runner{gr, input_stream, bkey};
+    OfflineDFARunner runner{gr, input_stream, bkey.gkey};
     runner.eval();
 
     write_to_archive(output_filename, runner.result());
@@ -92,11 +115,8 @@ void do_run_online_dfa(
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr = Graph::from_file(spec_filename);
-    auto bkey =
-        (bkey_filename
-             ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
-             : nullptr);
-    OnlineDFARunner runner{gr, bkey};
+    auto bkey = read_from_archive<BKey>(*bkey_filename);
+    OnlineDFARunner runner{gr, bkey.gkey};
 
     for (size_t i = 0; input_stream.size() != 0; i++) {
         spdlog::debug("Processing input {}", i);
@@ -113,11 +133,8 @@ void do_run_online_dfa2(
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr = Graph::from_file(spec_filename).reversed();
-    auto bkey =
-        (bkey_filename
-             ? read_from_archive<std::shared_ptr<GateKey>>(*bkey_filename)
-             : nullptr);
-    OnlineDFARunner2 runner{gr, bkey};
+    auto bkey = read_from_archive<BKey>(*bkey_filename);
+    OnlineDFARunner2 runner{gr, bkey.gkey};
 
     for (size_t i = 0; input_stream.size() != 0; i++) {
         spdlog::debug("Processing input {}", i);
@@ -125,6 +142,34 @@ void do_run_online_dfa2(
     }
 
     write_to_archive(output_filename, runner.result());
+}
+
+void do_run_online_dfa3(const std::string &spec_filename,
+                        const std::string &input_filename,
+                        const std::string &output_filename,
+                        const std::string &bkey_filename,
+                        const std::optional<std::string> &debug_skey_filename)
+{
+    TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
+    Graph gr = Graph::from_file(spec_filename);
+
+    auto bkey = read_from_archive<BKey>(bkey_filename);
+    assert(bkey.gkey && bkey.tlwel1_trlwel1_ikskey);
+
+    std::optional<SecretKey> debug_skey;
+    if (debug_skey_filename)
+        debug_skey.emplace(read_from_archive<SecretKey>(*debug_skey_filename));
+
+    OnlineDFARunner3 runner{gr, *bkey.gkey, *bkey.tlwel1_trlwel1_ikskey,
+                            debug_skey};
+
+    for (size_t i = 0; input_stream.size() != 0; i++) {
+        spdlog::debug("Processing input {}", i);
+        runner.eval_one(input_stream.next());
+    }
+    TLWELvl1 res = runner.result();
+
+    write_to_archive(output_filename, res);
 }
 
 void do_dec(const std::string &skey_filename, const std::string &input_filename)
@@ -166,7 +211,7 @@ int main(int argc, char **argv)
 
     bool verbose = false, quiet = false, minimized = false, reversed = false,
          negated;
-    std::optional<std::string> spec, skey, bkey, input, output;
+    std::optional<std::string> spec, skey, bkey, input, output, debug_skey;
     std::string formula;
     std::optional<size_t> num_vars;
 
@@ -209,6 +254,8 @@ int main(int argc, char **argv)
         run->add_option("--spec", spec)->required()->check(CLI::ExistingFile);
         run->add_option("--in", input)->required()->check(CLI::ExistingFile);
         run->add_option("--out", output)->required();
+        run->add_option("--debug-secret-key", debug_skey)
+            ->check(CLI::ExistingFile);
     }
     {
         CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
@@ -258,7 +305,9 @@ int main(int argc, char **argv)
     case TYPE::RUN_ONLINE_DFA:
         assert(spec && input && output);
         // do_run_online_dfa(*spec, *input, *output, bkey);
-        do_run_online_dfa2(*spec, *input, *output, bkey);
+        // do_run_online_dfa2(*spec, *input, *output, bkey);
+        assert(bkey);
+        do_run_online_dfa3(*spec, *input, *output, *bkey, debug_skey);
         break;
 
     case TYPE::DEC:

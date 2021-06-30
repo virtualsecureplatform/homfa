@@ -54,6 +54,20 @@ TRLWELvl1 trivial_TRLWELvl1_zero()
     return ret;
 }
 
+TLWELvl0 trivial_TLWELvl0_minus_1over8()
+{
+    TLWELvl0 ret = {};
+    ret[Lvl0::n] = -(1u << 29);  // -1/8
+    return ret;
+}
+
+TLWELvl0 trivial_TLWELvl0_1over8()
+{
+    TLWELvl0 ret = {};
+    ret[Lvl0::n] = (1u << 29);  // 1/8
+    return ret;
+}
+
 TLWELvl1 trivial_TLWELvl1_minus_1over8()
 {
     TLWELvl1 ret = {};
@@ -82,6 +96,18 @@ TRLWELvl1 trivial_TRLWELvl1_1over8()
     return ret;
 }
 
+void TLWELvl0_add(TLWELvl0 &lhs, const TLWELvl0 &rhs)
+{
+    for (size_t i = 0; i <= Lvl0::n; i++)
+        lhs[i] += rhs[i];
+}
+
+void TLWELvl1_add(TLWELvl1 &lhs, const TLWELvl1 &rhs)
+{
+    for (size_t i = 0; i <= Lvl1::n; i++)
+        lhs[i] += rhs[i];
+}
+
 // out += src
 void TRLWELvl1_add(TRLWELvl1 &out, const TRLWELvl1 &src)
 {
@@ -89,6 +115,13 @@ void TRLWELvl1_add(TRLWELvl1 &out, const TRLWELvl1 &src)
         out[0][i] += src[0][i];
         out[1][i] += src[1][i];
     }
+}
+
+// out = src * X^k
+void TRLWELvl1_mult_X_k(TRLWELvl1 &out, const TRLWELvl1 &src, size_t k)
+{
+    TFHEpp::PolynomialMulByXai<Lvl1>(out[0], src[0], k);
+    TFHEpp::PolynomialMulByXai<Lvl1>(out[1], src[1], k);
 }
 
 uint32_t phase_of_TLWELvl1(const TLWELvl1 &src, const SecretKey &skey)
