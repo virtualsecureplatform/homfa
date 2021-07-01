@@ -212,7 +212,7 @@ int main(int argc, char **argv)
     bool verbose = false, quiet = false, minimized = false, reversed = false,
          negated;
     std::optional<std::string> spec, skey, bkey, input, output, debug_skey;
-    std::string formula;
+    std::string formula, online_method = "qtrlwe2";
     std::optional<size_t> num_vars;
 
     app.add_flag("--verbose", verbose, "");
@@ -254,6 +254,8 @@ int main(int argc, char **argv)
         run->add_option("--spec", spec)->required()->check(CLI::ExistingFile);
         run->add_option("--in", input)->required()->check(CLI::ExistingFile);
         run->add_option("--out", output)->required();
+        run->add_option("--method", online_method)
+            ->check(CLI::IsMember({"qtrlwe", "reversed", "qtrlwe2"}));
         run->add_option("--debug-secret-key", debug_skey)
             ->check(CLI::ExistingFile);
     }
@@ -304,10 +306,17 @@ int main(int argc, char **argv)
 
     case TYPE::RUN_ONLINE_DFA:
         assert(spec && input && output);
-        // do_run_online_dfa(*spec, *input, *output, bkey);
-        // do_run_online_dfa2(*spec, *input, *output, bkey);
-        assert(bkey);
-        do_run_online_dfa3(*spec, *input, *output, *bkey, debug_skey);
+        if (online_method == "qtrlwe") {
+            do_run_online_dfa(*spec, *input, *output, bkey);
+        }
+        else if (online_method == "reversed") {
+            do_run_online_dfa2(*spec, *input, *output, bkey);
+        }
+        else {
+            assert(online_method == "qtrlwe2");
+            assert(bkey);
+            do_run_online_dfa3(*spec, *input, *output, *bkey, debug_skey);
+        }
         break;
 
     case TYPE::DEC:
