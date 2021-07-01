@@ -1,31 +1,25 @@
 #!/usr/bin/bash -xeu
 
 spec=(
-    "test/bench-1024.spec"
-    "test/bench-256.spec"
     "test/bench-64.spec"
     "test/bench-128.spec"
+    "test/bench-256.spec"
     "test/bench-512.spec"
+    "test/bench-1024.spec"
 )
 
 input=(
     "test/bench-1024.in"
-    "test/bench-16384.in"
     "test/bench-2048.in"
     "test/bench-4096.in"
     "test/bench-8192.in"
+    "test/bench-16384.in"
 )
 
 TIME="multitime -n5"
-HOMFA=build/bin/homfa
+HOMFA=build_rel/bin/homfa
 
 output_file=$(date +'homfa-bench-%Y%m%d%H%M%S.log')
-
-enc_run_dec(){
-    $HOMFA enc --key _test_sk --in "$2" --out _test_in
-    $HOMFA run-offline-dfa --bkey _test_bk --spec "$1" --in _test_in --out _test_out
-    $HOMFA dec --key _test_sk --in _test_out
-}
 
 [ -f _test_sk ] || $HOMFA genkey --out _test_sk
 [ -f _test_bk ] || $HOMFA genbkey --key _test_sk --out _test_bk
