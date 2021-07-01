@@ -36,7 +36,7 @@ public:
 };
 
 class OnlineDFARunner3 {
-    const static size_t QUEUE_SIZE = 10;
+    const static size_t QUEUE_SIZE = 11;
 
 private:
     const Graph &graph_;
