@@ -118,6 +118,13 @@ void do_run_online_dfa(
     auto bkey = read_from_archive<BKey>(*bkey_filename);
     OnlineDFARunner runner{gr, bkey.gkey};
 
+    spdlog::info("Parameter:");
+    spdlog::info("\tMode:\t{}", "Online FA Runner1 (qtrlwe)");
+    spdlog::info("\tState size:\t{}", gr.size());
+    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+    // spdlog::info("\tBootstrap interval:\t{}", bootstrap_interval_);
+    spdlog::info("");
+
     for (size_t i = 0; input_stream.size() != 0; i++) {
         spdlog::debug("Processing input {}", i);
         runner.eval_one(input_stream.next());
@@ -135,6 +142,13 @@ void do_run_online_dfa2(
     Graph gr = Graph::from_file(spec_filename).reversed();
     auto bkey = read_from_archive<BKey>(*bkey_filename);
     OnlineDFARunner2 runner{gr, bkey.gkey};
+
+    spdlog::info("Parameter:");
+    spdlog::info("\tMode:\t{}", "Online FA Runner2 (reversed)");
+    spdlog::info("\tInput size:\t{}", input_stream.size());
+    spdlog::info("\tState size:\t{}", gr.size());
+    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+    spdlog::info("");
 
     for (size_t i = 0; input_stream.size() != 0; i++) {
         spdlog::debug("Processing input {}", i);
@@ -159,6 +173,13 @@ void do_run_online_dfa3(const std::string &spec_filename,
     std::optional<SecretKey> debug_skey;
     if (debug_skey_filename)
         debug_skey.emplace(read_from_archive<SecretKey>(*debug_skey_filename));
+
+    spdlog::info("Parameter:");
+    spdlog::info("\tMode:\t{}", "Online FA Runner3 (qtrlwe2)");
+    spdlog::info("\tInput size:\t{}", input_stream.size());
+    spdlog::info("\tState size:\t{}", gr.size());
+    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+    spdlog::info("");
 
     OnlineDFARunner3 runner{gr, *bkey.gkey, *bkey.tlwel1_trlwel1_ikskey,
                             debug_skey};

@@ -23,14 +23,6 @@ OnlineDFARunner::OnlineDFARunner(const Graph &graph,
     assert(graph_.size() > 1);
     bootstrap_interval_ = std::log(8000) / std::log(graph_.size());
     assert(bootstrap_interval_ > 0);
-
-    spdlog::info("Parameter:");
-    spdlog::info("\tMode:\t{}", "Online FA Runner");
-    spdlog::info("\tState size:\t{}", graph_.size());
-    spdlog::info("\tWeight size:\t{}", weight_.size());
-    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
-    spdlog::info("\tBootstrap interval:\t{}", bootstrap_interval_);
-    spdlog::info("");
 }
 
 TLWELvl1 OnlineDFARunner::result()
