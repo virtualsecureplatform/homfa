@@ -17,8 +17,11 @@ enc_run_dec(){
         "offline-dfa" )
             $HOMFA run-offline-dfa --bkey _test_bk --spec "$2" --in _test_in --out _test_out
             ;;
-        "online-dfa" )
-            $HOMFA run-online-dfa --bkey _test_bk --spec "$2" --in _test_in --out _test_out
+        "online-dfa-reversed" )
+            $HOMFA run-online-dfa --method reversed --bkey _test_bk --spec "$2" --in _test_in --out _test_out
+            ;;
+        "online-dfa-qtrlwe2" )
+            $HOMFA run-online-dfa --method qtrlwe2 --bkey _test_bk --spec "$2" --in _test_in --out _test_out
             ;;
         * )
             failwith "Invalid run $1"
@@ -54,11 +57,17 @@ check_false offline-dfa test/01.spec test/01-04.in # [1, 0] + ([0, 0, 1, 0] * 8 
 check_true  offline-dfa test/01.spec test/01-05.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 100
 check_false offline-dfa test/01.spec test/01-06.in # [1, 0] + ([0, 0, 1, 0] * 8 * 100) + [0, 1] + ([0, 0, 0, 1] * 8 * 150)
 
-#### Online DFA
-check_true  online-dfa test/01.spec test/01-07.in # [1, 1] * 4
-check_true  online-dfa test/01.spec test/01-08.in # [1, 0] * 4
-check_false online-dfa test/01.spec test/01-02.in # [1, 0] * 8 * 100
-check_true  online-dfa test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
+#### Online DFA (reversed)
+check_true  online-dfa-reversed test/01.spec test/01-07.in # [1, 1] * 4
+check_true  online-dfa-reversed test/01.spec test/01-08.in # [1, 0] * 4
+check_false online-dfa-reversed test/01.spec test/01-02.in # [1, 0] * 8 * 100
+check_true  online-dfa-reversed test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
+
+#### Online DFA (qtrlwe2)
+check_true  online-dfa-qtrlwe2 test/01.spec test/01-07.in # [1, 1] * 4
+check_true  online-dfa-qtrlwe2 test/01.spec test/01-08.in # [1, 0] * 4
+check_false online-dfa-qtrlwe2 test/01.spec test/01-02.in # [1, 0] * 8 * 100
+check_true  online-dfa-qtrlwe2 test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
 
 ### Clean up temporary files
 rm _test_sk _test_bk _test_in _test_out _test_random.log
