@@ -59,13 +59,13 @@ check_false offline-dfa test/01.spec test/01-06.in # [1, 0] + ([0, 0, 1, 0] * 8 
 
 #### Online DFA (reversed)
 check_true  online-dfa-reversed test/01.spec test/01-07.in # [1, 1] * 4
-check_true  online-dfa-reversed test/01.spec test/01-08.in # [1, 0] * 4
+check_false online-dfa-reversed test/01.spec test/01-08.in # [1, 0] * 4
 check_false online-dfa-reversed test/01.spec test/01-02.in # [1, 0] * 8 * 100
 check_true  online-dfa-reversed test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
 
 #### Online DFA (qtrlwe2)
 check_true  online-dfa-qtrlwe2 test/01.spec test/01-07.in # [1, 1] * 4
-check_true  online-dfa-qtrlwe2 test/01.spec test/01-08.in # [1, 0] * 4
+check_false online-dfa-qtrlwe2 test/01.spec test/01-08.in # [1, 0] * 4
 check_false online-dfa-qtrlwe2 test/01.spec test/01-02.in # [1, 0] * 8 * 100
 check_true  online-dfa-qtrlwe2 test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
 
