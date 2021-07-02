@@ -102,7 +102,7 @@ void OnlineDFARunner2::eval_one(const TRGSWLvl1FFT &input)
 
 /* OnlineDFARunner3 */
 OnlineDFARunner3::OnlineDFARunner3(
-    const Graph &graph, const GateKey &gate_key,
+    const Graph &graph, size_t first_lut_max_depth, const GateKey &gate_key,
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param> &tlwel1_trlwel1_iks_key,
     std::optional<SecretKey> debug_skey)
     : graph_(graph),
@@ -110,6 +110,8 @@ OnlineDFARunner3::OnlineDFARunner3(
       tlwel1_trlwel1_iks_key_(tlwel1_trlwel1_iks_key),
       weight_(graph.size(), trivial_TRLWELvl1_zero()),
       queued_inputs_(),
+      first_lut_max_depth_(first_lut_max_depth),
+      queue_size_(0),
       debug_skey_(std::move(debug_skey))
 {
     assert(graph.size() < Lvl1::n);
@@ -118,9 +120,13 @@ OnlineDFARunner3::OnlineDFARunner3(
         if (st == graph_.initial_state())
             weight_.at(st)[1][0] = (1u << 30);  // 1/4
 
-    queued_inputs_.reserve(QUEUE_SIZE);
-    workspace_table1_.reserve(1 << QUEUE_SIZE);
-    workspace_table2_.reserve(1 << QUEUE_SIZE);
+    size_t snd_depth = std::log2(Lvl1::n / graph_.size());
+    assert((1 << snd_depth) <= Lvl1::n / graph_.size());
+    queue_size_ = first_lut_max_depth_ + snd_depth;
+    queued_inputs_.reserve(queue_size_);
+    size_t workspace_size = std::max(first_lut_max_depth_, snd_depth);
+    workspace_table1_.reserve(1 << workspace_size);
+    workspace_table2_.reserve(1 << workspace_size);
 }
 
 TLWELvl1 OnlineDFARunner3::result()
@@ -142,7 +148,7 @@ TLWELvl1 OnlineDFARunner3::result()
 void OnlineDFARunner3::eval_one(const TRGSWLvl1FFT &input)
 {
     queued_inputs_.push_back(input);
-    if (queued_inputs_.size() < QUEUE_SIZE)
+    if (queued_inputs_.size() < queue_size_)
         return;
     eval_queued_inputs();
 }
@@ -155,6 +161,31 @@ void execute_parallel(size_t begin, size_t end, Func func)
     std::for_each(std::execution::par, indices.begin(), indices.end(), func);
 }
 
+void lookup_table(std::vector<TRLWELvl1> &table,
+                  std::vector<TRGSWLvl1FFT>::const_iterator input_begin,
+                  std::vector<TRGSWLvl1FFT>::const_iterator input_end,
+                  std::vector<TRLWELvl1> &workspace)
+{
+    const size_t input_size = std::distance(input_begin, input_end);
+    assert(table.size() == (1 << input_size));  // FIXME: relax this condition
+    if (input_size == 0)
+        return;
+
+    std::vector<TRLWELvl1> &tmp = workspace;
+    tmp.clear();
+    tmp.resize(1 << (input_size - 1));
+
+    size_t i = 0;
+    for (auto it = input_begin; it != input_end; ++it, ++i) {
+        execute_parallel(0, 1 << (input_size - i - 1), [&](size_t j) {
+            TFHEpp::CMUXFFT<Lvl1>(tmp.at(j), *it, table.at(j * 2 + 1),
+                                  table.at(j * 2));
+        });
+        using std::swap;
+        swap(tmp, table);
+    }
+}
+
 void OnlineDFARunner3::eval_queued_inputs()
 {
     const size_t input_size = queued_inputs_.size();
@@ -162,37 +193,48 @@ void OnlineDFARunner3::eval_queued_inputs()
         return;
     const std::vector<Graph::State> all_states = graph_.all_states();
 
-    // Create LUT
+    const size_t first_lut_depth = std::min(input_size, first_lut_max_depth_),
+                 second_lut_depth =
+                     std::max<int>(0, input_size - first_lut_depth);
+    assert(first_lut_depth + second_lut_depth == input_size);
+    assert(first_lut_depth <= first_lut_max_depth());
+    assert(second_lut_depth <= second_lut_max_depth());
+
+    // 1st step: |Q| TRLWE
+    //       --> 2^{first_lut_depth} TRLWE
+    //       --> 1 TRLWE
     std::vector<TRLWELvl1> &table = workspace_table1_;
     table.clear();
-    table.resize(1 << input_size, trivial_TRLWELvl1_zero());
-    execute_parallel(0, 1 << input_size, [&](size_t input) {
+    table.resize(1 << first_lut_depth, trivial_TRLWELvl1_zero());
+    execute_parallel(0, 1 << first_lut_depth, [&](size_t input1) {
         for (Graph::State st_from : all_states) {
-            Graph::State st_to = graph_.transition64(
-                st_from, static_cast<uint64_t>(input), input_size);
-
-            // table_{input} += c_{st_from} * X^{st_to}
-            TRLWELvl1 c;
-            TRLWELvl1_mult_X_k(c, weight_.at(st_from), st_to);
-            TRLWELvl1_add(table.at(input), c);
+            Graph::State st_mid = graph_.transition64(
+                st_from, static_cast<uint64_t>(input1), first_lut_depth);
+            for (size_t input2 = 0; input2 < (1 << second_lut_depth);
+                 input2++) {
+                Graph::State st_to = graph_.transition64(
+                    st_mid, static_cast<uint64_t>(input2), second_lut_depth);
+                TRLWELvl1 c;
+                TRLWELvl1_mult_X_k(c, weight_.at(st_from),
+                                   input2 * graph_.size() + st_to);
+                TRLWELvl1_add(table.at(input1), c);
+            }
         }
     });
+    lookup_table(table, queued_inputs_.begin(),
+                 queued_inputs_.begin() + first_lut_depth, workspace_table2_);
 
-    // Select the correct entry using CMUX
-    {
-        std::vector<TRLWELvl1> &tmp = workspace_table2_;
-        tmp.clear();
-        tmp.resize(1 << (input_size - 1));
-        for (size_t i = 0; i < input_size; i++) {
-            const TRGSWLvl1FFT &input = queued_inputs_.at(i);
-            execute_parallel(0, 1 << (input_size - i - 1), [&](size_t j) {
-                TFHEpp::CMUXFFT<Lvl1>(tmp.at(j), input, table.at(j * 2 + 1),
-                                      table.at(j * 2));
-            });
-            using std::swap;
-            swap(tmp, table);
-        }
+    // 2nd step: 1 TRLWE
+    //       --> 2^{second_lut_depth} TRLWE
+    //       --> 1 TRLWE
+    table.resize(1 << second_lut_depth);
+    for (size_t i = 1; i < (1 << second_lut_depth); i++) {
+        TRLWELvl1_mult_X_k(table.at(i), table.at(0),
+                           2 * Lvl1::n - i * graph_.size());
     }
+    lookup_table(table, queued_inputs_.begin() + first_lut_depth,
+                 queued_inputs_.end(), workspace_table2_);
+
     const TRLWELvl1 &next_trlwe = table.at(0);
 
     /*

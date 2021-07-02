@@ -36,14 +36,13 @@ public:
 };
 
 class OnlineDFARunner3 {
-    const static size_t QUEUE_SIZE = 11;
-
 private:
     const Graph &graph_;
     const GateKey &gate_key_;
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param> &tlwel1_trlwel1_iks_key_;
     std::vector<TRLWELvl1> weight_;
     std::vector<TRGSWLvl1FFT> queued_inputs_;
+    size_t first_lut_max_depth_, queue_size_;
 
     std::optional<SecretKey> debug_skey_;
 
@@ -51,10 +50,24 @@ private:
     std::vector<TRLWELvl1> workspace_table1_, workspace_table2_;
 
 public:
-    OnlineDFARunner3(const Graph &graph, const GateKey &gate_key,
+    OnlineDFARunner3(const Graph &graph, size_t first_lut_max_depth,
+                     const GateKey &gate_key,
                      const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>
                          &tlwel1_trlwel1_iks_key,
                      std::optional<SecretKey> debug_skey);
+
+    size_t queue_size() const
+    {
+        return queue_size_;
+    }
+    size_t first_lut_max_depth() const
+    {
+        return first_lut_max_depth_;
+    }
+    size_t second_lut_max_depth() const
+    {
+        return queue_size_ - first_lut_max_depth();
+    }
 
     TLWELvl1 result();
     void eval_one(const TRGSWLvl1FFT &input);
