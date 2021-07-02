@@ -299,6 +299,14 @@ const std::vector<Graph::State> &Graph::prev_states(State state,
         return parents0_.at(state);
 }
 
+Graph::State Graph::transition64(State src, uint64_t input, int length) const
+{
+    Graph::State dst = src;
+    for (size_t i = 0; i < length; i++)
+        dst = next_state(dst, (input & (1 << i)) != 0);
+    return dst;
+}
+
 Graph::State Graph::initial_state() const
 {
     return init_state_;

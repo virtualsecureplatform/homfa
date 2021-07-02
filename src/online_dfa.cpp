@@ -168,10 +168,8 @@ void OnlineDFARunner3::eval_queued_inputs()
     table.resize(1 << input_size, trivial_TRLWELvl1_zero());
     execute_parallel(0, 1 << input_size, [&](size_t input) {
         for (Graph::State st_from : all_states) {
-            // st_to = delta(st_from, input)
-            Graph::State st_to = st_from;
-            for (size_t i = 0; i < input_size; i++)
-                st_to = graph_.next_state(st_to, (input & (1 << i)) != 0);
+            Graph::State st_to = graph_.transition64(
+                st_from, static_cast<uint64_t>(input), input_size);
 
             // table_{input} += c_{st_from} * X^{st_to}
             TRLWELvl1 c;

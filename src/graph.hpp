@@ -39,6 +39,7 @@ public:
     bool is_final_state(State state) const;
     State next_state(State state, bool input) const;
     const std::vector<State>& prev_states(State state, bool input) const;
+    State transition64(State src, uint64_t input, int length) const;
     State initial_state() const;
     void reserve_states_at_depth(size_t depth);
     std::vector<State> states_at_depth(size_t depth) const;
