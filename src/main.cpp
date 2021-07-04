@@ -204,6 +204,12 @@ void do_dec(const std::string &skey_filename, const std::string &input_filename)
     spdlog::info("Result (bool): {}", res);
 }
 
+void do_ltl2spec(const std::string &fml, size_t num_vars)
+{
+    Graph gr = Graph::from_ltl_formula(fml, num_vars).minimized();
+    gr.dump(std::cout);
+}
+
 void do_ltl2dot(const std::string &fml, size_t num_vars, bool minimized,
                 bool reversed, bool negated)
 {
@@ -230,6 +236,7 @@ int main(int argc, char **argv)
         RUN_OFFLINE_DFA,
         RUN_ONLINE_DFA,
         DEC,
+        LTL2SPEC,
         LTL2DOT,
     } type;
 
@@ -293,6 +300,13 @@ int main(int argc, char **argv)
         dec->add_option("--in", input)->required()->check(CLI::ExistingFile);
     }
     {
+        CLI::App *ltl2spec = app.add_subcommand(
+            "ltl2spec", "Convert LTL to spec format for HomFA");
+        ltl2spec->parse_complete_callback([&] { type = TYPE::LTL2SPEC; });
+        ltl2spec->add_option("formula", formula)->required();
+        ltl2spec->add_option("#vars", num_vars)->required();
+    }
+    {
         CLI::App *ltl2dot =
             app.add_subcommand("ltl2dot", "Convert LTL to dot script");
         ltl2dot->parse_complete_callback([&] { type = TYPE::LTL2DOT; });
@@ -350,6 +364,11 @@ int main(int argc, char **argv)
     case TYPE::DEC:
         assert(skey && input);
         do_dec(*skey, *input);
+        break;
+
+    case TYPE::LTL2SPEC:
+        assert(num_vars);
+        do_ltl2spec(formula, *num_vars);
         break;
 
     case TYPE::LTL2DOT:
