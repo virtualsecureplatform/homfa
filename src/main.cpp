@@ -145,7 +145,7 @@ void do_run_online_dfa2(
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner2 (reversed)");
-    spdlog::info("\tInput size:\t{}", input_stream.size());
+    spdlog::info("\tInput size:\t{} (hidden)", input_stream.size());
     spdlog::info("\tState size:\t{}", gr.size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     spdlog::info("");
@@ -180,7 +180,7 @@ void do_run_online_dfa3(const std::string &spec_filename,
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner3 (qtrlwe2)");
-    spdlog::info("\tInput size:\t{}", input_stream.size());
+    spdlog::info("\tInput size:\t{} (hidden)", input_stream.size());
     spdlog::info("\tState size:\t{}", gr.size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     spdlog::info("\tQueue size:\t{} = {} + {}", runner.queue_size(),
