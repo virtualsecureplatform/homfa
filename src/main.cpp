@@ -160,8 +160,7 @@ void do_run_online_dfa2(
 
 void do_run_online_dfa3(const std::string &spec_filename,
                         const std::string &input_filename,
-                        const std::string &output_filename,
-                        size_t first_lut_max_depth,
+                        const std::string &output_filename, size_t queue_size,
                         const std::string &bkey_filename,
                         const std::optional<std::string> &debug_skey_filename)
 {
@@ -175,7 +174,7 @@ void do_run_online_dfa3(const std::string &spec_filename,
     if (debug_skey_filename)
         debug_skey.emplace(read_from_archive<SecretKey>(*debug_skey_filename));
 
-    OnlineDFARunner3 runner{gr, first_lut_max_depth, *bkey.gkey,
+    OnlineDFARunner3 runner{gr, queue_size, *bkey.gkey,
                             *bkey.tlwel1_trlwel1_ikskey, debug_skey};
 
     spdlog::info("Parameter:");
@@ -183,8 +182,7 @@ void do_run_online_dfa3(const std::string &spec_filename,
     spdlog::info("\tInput size:\t{} (hidden)", input_stream.size());
     spdlog::info("\tState size:\t{}", gr.size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
-    spdlog::info("\tQueue size:\t{} = {} + {}", runner.queue_size(),
-                 runner.first_lut_max_depth(), runner.second_lut_max_depth());
+    spdlog::info("\tQueue size:\t{}", runner.queue_size());
     spdlog::info("");
 
     for (size_t i = 0; input_stream.size() != 0; i++) {
@@ -245,7 +243,7 @@ int main(int argc, char **argv)
     std::optional<std::string> spec, skey, bkey, input, output, debug_skey;
     std::string formula, online_method = "qtrlwe2";
     std::optional<size_t> num_vars;
-    size_t first_lut_max_depth = 8;
+    size_t queue_size = 15;
 
     app.add_flag("--verbose", verbose, "");
     app.add_flag("--quiet", quiet, "");
@@ -288,8 +286,7 @@ int main(int argc, char **argv)
         run->add_option("--out", output)->required();
         run->add_option("--method", online_method)
             ->check(CLI::IsMember({"qtrlwe", "reversed", "qtrlwe2"}));
-        run->add_option("--first-lut-max-depth", first_lut_max_depth)
-            ->check(CLI::PositiveNumber);
+        run->add_option("--queue-size", queue_size)->check(CLI::PositiveNumber);
         run->add_option("--debug-secret-key", debug_skey)
             ->check(CLI::ExistingFile);
     }
@@ -356,8 +353,8 @@ int main(int argc, char **argv)
         else {
             assert(online_method == "qtrlwe2");
             assert(bkey);
-            do_run_online_dfa3(*spec, *input, *output, first_lut_max_depth,
-                               *bkey, debug_skey);
+            do_run_online_dfa3(*spec, *input, *output, queue_size, *bkey,
+                               debug_skey);
         }
         break;
 

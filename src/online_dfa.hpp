@@ -42,7 +42,9 @@ private:
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param> &tlwel1_trlwel1_iks_key_;
     std::vector<TRLWELvl1> weight_;
     std::vector<TRGSWLvl1FFT> queued_inputs_;
-    size_t first_lut_max_depth_, queue_size_;
+    size_t queue_size_;
+    std::vector<Graph::State> live_states_;
+    std::vector<std::vector<Graph::State>> memo_transition_;
 
     std::optional<SecretKey> debug_skey_;
 
@@ -50,7 +52,7 @@ private:
     std::vector<TRLWELvl1> workspace_table1_, workspace_table2_;
 
 public:
-    OnlineDFARunner3(const Graph &graph, size_t first_lut_max_depth,
+    OnlineDFARunner3(const Graph &graph, size_t queue_size,
                      const GateKey &gate_key,
                      const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>
                          &tlwel1_trlwel1_iks_key,
@@ -59,14 +61,6 @@ public:
     size_t queue_size() const
     {
         return queue_size_;
-    }
-    size_t first_lut_max_depth() const
-    {
-        return first_lut_max_depth_;
-    }
-    size_t second_lut_max_depth() const
-    {
-        return queue_size_ - first_lut_max_depth();
     }
 
     TLWELvl1 result();

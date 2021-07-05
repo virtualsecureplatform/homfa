@@ -25,7 +25,7 @@ for s in "${spec[@]}"; do
         $HOMFA enc --key _test_sk --in "$i" --out _test_in
         #$TIME $HOMFA run-offline-dfa --bkey _test_bk --spec _test_spec --in _test_in --out _test_out 2>&1\
         #    | tee -a "$output_file"
-        $TIME $HOMFA run-online-dfa --method reversed --bkey _test_bk --spec _test_spec --in _test_in --out _test_out 2>&1\
+        $TIME $HOMFA run-online-dfa --method qtrlwe2 --bkey _test_bk --spec _test_spec --in _test_in --out _test_out 2>&1\
             | tee -a "$output_file"
         $HOMFA dec --key _test_sk --in _test_out
     done
