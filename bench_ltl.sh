@@ -1,7 +1,7 @@
 #!/usr/bin/bash -xeu
 
 spec=(
-    'XXXX(!p3 | XXXX(!p2 W X!p4))'
+    'XXXX(!p0 | XXXX(!p1 W X!p2))'
 )
 input=(
     "test/bench-1200.in"
@@ -21,7 +21,7 @@ output_file=$(date +'homfa-bench-ltl-%Y%m%d%H%M%S.log')
 for s in "${spec[@]}"; do
     for i in "${input[@]}"; do
         echo ">>> $s" >> "$output_file"
-        $HOMFA ltl2spec "$s" 5 > _test_spec
+        $HOMFA ltl2spec "$s" 3 > _test_spec
         $HOMFA enc --key _test_sk --in "$i" --out _test_in
         #$TIME $HOMFA run-offline-dfa --bkey _test_bk --spec _test_spec --in _test_in --out _test_out 2>&1\
         #    | tee -a "$output_file"
