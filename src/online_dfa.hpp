@@ -45,6 +45,7 @@ private:
     size_t queue_size_;
     std::vector<Graph::State> live_states_;
     std::vector<std::vector<Graph::State>> memo_transition_;
+    size_t num_eval_, bootstrapping_freq_;
 
     std::optional<SecretKey> debug_skey_;
 
@@ -53,7 +54,7 @@ private:
 
 public:
     OnlineDFARunner3(const Graph &graph, size_t queue_size,
-                     const GateKey &gate_key,
+                     size_t bootstrapping_freq, const GateKey &gate_key,
                      const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>
                          &tlwel1_trlwel1_iks_key,
                      std::optional<SecretKey> debug_skey);

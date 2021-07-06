@@ -102,7 +102,8 @@ void OnlineDFARunner2::eval_one(const TRGSWLvl1FFT &input)
 
 /* OnlineDFARunner3 */
 OnlineDFARunner3::OnlineDFARunner3(
-    const Graph &graph, size_t queue_size, const GateKey &gate_key,
+    const Graph &graph, size_t queue_size, size_t bootstrapping_freq,
+    const GateKey &gate_key,
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param> &tlwel1_trlwel1_iks_key,
     std::optional<SecretKey> debug_skey)
     : graph_(graph),
@@ -111,6 +112,10 @@ OnlineDFARunner3::OnlineDFARunner3(
       weight_(graph.size(), trivial_TRLWELvl1_zero()),
       queued_inputs_(0),
       queue_size_(queue_size),
+      live_states_(),
+      memo_transition_(),
+      num_eval_(0),
+      bootstrapping_freq_(bootstrapping_freq),
       debug_skey_(std::move(debug_skey))
 {
     assert(graph.size() < Lvl1::n);
@@ -279,8 +284,10 @@ void OnlineDFARunner3::eval_queued_inputs()
     }
     */
 
-    // Split next_trlwe into |Q| TLWE, perform bootstrapping, and convert them
-    // to |Q| TRLWE
+    num_eval_++;
+    bool should_bootstrap = (num_eval_ % bootstrapping_freq_ == 0);
+    // Split next_trlwe into |Q| TLWE, perform bootstrapping, and convert
+    // them to |Q| TRLWE
     std::for_each(
         std::execution::par, next_live_states.begin(), next_live_states.end(),
         [&](Graph::State st) {
@@ -291,15 +298,16 @@ void OnlineDFARunner3::eval_queued_inputs()
             // Extract
             TFHEpp::SampleExtractIndex<Lvl1>(tlwe_l1, next_trlwe,
                                              st2idx.at(st));
-            // Bootstrap
-            // FIXME: We can sometimes skip bootstrapping?
-            TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwe_l0, tlwe_l1,
-                                                          gate_key_.ksk);
-            TLWELvl0_add(tlwe_l0, trivial_TLWELvl0_minus_1over8());
-            TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(
-                trlwe, tlwe_l0, gate_key_.bkfftlvl01);
-            TFHEpp::SampleExtractIndex<Lvl1>(tlwe_l1, trlwe, 0);
-            TLWELvl1_add(tlwe_l1, trivial_TLWELvl1_1over8());
+            if (should_bootstrap) {
+                // Bootstrap
+                TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwe_l0, tlwe_l1,
+                                                              gate_key_.ksk);
+                TLWELvl0_add(tlwe_l0, trivial_TLWELvl0_minus_1over8());
+                TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(
+                    trlwe, tlwe_l0, gate_key_.bkfftlvl01);
+                TFHEpp::SampleExtractIndex<Lvl1>(tlwe_l1, trlwe, 0);
+                TLWELvl1_add(tlwe_l1, trivial_TLWELvl1_1over8());
+            }
             // Convert
             TFHEpp::TLWE2TRLWEIKS<TFHEpp::lvl11param>(weight_.at(st), tlwe_l1,
                                                       tlwel1_trlwel1_iks_key_);
