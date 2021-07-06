@@ -3,6 +3,7 @@
 #include <execution>
 
 #include <spdlog/spdlog.h>
+#include <tbb/parallel_for.h>
 
 /* OnlineDFARunner */
 OnlineDFARunner::OnlineDFARunner(const Graph &graph,
@@ -166,14 +167,6 @@ void OnlineDFARunner3::eval_one(const TRGSWLvl1FFT &input)
     eval_queued_inputs();
 }
 
-template <class Func>
-void execute_parallel(size_t begin, size_t end, Func func)
-{
-    std::vector<size_t> indices(end - begin);
-    std::iota(indices.begin(), indices.end(), begin);
-    std::for_each(std::execution::par, indices.begin(), indices.end(), func);
-}
-
 void lookup_table(std::vector<TRLWELvl1> &table,
                   std::vector<TRGSWLvl1FFT>::const_iterator input_begin,
                   std::vector<TRGSWLvl1FFT>::const_iterator input_end,
@@ -190,7 +183,7 @@ void lookup_table(std::vector<TRLWELvl1> &table,
 
     size_t i = 0;
     for (auto it = input_begin; it != input_end; ++it, ++i) {
-        execute_parallel(0, 1 << (input_size - i - 1), [&](size_t j) {
+        tbb::parallel_for(0, 1 << (input_size - i - 1), [&](size_t j) {
             TFHEpp::CMUXFFT<Lvl1>(tmp.at(j), *it, table.at(j * 2 + 1),
                                   table.at(j * 2));
         });
@@ -241,7 +234,7 @@ void OnlineDFARunner3::eval_queued_inputs()
     // 1st step: |Q| TRLWE
     //       --> 2^{first_lut_depth} TRLWE
     //       --> 1 TRLWE
-    execute_parallel(0, 1 << first_lut_depth, [&](size_t input1) {
+    tbb::parallel_for(0, 1 << first_lut_depth, [&](size_t input1) {
         for (Graph::State st_from : live_states_) {
             for (size_t input2 = 0; input2 < (1 << second_lut_depth);
                  input2++) {
@@ -263,7 +256,7 @@ void OnlineDFARunner3::eval_queued_inputs()
     //       --> 2^{second_lut_depth} TRLWE
     //       --> 1 TRLWE
     table.resize(1 << second_lut_depth);
-    execute_parallel(1, 1 << second_lut_depth, [&](size_t i) {
+    tbb::parallel_for(1, 1 << second_lut_depth, [&](size_t i) {
         TRLWELvl1_mult_X_k(table.at(i), table.at(0),
                            2 * Lvl1::n - i * next_live_states.size());
     });
