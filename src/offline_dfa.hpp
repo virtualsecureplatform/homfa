@@ -12,6 +12,11 @@ public:
     OfflineDFARunner(Graph graph, InputStream<TRGSWLvl1FFT> &input_stream,
                      std::shared_ptr<GateKey> gate_key = nullptr);
 
+    const Graph &graph() const
+    {
+        return runner_.graph();
+    }
+
     TLWELvl1 result() const;
     void eval();
 };

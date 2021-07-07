@@ -15,6 +15,9 @@ BackstreamDFARunner::BackstreamDFARunner(Graph graph,
       trlwelvl1_trivial_0_(trivial_TRLWELvl1_minus_1over8()),
       trlwelvl1_trivial_1_(trivial_TRLWELvl1_1over8())
 {
+    if (input_size)
+        graph_.reserve_states_at_depth(*input_size);
+
     for (Graph::State st = 0; st < graph_.size(); st++) {
         if (graph_.is_final_state(st))
             weight_.at(st).s = RedundantTRLWELvl1::TRIVIAL_1;

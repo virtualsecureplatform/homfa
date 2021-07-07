@@ -58,25 +58,23 @@ void do_run_offline_dfa(
 {
     ReversedTRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
 
-    Graph gr = Graph::from_file(spec_filename).minimized();
-    gr.reserve_states_at_depth(input_stream.size());
-
     auto bkey = read_from_archive<BKey>(*bkey_filename);
+    OfflineDFARunner runner{Graph::from_file(spec_filename).minimized(),
+                            input_stream, bkey.gkey};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Offline FA Runner");
     spdlog::info("\tInput size:\t{}", input_stream.size());
-    spdlog::info("\tState size:\t{}", gr.size());
+    spdlog::info("\tState size:\t{}", runner.graph().size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     {
         size_t total_cnt_cmux = 0;
         for (size_t j = 0; j < input_stream.size(); j++)
-            total_cnt_cmux += gr.states_at_depth(j).size();
+            total_cnt_cmux += runner.graph().states_at_depth(j).size();
         spdlog::info("\tTotal #CMUX:\t{}", total_cnt_cmux);
     }
     spdlog::info("");
 
-    OfflineDFARunner runner{std::move(gr), input_stream, bkey.gkey};
     runner.eval();
 
     write_to_archive(output_filename, runner.result());
@@ -113,9 +111,8 @@ void do_run_online_dfa2(
     const std::optional<std::string> &bkey_filename = std::nullopt)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
-    Graph gr = Graph::from_file(spec_filename);
     auto bkey = read_from_archive<BKey>(*bkey_filename);
-    OnlineDFARunner2 runner{gr, bkey.gkey};
+    OnlineDFARunner2 runner{Graph::from_file(spec_filename), bkey.gkey};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner2 (reversed)");
