@@ -61,6 +61,32 @@ struct RedundantTRLWELvl1 {
     TRLWELvl1 c;
 };
 
+// Bootstrapping key in the broad sense
+struct BKey {
+    std::shared_ptr<GateKey> gkey;
+    std::shared_ptr<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>
+        tlwel1_trlwel1_ikskey;
+
+    BKey()
+    {
+    }
+
+    BKey(const SecretKey &skey)
+        : gkey(std::make_shared<GateKey>(skey)),
+          tlwel1_trlwel1_ikskey(
+              std::make_shared<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>())
+    {
+        TFHEpp::tlwe2trlweikskkgen<TFHEpp::lvl11param>(*tlwel1_trlwel1_ikskey,
+                                                       skey);
+    }
+
+    template <class Archive>
+    void serialize(Archive &ar)
+    {
+        ar(gkey, tlwel1_trlwel1_ikskey);
+    }
+};
+
 TLWELvl0 trivial_TLWELvl0_minus_1over8();
 TLWELvl0 trivial_TLWELvl0_1over8();
 TLWELvl1 trivial_TLWELvl1_minus_1over8();
