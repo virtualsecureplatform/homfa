@@ -3,6 +3,8 @@
 #include "offline_dfa.hpp"
 #include "online_dfa.hpp"
 
+#include <CLI/CLI.hpp>
+
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
@@ -12,7 +14,33 @@
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/translate.hh>
 
-const static size_t MIN_INPUT_LENGTH = 8000, MAX_INPUT_LENGTH = 80000;
+const static size_t MIN_INPUT_LENGTH = 8000, MAX_INPUT_LENGTH = 10000;
+
+class TestInputStream : public InputStream<TRGSWLvl1FFT> {
+private:
+    std::vector<bool> spec_;
+    std::vector<bool>::iterator head_;
+    TRGSWLvl1FFT c0_, c1_;
+
+public:
+    TestInputStream(std::vector<bool> spec, const TRGSWLvl1FFT& c0,
+                    const TRGSWLvl1FFT& c1)
+        : spec_(spec), head_(spec_.begin()), c0_(c0), c1_(c1)
+    {
+    }
+
+    size_t size() const override
+    {
+        return spec_.end() - head_;
+    }
+
+    TRGSWLvl1FFT next() override
+    {
+        assert(size() != 0);
+        bool b = *(head_++);
+        return b ? c1_ : c0_;
+    }
+};
 
 class ReversedTestInputStream : public InputStream<TRGSWLvl1FFT> {
 private:
@@ -189,35 +217,45 @@ std::vector<bool> permutate_input_bits(const std::vector<size_t>& tbl,
 
 struct Snapshot {
     SecretKey skey;
-    std::shared_ptr<GateKey> gkey;
+    BKey bkey;
     TRGSWLvl1FFT c0, c1;
 
     template <class Archive>
     void serialize(Archive& ar)
     {
-        ar(skey, gkey, c0, c1);
+        ar(skey, bkey, c0, c1);
     }
 };
 
+enum class METHOD {
+    OFFLINE,
+    ONLINE_REVERSED,
+    ONLINE_QTRLWE2,
+};
+
 void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
-                           const std::string& snapshot_path)
+                           METHOD method, const std::string& snapshot_path)
 {
+    const size_t NUM_INT2BVEC_TEST = 10;
+
     SecretKey skey;
-    auto gkey = std::make_shared<GateKey>(skey);
+    BKey bkey{skey};
     TRGSWLvl1FFT c0 = encrypt_bit_to_TRGSWLvl1FFT(false, skey),
                  c1 = encrypt_bit_to_TRGSWLvl1FFT(true, skey);
-    write_to_archive(snapshot_path, Snapshot{skey, gkey, c0, c1});
+    write_to_archive(snapshot_path, Snapshot{skey, bkey, c0, c1});
 
     std::vector<std::vector<bool>> rand_bvec;
     {
         std::mt19937 rgen;
-        for (size_t i = 0; i < num_test - 100; i++)
+        for (size_t i = 0; i < num_test - NUM_INT2BVEC_TEST; i++)
             rand_bvec.push_back(random_bvec(rgen, num_ap));
     }
 
+    size_t index = 0;
     std::string fml;
     while (std::getline(is, fml)) {
-        std::cerr << ".";
+        std::cerr << index << "\t";
+        index++;
 
         Graph gr = Graph::from_ltl_formula(fml, num_ap).minimized();
         gr.reserve_states_at_depth(MAX_INPUT_LENGTH);
@@ -232,33 +270,80 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
             create_table_to_permutate_input_bits(aut, num_ap);
 
         for (size_t i = 0; i < num_test; i++) {
-            std::vector<bool> in_src = i < 100 ? int2bvec(i + 1, num_ap)
-                                               : rand_bvec.at(i - 100),
+            std::cerr << ".";
+            std::vector<bool> in_src =
+                                  i < NUM_INT2BVEC_TEST
+                                      ? int2bvec(i + 1, num_ap)
+                                      : rand_bvec.at(i - NUM_INT2BVEC_TEST),
                               in = permutate_input_bits(perm_tbl, in_src);
 
             bool expected = check_if_accept(aut, in_src, num_ap);
 
-            {
+            switch (method) {
+            case METHOD::OFFLINE: {
                 ReversedTestInputStream input_stream{in, c0, c1};
-                OfflineDFARunner runner{gr, input_stream, gkey};
+                OfflineDFARunner runner{gr, input_stream, bkey.gkey};
                 runner.eval();
                 bool got = TFHEpp::tlweSymDecrypt<Lvl1>(runner.result(),
                                                         skey.key.lvl1);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(in), expected, got);
+                break;
+            }
+
+            case METHOD::ONLINE_REVERSED: {
+                TestInputStream input_stream{in, c0, c1};
+                OnlineDFARunner2 runner{gr, bkey.gkey};
+                while (input_stream.size() != 0)
+                    runner.eval_one(input_stream.next());
+                bool got = TFHEpp::tlweSymDecrypt<Lvl1>(runner.result(),
+                                                        skey.key.lvl1);
+                if (expected != got)
+                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                               bvec2str(in), expected, got);
+                break;
+            }
+
+            case METHOD::ONLINE_QTRLWE2: {
+                TestInputStream input_stream{in, c0, c1};
+                OnlineDFARunner3 runner(gr, 15, 1, *bkey.gkey,
+                                        *bkey.tlwel1_trlwel1_ikskey,
+                                        std::nullopt);
+                while (input_stream.size() != 0)
+                    runner.eval_one(input_stream.next());
+                bool got = TFHEpp::tlweSymDecrypt<Lvl1>(runner.result(),
+                                                        skey.key.lvl1);
+                if (expected != got)
+                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                               bvec2str(in), expected, got);
+                break;
+            }
             }
         }
+
+        std::cerr << "\n";
     }
 }
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
-        spdlog::error("Usage: {} SNAPSHOT-FILE", argv[0]);
-        return 1;
-    }
+    std::unordered_map<std::string, METHOD> str2method = {
+        {"offline", METHOD::OFFLINE},
+        {"online-reversed", METHOD::ONLINE_REVERSED},
+        {"online-qtrlwe2", METHOD::ONLINE_QTRLWE2},
+    };
 
-    test_from_ltl_formula(std::cin, 5, 110, argv[1]);
+    CLI::App app{"Test crypto random"};
+    std::string method, snapshot_path;
+    app.add_option("method", method)
+        ->required()
+        ->check(
+            CLI::IsMember({"offline", "online-reversed", "online-qtrlwe2"}));
+    app.add_option("key-snapshot-path", snapshot_path)->required();
+    CLI11_PARSE(app, argc, argv);
+
+    test_from_ltl_formula(std::cin, 5, 20, str2method.at(method),
+                          snapshot_path);
     return 0;
 }
