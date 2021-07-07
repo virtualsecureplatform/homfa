@@ -4,10 +4,11 @@
 
 #include <spdlog/spdlog.h>
 
-OfflineDFARunner::OfflineDFARunner(const Graph &graph,
+OfflineDFARunner::OfflineDFARunner(Graph graph,
                                    InputStream<TRGSWLvl1FFT> &input_stream,
                                    std::shared_ptr<GateKey> gate_key)
-    : runner_(graph, input_stream.size(), gate_key), input_stream_(input_stream)
+    : runner_(std::move(graph), input_stream.size(), gate_key),
+      input_stream_(input_stream)
 {
 }
 

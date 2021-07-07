@@ -4,10 +4,10 @@
 
 #include <spdlog/spdlog.h>
 
-BackstreamDFARunner::BackstreamDFARunner(const Graph &graph,
+BackstreamDFARunner::BackstreamDFARunner(Graph graph,
                                          std::optional<size_t> input_size,
                                          std::shared_ptr<GateKey> gate_key)
-    : graph_(graph),
+    : graph_(std::move(graph)),
       weight_(graph_.size()),
       gate_key_(std::move(gate_key)),
       input_size_(std::move(input_size)),

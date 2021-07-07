@@ -31,6 +31,11 @@ public:
     OnlineDFARunner2(const Graph &graph,
                      std::shared_ptr<GateKey> gate_key = nullptr);
 
+    const Graph &graph() const
+    {
+        return runner_.graph();
+    }
+
     TLWELvl1 result() const;
     void eval_one(const TRGSWLvl1FFT &input);
 };

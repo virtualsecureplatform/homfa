@@ -87,7 +87,7 @@ void OnlineDFARunner::bootstrap_weight()
 /* OnlineDFARunner2 */
 OnlineDFARunner2::OnlineDFARunner2(const Graph &graph,
                                    std::shared_ptr<GateKey> gate_key)
-    : runner_(graph, std::nullopt, gate_key)
+    : runner_(graph.reversed(), std::nullopt, gate_key)
 {
 }
 

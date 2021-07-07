@@ -9,7 +9,7 @@ class BackstreamDFARunner {
     const static size_t BOOT_INTERVAL = 8000;
 
 private:
-    const Graph &graph_;
+    Graph graph_;
     std::vector<RedundantTRLWELvl1> weight_;
     std::shared_ptr<GateKey> gate_key_;
     std::optional<size_t> input_size_;
@@ -17,9 +17,14 @@ private:
     const TRLWELvl1 trlwelvl1_trivial_0_, trlwelvl1_trivial_1_;
 
 public:
-    BackstreamDFARunner(const Graph &graph,
+    BackstreamDFARunner(Graph graph,
                         std::optional<size_t> input_size = std::nullopt,
                         std::shared_ptr<GateKey> gate_key = nullptr);
+
+    const Graph &graph() const
+    {
+        return graph_;
+    }
 
     TLWELvl1 result() const;
     void eval(const TRGSWLvl1FFT &input);

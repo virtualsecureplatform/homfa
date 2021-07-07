@@ -9,8 +9,7 @@ private:
     InputStream<TRGSWLvl1FFT> &input_stream_;
 
 public:
-    OfflineDFARunner(const Graph &graph,
-                     InputStream<TRGSWLvl1FFT> &input_stream,
+    OfflineDFARunner(Graph graph, InputStream<TRGSWLvl1FFT> &input_stream,
                      std::shared_ptr<GateKey> gate_key = nullptr);
 
     TLWELvl1 result() const;
