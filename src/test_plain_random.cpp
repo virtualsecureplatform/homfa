@@ -179,23 +179,56 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
         if (++cnt % 1000 == 0)
             std::cerr << ".";
 
-        Graph gr = Graph::from_ltl_formula(fml, num_ap), mgr = gr.minimized(),
-              rgr = gr.reversed(), mrgr = rgr.minimized(),
-              rgr2 = Graph::from_ltl_formula_reversed(fml, num_ap),
-              mrgr2 = rgr2.minimized();
+        Graph gr = Graph::from_ltl_formula(fml, num_ap), rgr = gr.reversed(),
+              rgr2 = Graph::from_ltl_formula_reversed(fml, num_ap);
+        std::optional<Graph> mgr, mrgr, mrgr2;
+        if (gr.size() < 10000)
+            mgr.emplace(gr.minimized());
+        if (rgr.size() < 10000)
+            mrgr.emplace(rgr.minimized());
+        if (rgr2.size() < 10000)
+            mrgr2.emplace(rgr2.minimized());
 
-        spot::parsed_formula pf = spot::parse_infix_psl(fml);
-        assert(!pf.format_errors(std::cerr));
-        spot::translator trans;
-        trans.set_type(spot::postprocessor::Monitor);
-        spot::twa_graph_ptr aut = trans.run(pf.f);
+        spot::twa_graph_ptr aut, det_aut;
+        {
+            spot::parsed_formula pf = spot::parse_infix_psl(fml);
+            assert(!pf.format_errors(std::cerr));
+            spot::translator trans;
+            trans.set_type(spot::postprocessor::Monitor);
+            aut = trans.run(pf.f);
+            trans.set_pref(spot::postprocessor::Deterministic);
+            det_aut = trans.run(pf.f);
+        }
 
         std::vector<size_t> perm_tbl =
             create_table_to_permutate_input_bits(aut, num_ap);
 
-        log1->info("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", fml, gr.size(),
-                   mgr.size(), aut->ap().size(), aut->num_states(), rgr.size(),
-                   mrgr.size(), rgr2.size(), mrgr2.size());
+        {
+            int gr_size = gr.size(), rgr_size = rgr.size(),
+                rgr2_size = rgr2.size(), mgr_size = mgr ? mgr->size() : -1,
+                mrgr_size = mrgr ? mrgr->size() : -1,
+                mrgr2_size = mrgr2 ? mrgr2->size() : -1,
+                mon_size = aut->num_states(), mon_num_ap = aut->ap().size(),
+                mon_prop_det = aut->prop_universal().val(),
+                det_mon_size = det_aut->num_states(),
+                det_mon_num_ap = det_aut->ap().size(),
+                det_mon_prop_det = det_aut->prop_universal().val();
+            log1->info("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                       fml,               // 1
+                       gr_size,           // 2
+                       mgr_size,          // 3
+                       mon_size,          // 4
+                       mon_num_ap,        // 5
+                       mon_prop_det,      // 6
+                       det_mon_size,      // 7
+                       det_mon_num_ap,    // 8
+                       det_mon_prop_det,  // 9
+                       rgr_size,          // 10
+                       mrgr_size,         // 11
+                       rgr2_size,         // 12
+                       mrgr2_size         // 13
+            );
+        }
 
         for (size_t i = 0; i < num_test; i++) {
             std::vector<bool> in_src = i < 100 ? int2bvec(i + 1, num_ap)
@@ -211,8 +244,8 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(in), expected, got);
             }
-            {
-                bool got = check_if_accept(mgr, in);
+            if (mgr) {
+                bool got = check_if_accept(*mgr, in);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(in), expected, got);
@@ -223,8 +256,8 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(rin), expected, got);
             }
-            {
-                bool got = check_if_accept(mrgr, rin);
+            if (mrgr) {
+                bool got = check_if_accept(*mrgr, rin);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(rin), expected, got);
@@ -235,8 +268,8 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(rin), expected, got);
             }
-            {
-                bool got = check_if_accept(mrgr2, rin);
+            if (mrgr2) {
+                bool got = check_if_accept(*mrgr2, rin);
                 if (expected != got)
                     error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
                                bvec2str(rin), expected, got);
