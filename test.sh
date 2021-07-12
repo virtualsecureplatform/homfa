@@ -48,7 +48,7 @@ check_false(){
 
 ### Now start testing
 $TEST0
-cat test/safety_ltl_5ap.txt | $TEST_PLAIN_RANDOM _test_random.log
+cat test/safety_ltl_5ap.txt | $TEST_PLAIN_RANDOM 5 _test_random.log
 #### Offline DFA
 check_true  offline-dfa test/01.spec test/01-01.in # [1, 1] * 8 * 100
 check_false offline-dfa test/01.spec test/01-02.in # [1, 0] * 8 * 100
