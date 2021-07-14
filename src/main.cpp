@@ -31,8 +31,9 @@ void do_genbkey(const std::string &skey_filename,
 }
 
 void do_enc(const std::string &skey_filename, const std::string &input_filename,
-            const std::string &output_filename)
+            const std::string &output_filename, const size_t num_ap)
 {
+    assert(num_ap <= 8);  // FIXME: relax this condition
     auto skey = read_from_archive<SecretKey>(skey_filename);
 
     std::ifstream ifs{input_filename};
@@ -42,9 +43,19 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
         int ch = ifs.get();
         if (ch == EOF)
             break;
-        for (int i = 0; i < 8; i++) {
-            bool b = ((static_cast<uint8_t>(ch) >> i) & 1u) != 0;
+        uint8_t v = ch;
+        for (size_t i = 0; i < num_ap; i++) {
+            bool b = (v & 1u) != 0;
             data.push_back(encrypt_bit_to_TRGSWLvl1FFT(b, skey));
+            v >>= 1;
+
+            /*
+            if (i % 8 == 7) {
+                ch = ifs.get();
+                assert(ch != EOF);
+                v = ch;
+            }
+            */
         }
     }
 
@@ -219,7 +230,7 @@ int main(int argc, char **argv)
     std::optional<std::string> spec, skey, bkey, input, output, debug_skey;
     std::string formula, online_method = "qtrlwe2";
     std::optional<size_t> num_vars;
-    size_t queue_size = 15, bootstrapping_freq = 1;
+    size_t num_ap = 0, queue_size = 15, bootstrapping_freq = 1;
 
     app.add_flag("--verbose", verbose, "");
     app.add_flag("--quiet", quiet, "");
@@ -240,6 +251,7 @@ int main(int argc, char **argv)
     {
         CLI::App *enc = app.add_subcommand("enc", "Encrypt input file");
         enc->parse_complete_callback([&] { type = TYPE::ENC; });
+        enc->add_option("--ap", num_ap)->required()->check(CLI::PositiveNumber);
         enc->add_option("--key", skey)->required()->check(CLI::ExistingFile);
         enc->add_option("--in", input)->required()->check(CLI::ExistingFile);
         enc->add_option("--out", output)->required();
@@ -312,7 +324,7 @@ int main(int argc, char **argv)
 
     case TYPE::ENC:
         assert(skey && input && output);
-        do_enc(*skey, *input, *output);
+        do_enc(*skey, *input, *output, num_ap);
         break;
 
     case TYPE::RUN_OFFLINE_DFA:
