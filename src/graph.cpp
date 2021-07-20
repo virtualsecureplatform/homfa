@@ -103,7 +103,7 @@ Graph::Graph(State init_st, const std::set<State> &final_sts,
         final_state_vec_.at(q) = true;
 }
 
-Graph Graph::from_file(const std::string &filename)
+Graph Graph::from_istream(std::istream &is)
 {
     std::string field;
     auto load_comma_separated_states =
@@ -132,10 +132,10 @@ Graph Graph::from_file(const std::string &filename)
     std::regex re(R"(^(>)?(\d+)(\*)?\s+(_|[\d,]+)\s+(_|[\d,]+)$)");
     std::smatch match;
     bool is_dfa = true;
-    std::ifstream ifs{filename};
-    assert(ifs);
+
     std::string line;
-    while (std::getline(ifs, line)) {
+    assert(is);
+    while (std::getline(is, line)) {
         if (!std::regex_match(line, match, re)) {
             spdlog::info("Skip line \"{}\"", line);
             continue;
@@ -190,6 +190,13 @@ Graph Graph::from_file(const std::string &filename)
     }
 
     return Graph::from_nfa(init_sts, final_sts, delta);
+}
+
+Graph Graph::from_file(const std::string &filename)
+{
+    std::ifstream ifs{filename};
+    assert(ifs);
+    return Graph::from_istream(ifs);
 }
 
 // Input  NFA Mn: (Qn, {0, 1}, dn, q0n, Fn)

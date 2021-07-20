@@ -221,6 +221,15 @@ void do_spec2spec(const std::string &spec_filename, bool minimized,
     gr.dump(std::cout);
 }
 
+void do_spec2dot(const std::optional<std::string> &spec_filename_opt)
+{
+    std::string spec_filename = spec_filename_opt.value_or("-");
+    if (spec_filename == "-")
+        Graph::from_istream(std::cin).dump_dot(std::cout);
+    else
+        Graph::from_file(spec_filename).dump_dot(std::cout);
+}
+
 int main(int argc, char **argv)
 {
     CLI::App app{"Homomorphic Final Answer"};
@@ -236,6 +245,7 @@ int main(int argc, char **argv)
         LTL2SPEC,
         LTL2DOT,
         SPEC2SPEC,
+        SPEC2DOT,
     } type;
 
     bool verbose = false, quiet = false, minimized = false, reversed = false,
@@ -325,6 +335,12 @@ int main(int argc, char **argv)
         spec2spec->add_flag("--negated", negated);
         spec2spec->add_option("SPEC-FILE", spec)->required();
     }
+    {
+        CLI::App *spec2dot = app.add_subcommand(
+            "spec2dot", "Convert spec format for HomFA to dot script");
+        spec2dot->parse_complete_callback([&] { type = TYPE::SPEC2DOT; });
+        spec2dot->add_option("SPEC-FILE", spec);
+    }
 
     CLI11_PARSE(app, argc, argv);
 
@@ -388,6 +404,10 @@ int main(int argc, char **argv)
     case TYPE::SPEC2SPEC:
         assert(spec);
         do_spec2spec(*spec, minimized, reversed, negated);
+        break;
+
+    case TYPE::SPEC2DOT:
+        do_spec2dot(spec);
         break;
     }
 

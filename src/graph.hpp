@@ -27,6 +27,7 @@ public:
     Graph(State init_st, const std::set<State>& final_sts,
           const DFADelta& delta);
 
+    static Graph from_istream(std::istream& is);
     static Graph from_file(const std::string& filename);
     static Graph from_nfa(const std::set<State>& init_sts,
                           const std::set<State>& final_sts,
