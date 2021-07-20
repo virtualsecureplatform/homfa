@@ -204,9 +204,21 @@ void do_ltl2dot(const std::string &fml, size_t num_vars, bool minimized,
     if (reversed)
         gr = gr.reversed();
     if (minimized)
-        gr.minimized().dump_dot(std::cout);
-    else
-        gr.dump_dot(std::cout);
+        gr = gr.minimized();
+    gr.dump_dot(std::cout);
+}
+
+void do_spec2spec(const std::string &spec_filename, bool minimized,
+                  bool reversed, bool negated)
+{
+    Graph gr = Graph::from_file(spec_filename);
+    if (negated)
+        gr = gr.negated();
+    if (reversed)
+        gr = gr.reversed();
+    if (minimized)
+        gr = gr.minimized();
+    gr.dump(std::cout);
 }
 
 int main(int argc, char **argv)
@@ -223,6 +235,7 @@ int main(int argc, char **argv)
         DEC,
         LTL2SPEC,
         LTL2DOT,
+        SPEC2SPEC,
     } type;
 
     bool verbose = false, quiet = false, minimized = false, reversed = false,
@@ -303,6 +316,15 @@ int main(int argc, char **argv)
         ltl2dot->add_option("formula", formula)->required();
         ltl2dot->add_option("#vars", num_vars)->required();
     }
+    {
+        CLI::App *spec2spec =
+            app.add_subcommand("spec2spec", "Convert spec formats for HomFA");
+        spec2spec->parse_complete_callback([&] { type = TYPE::SPEC2SPEC; });
+        spec2spec->add_flag("--minimized", minimized);
+        spec2spec->add_flag("--reversed", reversed);
+        spec2spec->add_flag("--negated", negated);
+        spec2spec->add_option("SPEC-FILE", spec)->required();
+    }
 
     CLI11_PARSE(app, argc, argv);
 
@@ -361,6 +383,11 @@ int main(int argc, char **argv)
     case TYPE::LTL2DOT:
         assert(num_vars);
         do_ltl2dot(formula, *num_vars, minimized, reversed, negated);
+        break;
+
+    case TYPE::SPEC2SPEC:
+        assert(spec);
+        do_spec2spec(*spec, minimized, reversed, negated);
         break;
     }
 
