@@ -195,10 +195,12 @@ void do_ltl2spec(const std::string &fml, size_t num_vars)
     gr.dump(std::cout);
 }
 
-void do_spec2spec(const std::string &spec_filename, bool minimized,
-                  bool reversed, bool negated)
+void do_spec2spec(const std::optional<std::string> &spec_filename_opt,
+                  bool minimized, bool reversed, bool negated)
 {
-    Graph gr = Graph::from_file(spec_filename);
+    std::string spec_filename = spec_filename_opt.value_or("-");
+    Graph gr = spec_filename == "-" ? Graph::from_istream(std::cin)
+                                    : Graph::from_file(spec_filename);
     if (negated)
         gr = gr.negated();
     if (reversed)
@@ -309,7 +311,7 @@ int main(int argc, char **argv)
         spec2spec->add_flag("--minimized", minimized);
         spec2spec->add_flag("--reversed", reversed);
         spec2spec->add_flag("--negated", negated);
-        spec2spec->add_option("SPEC-FILE", spec)->required();
+        spec2spec->add_option("SPEC-FILE", spec);
     }
     {
         CLI::App *spec2dot = app.add_subcommand(
@@ -373,8 +375,7 @@ int main(int argc, char **argv)
         break;
 
     case TYPE::SPEC2SPEC:
-        assert(spec);
-        do_spec2spec(*spec, minimized, reversed, negated);
+        do_spec2spec(spec, minimized, reversed, negated);
         break;
 
     case TYPE::SPEC2DOT:
