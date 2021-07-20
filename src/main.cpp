@@ -195,19 +195,6 @@ void do_ltl2spec(const std::string &fml, size_t num_vars)
     gr.dump(std::cout);
 }
 
-void do_ltl2dot(const std::string &fml, size_t num_vars, bool minimized,
-                bool reversed, bool negated)
-{
-    Graph gr = Graph::from_ltl_formula(fml, num_vars);
-    if (negated)
-        gr = gr.negated();
-    if (reversed)
-        gr = gr.reversed();
-    if (minimized)
-        gr = gr.minimized();
-    gr.dump_dot(std::cout);
-}
-
 void do_spec2spec(const std::string &spec_filename, bool minimized,
                   bool reversed, bool negated)
 {
@@ -243,7 +230,6 @@ int main(int argc, char **argv)
         RUN_ONLINE_DFA,
         DEC,
         LTL2SPEC,
-        LTL2DOT,
         SPEC2SPEC,
         SPEC2DOT,
     } type;
@@ -317,16 +303,6 @@ int main(int argc, char **argv)
         ltl2spec->add_option("#vars", num_vars)->required();
     }
     {
-        CLI::App *ltl2dot =
-            app.add_subcommand("ltl2dot", "Convert LTL to dot script");
-        ltl2dot->parse_complete_callback([&] { type = TYPE::LTL2DOT; });
-        ltl2dot->add_flag("--minimized", minimized);
-        ltl2dot->add_flag("--reversed", reversed);
-        ltl2dot->add_flag("--negated", negated);
-        ltl2dot->add_option("formula", formula)->required();
-        ltl2dot->add_option("#vars", num_vars)->required();
-    }
-    {
         CLI::App *spec2spec =
             app.add_subcommand("spec2spec", "Convert spec formats for HomFA");
         spec2spec->parse_complete_callback([&] { type = TYPE::SPEC2SPEC; });
@@ -394,11 +370,6 @@ int main(int argc, char **argv)
     case TYPE::LTL2SPEC:
         assert(num_vars);
         do_ltl2spec(formula, *num_vars);
-        break;
-
-    case TYPE::LTL2DOT:
-        assert(num_vars);
-        do_ltl2dot(formula, *num_vars, minimized, reversed, negated);
         break;
 
     case TYPE::SPEC2SPEC:
