@@ -117,11 +117,35 @@ void TRLWELvl1_add(TRLWELvl1 &out, const TRLWELvl1 &src)
     }
 }
 
+namespace {
+void PolyLvl1_mult_X_k(PolyLvl1 &out, const PolyLvl1 &src, size_t k)
+{
+    constexpr size_t n = Lvl1::n;
+
+    if (k == 0) {
+        out = src;
+    }
+    else if (k < n) {
+        for (size_t i = 0; i < k; i++)
+            out[i] = -src[i - k + n];
+        for (size_t i = 0; i < n - k; i++)
+            out[i + k] = src[i];
+    }
+    else {
+        const size_t k2 = k - n;
+        for (size_t i = 0; i < k2; i++)
+            out[i] = src[i - k2 + n];
+        for (size_t i = 0; i < n - k2; i++)
+            out[i + k2] = -src[i];
+    }
+}
+}  // namespace
+
 // out = src * X^k
 void TRLWELvl1_mult_X_k(TRLWELvl1 &out, const TRLWELvl1 &src, size_t k)
 {
-    TFHEpp::PolynomialMulByXai<Lvl1>(out[0], src[0], k);
-    TFHEpp::PolynomialMulByXai<Lvl1>(out[1], src[1], k);
+    PolyLvl1_mult_X_k(out[0], src[0], k);
+    PolyLvl1_mult_X_k(out[1], src[1], k);
 }
 
 uint32_t phase_of_TLWELvl1(const TLWELvl1 &src, const SecretKey &skey)
