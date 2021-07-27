@@ -100,22 +100,42 @@ void TRGSWLvl1FFTDeserializer::load(TRGSWLvl1FFT &out)
 
 TRGSWLvl1InputStreamFromCtxtFile::TRGSWLvl1InputStreamFromCtxtFile(
     const std::string &filename)
-    : ifs_(filename), deser_(ifs_)
+    : ifs_(filename),
+      deser_(ifs_),
+      pool_(1),
+      running_(),
+      loaded_(),
+      current_size_()
 {
     deser_.seek(0, std::ios_base::end);
-    input_size_ = deser_.tell();
+    current_size_ = deser_.tell();
     deser_.seek(0, std::ios_base::beg);
+    if (current_size_ > 0)
+        start_loading_next();
 }
 
 size_t TRGSWLvl1InputStreamFromCtxtFile::size() const
 {
-    return input_size_ - deser_.tell();
+    return current_size_;
+}
+
+void TRGSWLvl1InputStreamFromCtxtFile::start_loading_next()
+{
+    assert(!running_.valid());
+    running_ = pool_.enqueue([this] {
+        deser_.load(loaded_);
+        return true;
+    });
 }
 
 TRGSWLvl1FFT TRGSWLvl1InputStreamFromCtxtFile::next()
 {
-    TRGSWLvl1FFT ret;
-    deser_.load(ret);
+    assert(current_size_ > 0);
+    running_.get();
+    TRGSWLvl1FFT ret = loaded_;
+    current_size_--;
+    if (current_size_ > 0)
+        start_loading_next();
     return ret;
 }
 
@@ -123,23 +143,39 @@ TRGSWLvl1FFT TRGSWLvl1InputStreamFromCtxtFile::next()
 
 ReversedTRGSWLvl1InputStreamFromCtxtFile::
     ReversedTRGSWLvl1InputStreamFromCtxtFile(const std::string &filename)
-    : ifs_(filename), deser_(ifs_)
+    : ifs_(filename), deser_(ifs_), pool_(1), current_size_(0)
 {
     deser_.seek(0, std::ios_base::end);
+    current_size_ = deser_.tell();
+    if (!deser_.is_beg())
+        start_loading_next();
 }
 
 size_t ReversedTRGSWLvl1InputStreamFromCtxtFile::size() const
 {
-    return deser_.tell();
+    return current_size_;
+}
+
+void ReversedTRGSWLvl1InputStreamFromCtxtFile::start_loading_next()
+{
+    assert(!running_.valid());
+    running_ = pool_.enqueue([this] {
+        assert(!deser_.is_beg());
+        deser_.seek(-1, std::ios_base::cur);
+        deser_.load(loaded_);
+        deser_.seek(-1, std::ios_base::cur);
+        return true;
+    });
 }
 
 TRGSWLvl1FFT ReversedTRGSWLvl1InputStreamFromCtxtFile::next()
 {
-    TRGSWLvl1FFT ret;
-    assert(!deser_.is_beg());
-    deser_.seek(-1, std::ios_base::cur);
-    deser_.load(ret);
-    deser_.seek(-1, std::ios_base::cur);
+    assert(current_size_ > 0);
+    running_.get();
+    TRGSWLvl1FFT ret = loaded_;
+    if (!deser_.is_beg())
+        start_loading_next();
+    current_size_--;
     return ret;
 }
 

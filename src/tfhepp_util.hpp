@@ -3,6 +3,7 @@
 
 #include <fstream>
 
+#include <ThreadPool.h>
 #include <tfhe++.hpp>
 
 using Lvl0 = TFHEpp::lvl0param;
@@ -77,7 +78,13 @@ class TRGSWLvl1InputStreamFromCtxtFile : public InputStream<TRGSWLvl1FFT> {
 private:
     std::ifstream ifs_;
     TRGSWLvl1FFTDeserializer deser_;
-    size_t input_size_;
+    ThreadPool pool_;
+    std::future<bool> running_;
+    TRGSWLvl1FFT loaded_;
+    size_t current_size_;
+
+private:
+    void start_loading_next();
 
 public:
     TRGSWLvl1InputStreamFromCtxtFile(const std::string &filename);
@@ -91,6 +98,13 @@ class ReversedTRGSWLvl1InputStreamFromCtxtFile
 private:
     std::ifstream ifs_;
     TRGSWLvl1FFTDeserializer deser_;
+    ThreadPool pool_;
+    std::future<bool> running_;
+    TRGSWLvl1FFT loaded_;
+    size_t current_size_;
+
+private:
+    void start_loading_next();
 
 public:
     ReversedTRGSWLvl1InputStreamFromCtxtFile(const std::string &filename);

@@ -33,6 +33,7 @@ set(HOMFA_CXXFLAGS_RELEASE ${IYOKAN_CXXFLAGS} -O3 -march=native -g3)
 set(HOMFA_INCLUDE_DIRS
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/CLI11/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/spdlog/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ThreadPool>
 )
 set(HOMFA_LIBS tfhe++ Threads::Threads OpenMP::OpenMP_CXX Backward::Backward tbb libspot.a libbddx.a)
 set(HOMFA_COMPILE_DEFINITIONS )
