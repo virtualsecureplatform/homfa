@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/bash -eu
 
 BUILD_BIN=${BUILD_BIN:-"build/bin"}
 TEST0=$BUILD_BIN/test0
