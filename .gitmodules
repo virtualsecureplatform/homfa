@@ -16,3 +16,6 @@
 [submodule "thirdparty/mio"]
 	path = thirdparty/mio
 	url = https://github.com/mandreyel/mio.git
+[submodule "thirdparty/ThreadPool"]
+	path = thirdparty/ThreadPool
+	url = https://github.com/progschj/ThreadPool.git
