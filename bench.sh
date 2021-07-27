@@ -26,7 +26,7 @@ output_file=$(date +'homfa-bench-%Y%m%d%H%M%S.log')
 
 for s in "${spec[@]}"; do
     for i in "${input[@]}"; do
-        $HOMFA enc --key _test_sk --in "$i" --out _test_in
+        $HOMFA enc --key _test_sk --ap 1 --in "$i" --out _test_in
         $TIME $HOMFA run-offline-dfa --bkey _test_bk --spec "$s" --in _test_in --out _test_out 2>&1\
             | tee -a "$output_file"
         $HOMFA dec --key _test_sk --in _test_out | grep "Result (bool): true"
