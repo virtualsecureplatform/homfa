@@ -1,6 +1,8 @@
 #ifndef HOMFA_TFHEPP_UTIL_HPP
 #define HOMFA_TFHEPP_UTIL_HPP
 
+#include <fstream>
+
 #include <tfhe++.hpp>
 
 using Lvl0 = TFHEpp::lvl0param;
@@ -12,6 +14,50 @@ using TRLWELvl1 = TFHEpp::TRLWE<Lvl1>;
 using PolyLvl1 = TFHEpp::Polynomial<Lvl1>;
 using SecretKey = TFHEpp::SecretKey;
 using GateKey = TFHEpp::GateKey;
+
+class TRGSWLvl1FFTSerializer {
+    static_assert(TRGSWLvl1FFT{}.size() == 2 * Lvl1::l);
+    static_assert(TRGSWLvl1FFT{}[0].size() == 2);
+    static_assert(TRGSWLvl1FFT{}[0][0].size() == Lvl1::n);
+
+private:
+    std::ostream &os_;
+
+private:
+    void save_binary(const void *data, size_t size);
+    void save_double(double src);
+
+public:
+    TRGSWLvl1FFTSerializer(std::ostream &os);
+
+    void save(const TRGSWLvl1FFT &src);
+};
+
+class TRGSWLvl1FFTDeserializer {
+    static_assert(TRGSWLvl1FFT{}.size() == 2 * Lvl1::l);
+    static_assert(TRGSWLvl1FFT{}[0].size() == 2);
+    static_assert(TRGSWLvl1FFT{}[0][0].size() == Lvl1::n);
+
+public:
+    const static size_t BLOCK_SIZE =
+        (2 * Lvl1::l) * 2 * Lvl1::n * sizeof(double);
+
+private:
+    std::istream &is_;
+
+private:
+    void load_binary(void *const data, size_t size);
+    void load_double(double &src);
+
+public:
+    TRGSWLvl1FFTDeserializer(std::istream &is);
+
+    size_t tell() const;
+    bool is_beg() const;
+    bool is_end() const;
+    void seek(int off, std::ios_base::seekdir dir);
+    void load(TRGSWLvl1FFT &out);
+};
 
 template <class T>
 class InputStream {
@@ -29,8 +75,9 @@ public:
 
 class TRGSWLvl1InputStreamFromCtxtFile : public InputStream<TRGSWLvl1FFT> {
 private:
-    std::vector<TRGSWLvl1FFT> data_;
-    std::vector<TRGSWLvl1FFT>::iterator head_;
+    std::ifstream ifs_;
+    TRGSWLvl1FFTDeserializer deser_;
+    size_t input_size_;
 
 public:
     TRGSWLvl1InputStreamFromCtxtFile(const std::string &filename);
@@ -42,8 +89,8 @@ public:
 class ReversedTRGSWLvl1InputStreamFromCtxtFile
     : public InputStream<TRGSWLvl1FFT> {
 private:
-    std::vector<TRGSWLvl1FFT> data_;
-    std::vector<TRGSWLvl1FFT>::reverse_iterator head_;
+    std::ifstream ifs_;
+    TRGSWLvl1FFTDeserializer deser_;
 
 public:
     ReversedTRGSWLvl1InputStreamFromCtxtFile(const std::string &filename);

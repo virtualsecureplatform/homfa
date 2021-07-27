@@ -38,7 +38,9 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
 
     std::ifstream ifs{input_filename};
     assert(ifs);
-    std::vector<TRGSWLvl1FFT> data;
+    std::ofstream ofs{output_filename};
+    assert(ofs);
+    TRGSWLvl1FFTSerializer ser{ofs};
     while (ifs) {
         int ch = ifs.get();
         if (ch == EOF)
@@ -46,7 +48,7 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
         uint8_t v = ch;
         for (size_t i = 0; i < num_ap; i++) {
             bool b = (v & 1u) != 0;
-            data.push_back(encrypt_bit_to_TRGSWLvl1FFT(b, skey));
+            ser.save(encrypt_bit_to_TRGSWLvl1FFT(b, skey));
             v >>= 1;
 
             /*
@@ -58,8 +60,6 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
             */
         }
     }
-
-    write_to_archive(output_filename, data);
 }
 
 void do_run_offline_dfa(

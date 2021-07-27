@@ -1,5 +1,6 @@
 #include "error.hpp"
 #include "graph.hpp"
+#include "tfhepp_util.hpp"
 
 #include <cassert>
 #include <iostream>
@@ -333,6 +334,67 @@ void test_negated()
     }
 }
 
+void test_serializer_deserializer()
+{
+    SecretKey skey;
+    TRGSWLvl1FFT org = encrypt_bit_to_TRGSWLvl1FFT(true, skey);
+
+    std::stringstream ss;
+
+    {
+        TRGSWLvl1FFTSerializer ser{ss};
+        ser.save(org);
+    }
+
+    {
+        ss.seekg(0, std::ios_base::beg);
+        TRGSWLvl1FFTDeserializer deser{ss};
+        TRGSWLvl1FFT tmp;
+        deser.load(tmp);
+        assert(org == tmp);
+    }
+}
+
+void test_input_stream()
+{
+    SecretKey skey;
+    TRGSWLvl1FFT c0 = encrypt_bit_to_TRGSWLvl1FFT(false, skey),
+                 c1 = encrypt_bit_to_TRGSWLvl1FFT(true, skey);
+    const std::string test_filename = "_test_in";
+
+    {
+        std::ofstream ofs{test_filename};
+        assert(ofs);
+        TRGSWLvl1FFTSerializer ser{ofs};
+        ser.save(c0);
+        ser.save(c1);
+    }
+
+    {
+        ReversedTRGSWLvl1InputStreamFromCtxtFile st{test_filename};
+        assert(st.size() == 2);
+        TRGSWLvl1FFT c;
+        c = st.next();
+        assert(c == c1);
+        assert(st.size() == 1);
+        c = st.next();
+        assert(c == c0);
+        assert(st.size() == 0);
+    }
+
+    {
+        TRGSWLvl1InputStreamFromCtxtFile st{test_filename};
+        assert(st.size() == 2);
+        TRGSWLvl1FFT c;
+        c = st.next();
+        assert(c == c0);
+        assert(st.size() == 1);
+        c = st.next();
+        assert(c == c1);
+        assert(st.size() == 0);
+    }
+}
+
 int main()
 {
     test_graph_dump();
@@ -340,4 +402,6 @@ int main()
     test_graph_minimized();
     test_monitor();
     test_negated();
+    test_serializer_deserializer();
+    test_input_stream();
 }

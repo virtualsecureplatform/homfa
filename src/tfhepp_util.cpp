@@ -1,45 +1,149 @@
 #include "tfhepp_util.hpp"
 #include "archive.hpp"
 
+////////// TRGSWLvl1FFTSerializer
+
+TRGSWLvl1FFTSerializer::TRGSWLvl1FFTSerializer(std::ostream &os) : os_(os)
+{
+    assert(os);
+
+    // Assume little endian
+    // FIXME: Add support for big endian
+    // Thanks to:
+    // https://github.com/USCiLab/cereal/blob/46a4a910077bf9e9f8327c8f6ea761c89b06da53/include/cereal/archives/portable_binary.hpp#L42
+    static std::int32_t test = 1;
+    assert(*reinterpret_cast<std::int8_t *>(&test) == 1);
+}
+
+void TRGSWLvl1FFTSerializer::save_binary(const void *data, size_t size)
+{
+    // Thanks to:
+    // https://github.com/USCiLab/cereal/blob/46a4a910077bf9e9f8327c8f6ea761c89b06da53/include/cereal/archives/portable_binary.hpp#L132
+    size_t written_size =
+        os_.rdbuf()->sputn(reinterpret_cast<const char *>(data), size);
+    assert(written_size == size);
+}
+
+void TRGSWLvl1FFTSerializer::save_double(double src)
+{
+    static_assert(std::numeric_limits<double>::is_iec559);
+    save_binary(&src, sizeof(src));
+}
+
+void TRGSWLvl1FFTSerializer::save(const TRGSWLvl1FFT &src)
+{
+    for (size_t i = 0; i < 2 * Lvl1::l; i++)
+        for (size_t j = 0; j < 2; j++)
+            for (size_t k = 0; k < Lvl1::n; k++)
+                save_double(src[i][j][k]);
+}
+
+////////// TRGSWLvl1FFTDeserializer
+
+TRGSWLvl1FFTDeserializer::TRGSWLvl1FFTDeserializer(std::istream &is) : is_(is)
+{
+    assert(is);
+
+    // Assume little endian
+    // FIXME: Add support for big endian
+    // Thanks to:
+    // https://github.com/USCiLab/cereal/blob/46a4a910077bf9e9f8327c8f6ea761c89b06da53/include/cereal/archives/portable_binary.hpp#L42
+    static std::int32_t test = 1;
+    assert(*reinterpret_cast<std::int8_t *>(&test) == 1);
+}
+
+void TRGSWLvl1FFTDeserializer::load_binary(void *const data, size_t size)
+{
+    // Thanks to:
+    // https://github.com/USCiLab/cereal/blob/master/include/cereal/archives/portable_binary.hpp#L239
+    size_t read_size = is_.rdbuf()->sgetn(reinterpret_cast<char *>(data), size);
+    assert(read_size == size);
+}
+
+void TRGSWLvl1FFTDeserializer::load_double(double &out)
+{
+    static_assert(std::numeric_limits<double>::is_iec559);
+    load_binary(&out, sizeof(out));
+}
+
+size_t TRGSWLvl1FFTDeserializer::tell() const
+{
+    size_t org = is_.tellg();
+    assert(org % BLOCK_SIZE == 0);
+    return org / BLOCK_SIZE;
+}
+
+bool TRGSWLvl1FFTDeserializer::is_beg() const
+{
+    return is_.tellg() == is_.beg;
+}
+
+bool TRGSWLvl1FFTDeserializer::is_end() const
+{
+    return is_.tellg() == is_.end;
+}
+
+void TRGSWLvl1FFTDeserializer::seek(int off, std::ios_base::seekdir dir)
+{
+    is_.seekg(off * BLOCK_SIZE, dir);
+}
+
+void TRGSWLvl1FFTDeserializer::load(TRGSWLvl1FFT &out)
+{
+    for (size_t i = 0; i < 2 * Lvl1::l; i++)
+        for (size_t j = 0; j < 2; j++)
+            for (size_t k = 0; k < Lvl1::n; k++)
+                load_double(out[i][j][k]);
+}
+
+////////// TRGSWLvl1InputStreamFromCtxtFile
+
 TRGSWLvl1InputStreamFromCtxtFile::TRGSWLvl1InputStreamFromCtxtFile(
     const std::string &filename)
+    : ifs_(filename), deser_(ifs_)
 {
-    std::ifstream ifs{filename};
-    assert(ifs);
-    data_ = read_from_archive<std::vector<TRGSWLvl1FFT>>(filename);
-    head_ = data_.begin();
+    deser_.seek(0, std::ios_base::end);
+    input_size_ = deser_.tell();
+    deser_.seek(0, std::ios_base::beg);
 }
 
 size_t TRGSWLvl1InputStreamFromCtxtFile::size() const
 {
-    return data_.end() - head_;
+    return input_size_ - deser_.tell();
 }
 
 TRGSWLvl1FFT TRGSWLvl1InputStreamFromCtxtFile::next()
 {
-    assert(size() != 0);
-    return *(head_++);
+    TRGSWLvl1FFT ret;
+    deser_.load(ret);
+    return ret;
 }
+
+////////// ReversedTRGSWLvl1InputStreamFromCtxtFile
 
 ReversedTRGSWLvl1InputStreamFromCtxtFile::
     ReversedTRGSWLvl1InputStreamFromCtxtFile(const std::string &filename)
+    : ifs_(filename), deser_(ifs_)
 {
-    std::ifstream ifs{filename};
-    assert(ifs);
-    data_ = read_from_archive<std::vector<TRGSWLvl1FFT>>(filename);
-    head_ = data_.rbegin();
+    deser_.seek(0, std::ios_base::end);
 }
 
 size_t ReversedTRGSWLvl1InputStreamFromCtxtFile::size() const
 {
-    return data_.rend() - head_;
+    return deser_.tell();
 }
 
 TRGSWLvl1FFT ReversedTRGSWLvl1InputStreamFromCtxtFile::next()
 {
-    assert(size() != 0);
-    return *(head_++);
+    TRGSWLvl1FFT ret;
+    assert(!deser_.is_beg());
+    deser_.seek(-1, std::ios_base::cur);
+    deser_.load(ret);
+    deser_.seek(-1, std::ios_base::cur);
+    return ret;
 }
+
+//////////
 
 TRLWELvl1 trivial_TRLWELvl1(const PolyLvl1 &src)
 {
