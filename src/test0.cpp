@@ -206,7 +206,7 @@ void test_graph_minimized()
 void test_monitor()
 {
     {
-        Graph gr = Graph::from_ltl_formula("!F(red & X(yellow))", 2);
+        Graph gr = Graph::from_ltl_formula("!F(red & X(yellow))", 2, false);
         std::stringstream ss;
         gr.dump(ss);
         assert(ss.str() == expected_dump({
@@ -220,7 +220,7 @@ void test_monitor()
                            }));
     }
     {
-        Graph gr = Graph::from_ltl_formula("G(press -> red W green)", 3);
+        Graph gr = Graph::from_ltl_formula("G(press -> red W green)", 3, false);
         std::stringstream ss;
         gr.dump(ss);
         assert(ss.str() == expected_dump({

@@ -266,16 +266,20 @@ Graph Graph::from_nfa(const std::set<State> &q0n, const std::set<State> &Fn,
     return Graph{get_or_create_state(q0n), Ff, df};
 }
 
-Graph Graph::from_ltl_formula(const std::string &formula, size_t var_size)
+Graph Graph::from_ltl_formula(const std::string &formula, size_t var_size,
+                              bool make_all_live_states_final)
 {
-    auto [init_sts, final_sts, delta] = ltl_to_nfa_tuple(formula, var_size);
+    auto [init_sts, final_sts, delta] =
+        ltl_to_nfa_tuple(formula, var_size, make_all_live_states_final);
     return Graph::from_nfa(init_sts, final_sts, delta);
 }
 
 Graph Graph::from_ltl_formula_reversed(const std::string &formula,
-                                       size_t var_size)
+                                       size_t var_size,
+                                       bool make_all_live_states_final)
 {
-    auto [init_sts, final_sts, delta] = ltl_to_nfa_tuple(formula, var_size);
+    auto [init_sts, final_sts, delta] =
+        ltl_to_nfa_tuple(formula, var_size, make_all_live_states_final);
     NFADelta delta_rev = reversed_nfa_delta(delta);
     return Graph::from_nfa(final_sts, init_sts, delta_rev);
 }
@@ -540,7 +544,8 @@ void Graph::dump_dot(std::ostream &os) const
 }
 
 std::tuple<std::set<Graph::State>, std::set<Graph::State>, Graph::NFADelta>
-Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size)
+Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size,
+                        bool make_all_live_states_final)
 {
     spot::parsed_formula pf = spot::parse_infix_psl(formula);
     assert(!pf.format_errors(std::cerr));
@@ -743,8 +748,14 @@ Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size)
     std::set<State> init_sts = {static_cast<State>(
                         aut->get_init_state_number())},
                     final_sts;
-    for (State i = 0; i < ns; i++)
-        final_sts.insert(i);
+    if (make_all_live_states_final) {
+        for (State i = 0; i < delta.size(); i++)
+            final_sts.insert(i);
+    }
+    else {
+        for (State i = 0; i < ns; i++)
+            final_sts.insert(i);
+    }
 
     return std::make_tuple(init_sts, final_sts, delta);
 }

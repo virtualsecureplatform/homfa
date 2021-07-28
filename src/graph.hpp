@@ -32,9 +32,11 @@ public:
     static Graph from_nfa(const std::set<State>& init_sts,
                           const std::set<State>& final_sts,
                           const NFADelta& delta);
-    static Graph from_ltl_formula(const std::string& formula, size_t var_size);
+    static Graph from_ltl_formula(const std::string& formula, size_t var_size,
+                                  bool make_all_live_states_final);
     static Graph from_ltl_formula_reversed(const std::string& formula,
-                                           size_t var_size);
+                                           size_t var_size,
+                                           bool make_all_live_states_final);
 
     size_t size() const;
     bool is_final_state(State state) const;
@@ -55,7 +57,8 @@ public:
 
 private:
     static std::tuple<std::set<State>, std::set<State>, NFADelta>
-    ltl_to_nfa_tuple(const std::string& formula, size_t var_size);
+    ltl_to_nfa_tuple(const std::string& formula, size_t var_size,
+                     bool make_all_live_states_final);
     static NFADelta reversed_nfa_delta(const NFADelta& src);
 };
 

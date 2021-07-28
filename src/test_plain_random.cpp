@@ -179,8 +179,9 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
         if (++cnt % 1000 == 0)
             std::cerr << ".";
 
-        Graph gr = Graph::from_ltl_formula(fml, num_ap), rgr = gr.reversed(),
-              rgr2 = Graph::from_ltl_formula_reversed(fml, num_ap);
+        Graph gr = Graph::from_ltl_formula(fml, num_ap, false),
+              rgr = gr.reversed(),
+              rgr2 = Graph::from_ltl_formula_reversed(fml, num_ap, false);
         std::optional<Graph> mgr, mrgr, mrgr2;
         if (gr.size() < 10000)
             mgr.emplace(gr.minimized());

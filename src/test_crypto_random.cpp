@@ -257,7 +257,7 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
         std::cerr << index << "\t";
         index++;
 
-        Graph gr = Graph::from_ltl_formula(fml, num_ap).minimized();
+        Graph gr = Graph::from_ltl_formula(fml, num_ap, false).minimized();
         gr.reserve_states_at_depth(MAX_INPUT_LENGTH);
 
         spot::parsed_formula pf = spot::parse_infix_psl(fml);

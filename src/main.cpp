@@ -189,9 +189,12 @@ void do_dec(const std::string &skey_filename, const std::string &input_filename)
     spdlog::info("Result (bool): {}", res);
 }
 
-void do_ltl2spec(const std::string &fml, size_t num_vars)
+void do_ltl2spec(const std::string &fml, size_t num_vars,
+                 bool make_all_live_states_final)
 {
-    Graph gr = Graph::from_ltl_formula(fml, num_vars).minimized();
+    Graph gr =
+        Graph::from_ltl_formula(fml, num_vars, make_all_live_states_final)
+            .minimized();
     gr.dump(std::cout);
 }
 
@@ -237,7 +240,7 @@ int main(int argc, char **argv)
     } type;
 
     bool verbose = false, quiet = false, minimized = false, reversed = false,
-         negated;
+         negated, make_all_live_states_final = false;
     std::optional<std::string> spec, skey, bkey, input, output, debug_skey;
     std::string formula, online_method = "qtrlwe2";
     std::optional<size_t> num_vars;
@@ -301,6 +304,8 @@ int main(int argc, char **argv)
         CLI::App *ltl2spec = app.add_subcommand(
             "ltl2spec", "Convert LTL to spec format for HomFA");
         ltl2spec->parse_complete_callback([&] { type = TYPE::LTL2SPEC; });
+        ltl2spec->add_flag("--make-all-live-states-final",
+                           make_all_live_states_final);
         ltl2spec->add_option("formula", formula)->required();
         ltl2spec->add_option("#vars", num_vars)->required();
     }
@@ -371,7 +376,7 @@ int main(int argc, char **argv)
 
     case TYPE::LTL2SPEC:
         assert(num_vars);
-        do_ltl2spec(formula, *num_vars);
+        do_ltl2spec(formula, *num_vars, make_all_live_states_final);
         break;
 
     case TYPE::SPEC2SPEC:
