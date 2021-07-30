@@ -16,6 +16,9 @@ private:
     size_t num_processed_inputs_;
     const TRLWELvl1 trlwelvl1_trivial_0_, trlwelvl1_trivial_1_;
 
+    // Workspace for eval
+    std::vector<RedundantTRLWELvl1> workspace_;
+
 public:
     BackstreamDFARunner(Graph graph,
                         std::optional<size_t> input_size = std::nullopt,
@@ -28,6 +31,7 @@ public:
 
     TLWELvl1 result() const;
     void eval(const TRGSWLvl1FFT &input);
+    void eval_all(InputStream<TRGSWLvl1FFT> &input_stream);
 
 private:
     const TRLWELvl1 &remove_redundancy(const RedundantTRLWELvl1 &src);

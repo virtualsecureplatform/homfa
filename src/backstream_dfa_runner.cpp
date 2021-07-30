@@ -13,7 +13,8 @@ BackstreamDFARunner::BackstreamDFARunner(Graph graph,
       input_size_(std::move(input_size)),
       num_processed_inputs_(0),
       trlwelvl1_trivial_0_(trivial_TRLWELvl1_minus_1over8()),
-      trlwelvl1_trivial_1_(trivial_TRLWELvl1_1over8())
+      trlwelvl1_trivial_1_(trivial_TRLWELvl1_1over8()),
+      workspace_(graph_.size())
 {
     if (input_size_)
         graph_.reserve_states_at_depth(*input_size_);
@@ -46,7 +47,7 @@ TLWELvl1 BackstreamDFARunner::result() const
 
 void BackstreamDFARunner::eval(const TRGSWLvl1FFT &input)
 {
-    std::vector<RedundantTRLWELvl1> out(weight_.size());
+    std::vector<RedundantTRLWELvl1> &out = workspace_;
     std::optional<std::vector<Graph::State>> states;
     if (input_size_) {
         int j = *input_size_ - num_processed_inputs_;
