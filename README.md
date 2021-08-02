@@ -23,3 +23,19 @@ $ bin/homfa dec --key sk --in enc_out
 ./homfa spec2dot | \
 dot -Tpng > ../../graph.png
 ```
+
+## Build 色々
+
+Ubuntu 20.04 LTS なら下のコマンドでだいたい間に合う。全て`build`ディレクトリ内での実行を想定。
+
+```sh
+# homfaとtest0をリリースビルド
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 ..
+# あるいは
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-10 -DCMAKE_CXX_COMPILER=clang++-10 ..
+
+# homfaとtest0とtest_plain_randomとtest_crypto_randomをリリースビルド
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DHOMFA_BUILD_TEST_PLAIN_RANDOM=On -DHOMFA_BUILD_TEST_CRYPTO_RANDOM=On ..
+# あるいは
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-10 -DCMAKE_CXX_COMPILER=clang++-10 -DHOMFA_BUILD_TEST_PLAIN_RANDOM=On -DHOMFA_BUILD_TEST_CRYPTO_RANDOM=On ..
+```
