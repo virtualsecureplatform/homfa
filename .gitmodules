@@ -13,9 +13,6 @@
 [submodule "thirdparty/CLI11"]
 	path = thirdparty/CLI11
 	url = https://github.com/CLIUtils/CLI11.git
-[submodule "thirdparty/mio"]
-	path = thirdparty/mio
-	url = https://github.com/mandreyel/mio.git
 [submodule "thirdparty/ThreadPool"]
 	path = thirdparty/ThreadPool
 	url = https://github.com/progschj/ThreadPool.git
