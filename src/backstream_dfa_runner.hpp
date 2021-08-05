@@ -29,7 +29,6 @@ public:
 
     TLWELvl1 result() const;
     void eval(const TRGSWLvl1FFT &input);
-    void eval_all(InputStream<TRGSWLvl1FFT> &input_stream);
 
 private:
     const TRLWELvl1 &remove_redundancy(const RedundantTRLWELvl1 &src);
