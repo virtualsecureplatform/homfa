@@ -106,6 +106,7 @@ private:
     size_t queue_size_;
     std::vector<TRGSWLvl1FFT> queued_inputs_;
     std::optional<TRLWELvl1> selector_;
+    std::vector<Graph::State> live_states_;
 
     std::vector<TRLWELvl1> workspace1_, workspace2_;
     std::vector<TRGSWLvl1FFT> workspace3_;

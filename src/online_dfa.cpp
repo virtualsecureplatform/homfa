@@ -334,7 +334,9 @@ OnlineDFARunner4::OnlineDFARunner4(const Graph &graph, size_t queue_size,
       gate_key_(gate_key),
       circuit_key_(circuit_key),
       queue_size_(queue_size),
-      selector_(std::nullopt)
+      queued_inputs_(),
+      selector_(std::nullopt),
+      live_states_({graph_.initial_state()})
 {
 }
 
@@ -362,25 +364,49 @@ void OnlineDFARunner4::eval_queued_inputs()
     const size_t input_size = queued_inputs_.size();
     if (input_size == 0)
         return;
-    const size_t width = std::floor(std::log2(graph_.size())) + 1;
 
     const std::vector<Graph::State> all_states = graph_.all_states();
+    const std::vector<Graph::State> live_states = live_states_;
+    const std::vector<Graph::State> next_live_states = [&] {
+        // Update live_states_ to next live states
+        std::set<Graph::State> tmp1(live_states.begin(), live_states.end()),
+            tmp2;
+        for (size_t i = 0; i < input_size; i++) {
+            tmp2.clear();
+            for (Graph::State q : tmp1) {
+                tmp2.insert(graph_.next_state(q, true));
+                tmp2.insert(graph_.next_state(q, false));
+            }
+            {
+                using std::swap;
+                swap(tmp1, tmp2);
+            }
+        }
+        return std::vector<Graph::State>(tmp1.begin(), tmp1.end());
+    }();
+    live_states_ = next_live_states;
+
+    std::vector<int> next_live_to_index(graph_.size(), -1);
+    for (size_t i = 0; i < next_live_states.size(); i++)
+        next_live_to_index.at(next_live_states.at(i)) = i;
 
     std::vector<TRLWELvl1> &weight = workspace1_, &out = workspace2_;
-    // FIXME: necessary space is actually input_size, but lookup_table cannot
-    // handle that
     weight.clear();
     out.clear();
-    weight.resize(1 << width, trivial_TRLWELvl1_zero());
-    out.resize(1 << width);
+    weight.resize(graph_.size(), trivial_TRLWELvl1_zero());
+    out.resize(graph_.size());
 
-    for (Graph::State q : graph_.all_states()) {
+    const size_t next_width =
+        std::floor(std::log2(next_live_states.size())) + 1;
+    for (Graph::State q : next_live_states) {
         if (graph_.is_final_state(q))
             weight.at(q)[1][0] = (1u << 29);  // 1/8
         else
             weight.at(q)[1][0] = -(1u << 29);  // -1/8
-        for (size_t i = 0; i < width; i++)
-            if (((q >> i) & 1u) == 0)
+
+        size_t t = next_live_to_index.at(q);
+        for (size_t i = 0; i < next_width; i++)
+            if (((t >> i) & 1u) == 0)
                 weight.at(q)[1][i + 1] = -(1u << 29);  // -1/8
             else
                 weight.at(q)[1][i + 1] = (1u << 29);  // 1/8
@@ -408,6 +434,7 @@ void OnlineDFARunner4::eval_queued_inputs()
         return;
     }
 
+    size_t width = std::floor(std::log2(live_states.size())) + 1;
     std::vector<TRGSWLvl1FFT> &cond = workspace3_;
     cond.clear();
     cond.resize(width);
@@ -420,6 +447,14 @@ void OnlineDFARunner4::eval_queued_inputs()
                                                       gate_key_.ksk);
         CircuitBootstrappingFFTLvl01(cond.at(i), tlwel0, circuit_key_);
     });
+    for (size_t i = 0; i < live_states.size(); i++)
+        out.at(i) = weight.at(live_states.at(i));
+    {
+        using std::swap;
+        swap(weight, out);
+    }
+    weight.resize(1 << width);
+    out.resize(1 << width);
     lookup_table(weight, cond.begin(), cond.end(), out);
     selector_ = weight.at(0);
 }
