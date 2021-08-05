@@ -39,3 +39,24 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILE
 # あるいは
 $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-10 -DCMAKE_CXX_COMPILER=clang++-10 -DHOMFA_BUILD_TEST_PLAIN_RANDOM=On -DHOMFA_BUILD_TEST_CRYPTO_RANDOM=On ..
 ```
+
+## Build and Run tests from source
+
+```sh
+$ sudo apt install build-essential gcc-10 g++-10 clang-10 libtbb-dev cmake multitime
+$ wget http://www.lrde.epita.fr/dload/spot/spot-2.9.7.tar.gz
+$ tar -xvf spot-2.9.7.tar.gz
+$ cd spot-2.9.7.tar.gz
+$ ./configure --disable-python
+$ make -j30
+$ sudo make install
+$ cd ~
+$ git clone https://github.com/virtualsecureplatform/homfa
+$ cd homfa
+$ mkdir build_rel
+$ cd build_rel
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 ..
+$ make -j30
+$ ../
+$ ./bench.sh
+```
