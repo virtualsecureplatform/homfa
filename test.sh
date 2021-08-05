@@ -36,6 +36,9 @@ enc_run_dec(){
         "dfa-plain" )
             $HOMFA run-dfa-plain --ap "$2" --spec "$3" --in "$4"
             ;;
+        "online-dfa-blockbackstream" )
+            $HOMFA run-online-dfa --method block-backstream --bkey _test_bk --spec "$3" --in _test_in --out _test_out
+            ;;
         * )
             failwith "Invalid run $1"
             ;;
@@ -94,6 +97,13 @@ check_false online-dfa-qtrlwe2 2 test/01.spec test/01-08.in # [1, 0] * 4
 check_true  online-dfa-qtrlwe2 2 test/01.spec test/01-01.in # [0, 0] * 8 * 100
 check_false online-dfa-qtrlwe2 2 test/01.spec test/01-02.in # [1, 0] * 8 * 100
 check_true  online-dfa-qtrlwe2 2 test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
+
+#### Online DFA (block-backstream)
+check_true  online-dfa-blockbackstream 2 test/01.spec test/01-07.in # [1, 1] * 4
+check_false online-dfa-blockbackstream 2 test/01.spec test/01-08.in # [1, 0] * 4
+check_true  online-dfa-blockbackstream 2 test/01.spec test/01-01.in # [0, 0] * 8 * 100
+check_false online-dfa-blockbackstream 2 test/01.spec test/01-02.in # [1, 0] * 8 * 100
+check_true  online-dfa-blockbackstream 2 test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
 
 ### Clean up temporary files
 rm _test_sk _test_bk _test_in _test_out #_test_random.log

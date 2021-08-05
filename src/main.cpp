@@ -247,6 +247,36 @@ void do_run_online_dfa3(const std::string &spec_filename,
     }
 }
 
+void do_run_online_dfa4(const std::string &spec_filename,
+                        const std::string &input_filename,
+                        const std::string &output_filename, size_t queue_size,
+                        const std::string &bkey_filename)
+{
+    TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
+    Graph gr = Graph::from_file(spec_filename);
+
+    auto bkey = read_from_archive<BKey>(bkey_filename);
+    assert(bkey.gkey);
+
+    OnlineDFARunner4 runner{gr, queue_size, *bkey.gkey, *bkey.circuit_key};
+
+    spdlog::info("Parameter:");
+    spdlog::info("\tMode:\t{}", "Online FA Runner4 (block-backstream)");
+    spdlog::info("\tInput size:\t{} (hidden)", input_stream.size());
+    spdlog::info("\tState size:\t{}", gr.size());
+    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+    spdlog::info("\tQueue size:\t{}", runner.queue_size());
+    spdlog::info("");
+
+    for (size_t i = 0; input_stream.size() != 0; i++) {
+        spdlog::debug("Processing input {}", i);
+        runner.eval_one(input_stream.next());
+    }
+    TLWELvl1 res = runner.result();
+
+    write_to_archive(output_filename, res);
+}
+
 void do_dec(const std::string &skey_filename, const std::string &input_filename)
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
@@ -334,8 +364,9 @@ int main(int argc, char **argv)
     std::optional<std::string> spec, skey, bkey, input, output, output_dir,
         debug_skey;
     std::string formula, online_method = "qtrlwe2";
-    std::optional<size_t> num_vars, bootstrapping_freq, max_second_lut_depth;
-    size_t num_ap = 0, queue_size = 15, output_freq = 1;
+    std::optional<size_t> num_vars, queue_size, bootstrapping_freq,
+        max_second_lut_depth;
+    size_t num_ap = 0, output_freq = 1;
 
     app.add_flag("--verbose", verbose, "");
     app.add_flag("--quiet", quiet, "");
@@ -382,7 +413,8 @@ int main(int argc, char **argv)
         run->add_option("--out-dir", output_dir);
         run->add_option("--out-freq", output_freq)->check(CLI::PositiveNumber);
         run->add_option("--method", online_method)
-            ->check(CLI::IsMember({"qtrlwe", "reversed", "qtrlwe2"}));
+            ->check(CLI::IsMember(
+                {"qtrlwe", "reversed", "qtrlwe2", "block-backstream"}));
         run->add_option("--queue-size", queue_size)->check(CLI::PositiveNumber);
         run->add_option("--bootstrapping-freq", bootstrapping_freq)
             ->check(CLI::PositiveNumber);
@@ -482,12 +514,17 @@ int main(int argc, char **argv)
                                bootstrapping_freq.value_or(8000),
                                is_spec_reversed, bkey);
         }
+        else if (online_method == "block-backstream") {
+            do_run_online_dfa4(*spec, *input, *output, queue_size.value_or(100),
+                               *bkey);
+        }
         else {
             assert(online_method == "qtrlwe2");
             assert(bkey);
             do_run_online_dfa3(*spec, *input, output, output_dir, output_freq,
-                               queue_size, bootstrapping_freq.value_or(1),
-                               *bkey, max_second_lut_depth, debug_skey);
+                               queue_size.value_or(15),
+                               bootstrapping_freq.value_or(1), *bkey,
+                               max_second_lut_depth, debug_skey);
         }
         break;
 

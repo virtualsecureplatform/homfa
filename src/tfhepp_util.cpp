@@ -434,3 +434,10 @@ std::string weight2bitstring(const PolyLvl1 &w)
     dump_weight(ss, w);
     return ss.str();
 }
+
+void CircuitBootstrappingFFTLvl01(TRGSWLvl1FFT &out, const TLWELvl0 &src,
+                                  const CircuitKey &circuit_key)
+{
+    TFHEpp::CircuitBootstrappingFFT<TFHEpp::lvl02param, TFHEpp::lvl21param>(
+        out, src, circuit_key);
+}

@@ -15,6 +15,7 @@ using TRLWELvl1 = TFHEpp::TRLWE<Lvl1>;
 using PolyLvl1 = TFHEpp::Polynomial<Lvl1>;
 using SecretKey = TFHEpp::SecretKey;
 using GateKey = TFHEpp::GateKey;
+using CircuitKey = TFHEpp::CircuitKey<TFHEpp::lvl02param, TFHEpp::lvl21param>;
 
 class TRGSWLvl1FFTSerializer {
     static_assert(TRGSWLvl1FFT{}.size() == 2 * Lvl1::l);
@@ -127,6 +128,7 @@ struct BKey {
     std::shared_ptr<GateKey> gkey;
     std::shared_ptr<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>
         tlwel1_trlwel1_ikskey;
+    std::shared_ptr<CircuitKey> circuit_key;
 
     BKey()
     {
@@ -135,7 +137,8 @@ struct BKey {
     BKey(const SecretKey &skey)
         : gkey(std::make_shared<GateKey>(skey)),
           tlwel1_trlwel1_ikskey(
-              std::make_shared<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>())
+              std::make_shared<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>()),
+          circuit_key(std::make_shared<CircuitKey>(skey))
     {
         TFHEpp::tlwe2trlweikskkgen<TFHEpp::lvl11param>(*tlwel1_trlwel1_ikskey,
                                                        skey);
@@ -144,7 +147,7 @@ struct BKey {
     template <class Archive>
     void serialize(Archive &ar)
     {
-        ar(gkey, tlwel1_trlwel1_ikskey);
+        ar(gkey, tlwel1_trlwel1_ikskey, circuit_key);
     }
 };
 
@@ -176,5 +179,7 @@ PolyLvl1 uint2weight(uint64_t n);
 bool between_25_75(uint32_t n);
 void dump_weight(std::ostream &os, const PolyLvl1 &w);
 std::string weight2bitstring(const PolyLvl1 &w);
+void CircuitBootstrappingFFTLvl01(TRGSWLvl1FFT &out, const TLWELvl0 &src,
+                                  const CircuitKey &circuit_key);
 
 #endif

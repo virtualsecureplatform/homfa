@@ -98,4 +98,32 @@ private:
     void eval_queued_inputs();
 };
 
+class OnlineDFARunner4 {
+private:
+    const Graph &graph_;
+    const GateKey &gate_key_;
+    const CircuitKey &circuit_key_;
+    size_t queue_size_;
+    std::vector<TRGSWLvl1FFT> queued_inputs_;
+    std::optional<TRLWELvl1> selector_;
+
+    std::vector<TRLWELvl1> workspace1_, workspace2_;
+    std::vector<TRGSWLvl1FFT> workspace3_;
+
+public:
+    OnlineDFARunner4(const Graph &graph, size_t queue_size,
+                     const GateKey &gate_key, const CircuitKey &circuit_key);
+
+    size_t queue_size() const
+    {
+        return queue_size_;
+    }
+
+    TLWELvl1 result();
+    void eval_one(const TRGSWLvl1FFT &input);
+
+private:
+    void eval_queued_inputs();
+};
+
 #endif

@@ -325,3 +325,101 @@ void OnlineDFARunner3::eval_queued_inputs()
     using std::swap;
     swap(live_states_, next_live_states);
 }
+
+/* OnlineDFARunner4 */
+OnlineDFARunner4::OnlineDFARunner4(const Graph &graph, size_t queue_size,
+                                   const GateKey &gate_key,
+                                   const CircuitKey &circuit_key)
+    : graph_(graph),
+      gate_key_(gate_key),
+      circuit_key_(circuit_key),
+      queue_size_(queue_size),
+      selector_(std::nullopt)
+{
+}
+
+TLWELvl1 OnlineDFARunner4::result()
+{
+    eval_queued_inputs();
+    assert(selector_);
+    TRLWELvl1 t = *selector_;
+    do_SEI_IKS_GBTLWE2TRLWE(t, gate_key_);
+    TLWELvl1 ret;
+    TFHEpp::SampleExtractIndex<Lvl1>(ret, t, 0);
+    return ret;
+}
+
+void OnlineDFARunner4::eval_one(const TRGSWLvl1FFT &input)
+{
+    queued_inputs_.push_back(input);
+    if (queued_inputs_.size() < queue_size_)
+        return;
+    eval_queued_inputs();
+}
+
+void OnlineDFARunner4::eval_queued_inputs()
+{
+    const size_t input_size = queued_inputs_.size();
+    if (input_size == 0)
+        return;
+    const size_t width = std::floor(std::log2(graph_.size())) + 1;
+
+    const std::vector<Graph::State> all_states = graph_.all_states();
+
+    std::vector<TRLWELvl1> &weight = workspace1_, &out = workspace2_;
+    // FIXME: necessary space is actually input_size, but lookup_table cannot
+    // handle that
+    weight.clear();
+    out.clear();
+    weight.resize(1 << width, trivial_TRLWELvl1_zero());
+    out.resize(1 << width);
+
+    for (Graph::State q : graph_.all_states()) {
+        if (graph_.is_final_state(q))
+            weight.at(q)[1][0] = (1u << 29);  // 1/8
+        else
+            weight.at(q)[1][0] = -(1u << 29);  // -1/8
+        for (size_t i = 0; i < width; i++)
+            if (((q >> i) & 1u) == 0)
+                weight.at(q)[1][i + 1] = -(1u << 29);  // -1/8
+            else
+                weight.at(q)[1][i + 1] = (1u << 29);  // 1/8
+    }
+
+    for (int i = input_size - 1; i >= 0; i--) {
+        std::for_each(std::execution::par, all_states.begin(), all_states.end(),
+                      [&](Graph::State q) {
+                          Graph::State q0 = graph_.next_state(q, false),
+                                       q1 = graph_.next_state(q, true);
+                          const auto &w0 = weight.at(q0), &w1 = weight.at(q1);
+                          TFHEpp::CMUXFFT<Lvl1>(out.at(q), queued_inputs_.at(i),
+                                                w1, w0);
+                      });
+        {
+            using std::swap;
+            swap(out, weight);
+        }
+    }
+
+    queued_inputs_.clear();
+
+    if (!selector_) {
+        selector_ = weight.at(graph_.initial_state());
+        return;
+    }
+
+    std::vector<TRGSWLvl1FFT> &cond = workspace3_;
+    cond.clear();
+    cond.resize(width);
+    const TRLWELvl1 &sel = *selector_;
+    tbb::parallel_for(0ul, width, [&](size_t i) {
+        TLWELvl1 tlwel1;
+        TFHEpp::SampleExtractIndex<Lvl1>(tlwel1, sel, i + 1);
+        TLWELvl0 tlwel0;
+        TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwel0, tlwel1,
+                                                      gate_key_.ksk);
+        CircuitBootstrappingFFTLvl01(cond.at(i), tlwel0, circuit_key_);
+    });
+    lookup_table(weight, cond.begin(), cond.end(), out);
+    selector_ = weight.at(0);
+}
