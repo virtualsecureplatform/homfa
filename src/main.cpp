@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <execution>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <queue>
@@ -12,9 +13,15 @@
 #include <sstream>
 #include <thread>
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 #include <CLI/CLI.hpp>
 #include <tfhe++.hpp>
+
+std::string concat_paths(const std::string &lhs, const std::string &rhs)
+{
+    return std::filesystem::path{lhs} / std::filesystem::path{rhs};
+}
 
 void do_genkey(const std::string &output_filename)
 {
@@ -118,9 +125,13 @@ void do_run_online_dfa(
 
 void do_run_online_dfa2(
     const std::string &spec_filename, const std::string &input_filename,
-    const std::string &output_filename,
+    const std::optional<std::string> &output_filename,
+    const std::optional<std::string> &output_dirname, size_t output_freq,
     const std::optional<std::string> &bkey_filename = std::nullopt)
 {
+    assert((output_filename && !output_dirname) ||
+           (!output_filename && output_dirname));
+
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     auto bkey = read_from_archive<BKey>(*bkey_filename);
     OnlineDFARunner2 runner{Graph::from_file(spec_filename), bkey.gkey};
@@ -130,14 +141,36 @@ void do_run_online_dfa2(
     spdlog::info("\tInput size:\t{} (hidden)", input_stream.size());
     spdlog::info("\tState size:\t{}", runner.graph().size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+    if (output_filename)
+        spdlog::info("\tOutput file name:\t{}", *output_filename);
+    if (output_dirname) {
+        spdlog::info("\tOutput directory:\t{}", *output_dirname);
+        spdlog::info("\tOutput frequency:\t{}", output_freq);
+    }
     spdlog::info("");
 
+    if (output_dirname)
+        std::filesystem::create_directory(*output_dirname);
+
+    size_t input_stream_size_hidden = input_stream.size();
     for (size_t i = 0; input_stream.size() != 0; i++) {
         spdlog::debug("Processing input {}", i);
         runner.eval_one(input_stream.next());
+
+        if (output_dirname && i % output_freq == output_freq - 1) {
+            const std::string path =
+                concat_paths(*output_dirname, fmt::format("{}.out", i + 1));
+            write_to_archive(path, runner.result());
+        }
     }
 
-    write_to_archive(output_filename, runner.result());
+    if (output_filename)
+        write_to_archive(*output_filename, runner.result());
+    else {
+        const std::string path = concat_paths(
+            *output_dirname, fmt::format("{}.out", input_stream_size_hidden));
+        write_to_archive(path, runner.result());
+    }
 }
 
 void do_run_online_dfa3(const std::string &spec_filename,
@@ -266,10 +299,11 @@ int main(int argc, char **argv)
 
     bool verbose = false, quiet = false, minimized = false, reversed = false,
          negated, make_all_live_states_final = false;
-    std::optional<std::string> spec, skey, bkey, input, output, debug_skey;
+    std::optional<std::string> spec, skey, bkey, input, output, output_dir,
+        debug_skey;
     std::string formula, online_method = "qtrlwe2";
     std::optional<size_t> num_vars;
-    size_t num_ap = 0, queue_size = 15, bootstrapping_freq = 1;
+    size_t num_ap = 0, queue_size = 15, bootstrapping_freq = 1, output_freq = 1;
 
     app.add_flag("--verbose", verbose, "");
     app.add_flag("--quiet", quiet, "");
@@ -310,7 +344,9 @@ int main(int argc, char **argv)
         run->add_option("--bkey", bkey)->check(CLI::ExistingFile);
         run->add_option("--spec", spec)->required()->check(CLI::ExistingFile);
         run->add_option("--in", input)->required()->check(CLI::ExistingFile);
-        run->add_option("--out", output)->required();
+        run->add_option("--out", output);
+        run->add_option("--out-dir", output_dir);
+        run->add_option("--out-freq", output_freq)->check(CLI::PositiveNumber);
         run->add_option("--method", online_method)
             ->check(CLI::IsMember({"qtrlwe", "reversed", "qtrlwe2"}));
         run->add_option("--queue-size", queue_size)->check(CLI::PositiveNumber);
@@ -393,12 +429,19 @@ int main(int argc, char **argv)
         break;
 
     case TYPE::RUN_ONLINE_DFA:
-        assert(spec && input && output);
+        assert(spec && input);
+
+        if (!((output && !output_dir) || (!output && output_dir)))
+            error::die("Use --out or --out-dir");
+
         if (online_method == "qtrlwe") {
+            spdlog::warn("FIXME: not support --out-dir and --output-freq");
+            assert(output);
             do_run_online_dfa(*spec, *input, *output, bkey);
         }
         else if (online_method == "reversed") {
-            do_run_online_dfa2(*spec, *input, *output, bkey);
+            do_run_online_dfa2(*spec, *input, output, output_dir, output_freq,
+                               bkey);
         }
         else {
             assert(online_method == "qtrlwe2");
