@@ -175,7 +175,9 @@ void do_run_online_dfa2(
 
 void do_run_online_dfa3(const std::string &spec_filename,
                         const std::string &input_filename,
-                        const std::string &output_filename, size_t queue_size,
+                        const std::optional<std::string> &output_filename,
+                        const std::optional<std::string> &output_dirname,
+                        size_t output_freq, size_t queue_size,
                         size_t bootstrapping_freq,
                         const std::string &bkey_filename,
                         const std::optional<std::string> &debug_skey_filename)
@@ -203,15 +205,40 @@ void do_run_online_dfa3(const std::string &spec_filename,
     spdlog::info("\tState size:\t{}", gr.size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     spdlog::info("\tQueue size:\t{}", runner.queue_size());
+    if (output_filename)
+        spdlog::info("\tOutput file name:\t{}", *output_filename);
+    if (output_dirname) {
+        spdlog::info("\tOutput directory:\t{}", *output_dirname);
+        spdlog::info("\tOutput frequency:\t{}", output_freq);
+    }
     spdlog::info("");
 
+    if (output_freq % queue_size != 0)
+        spdlog::warn("Output frequency ({}) is not the same as queue size ({})",
+                     output_freq, queue_size);
+
+    if (output_dirname)
+        std::filesystem::create_directory(*output_dirname);
+
+    size_t input_stream_size_hidden = input_stream.size();
     for (size_t i = 0; input_stream.size() != 0; i++) {
         spdlog::debug("Processing input {}", i);
         runner.eval_one(input_stream.next());
-    }
-    TLWELvl1 res = runner.result();
 
-    write_to_archive(output_filename, res);
+        if (output_dirname && i % output_freq == output_freq - 1) {
+            const std::string path =
+                concat_paths(*output_dirname, fmt::format("{}.out", i + 1));
+            write_to_archive(path, runner.result());
+        }
+    }
+
+    if (output_filename)
+        write_to_archive(*output_filename, runner.result());
+    else {
+        const std::string path = concat_paths(
+            *output_dirname, fmt::format("{}.out", input_stream_size_hidden));
+        write_to_archive(path, runner.result());
+    }
 }
 
 void do_dec(const std::string &skey_filename, const std::string &input_filename)
@@ -446,8 +473,9 @@ int main(int argc, char **argv)
         else {
             assert(online_method == "qtrlwe2");
             assert(bkey);
-            do_run_online_dfa3(*spec, *input, *output, queue_size,
-                               bootstrapping_freq, *bkey, debug_skey);
+            do_run_online_dfa3(*spec, *input, output, output_dir, output_freq,
+                               queue_size, bootstrapping_freq, *bkey,
+                               debug_skey);
         }
         break;
 
