@@ -222,6 +222,30 @@ void do_spec2dot(const std::optional<std::string> &spec_filename_opt)
         Graph::from_file(spec_filename).dump_dot(std::cout);
 }
 
+void do_run_dfa_plain(const std::string &spec_filename,
+                      const std::string &input_filename, size_t num_ap)
+{
+    Graph gr = Graph::from_file(spec_filename);
+    auto dfa_state = gr.initial_state();
+
+    std::ifstream ifs{input_filename};
+    assert(ifs);
+
+    while (ifs) {
+        int ch = ifs.get();
+        if (ch == EOF)
+            break;
+        uint8_t v = ch;
+        for (size_t i = 0; i < num_ap; i++) {
+            bool b = (v & 1u) != 0;
+            v >>= 1;
+            dfa_state = gr.next_state(dfa_state, b);
+        }
+    }
+
+    spdlog::info("Result (bool): {}", gr.is_final_state(dfa_state));
+}
+
 int main(int argc, char **argv)
 {
     CLI::App app{"Homomorphic Final Answer"};
@@ -237,6 +261,7 @@ int main(int argc, char **argv)
         LTL2SPEC,
         SPEC2SPEC,
         SPEC2DOT,
+        RUN_DFA_PLAIN,
     } type;
 
     bool verbose = false, quiet = false, minimized = false, reversed = false,
@@ -324,6 +349,20 @@ int main(int argc, char **argv)
         spec2dot->parse_complete_callback([&] { type = TYPE::SPEC2DOT; });
         spec2dot->add_option("SPEC-FILE", spec);
     }
+    {
+        CLI::App *run_plain =
+            app.add_subcommand("run-dfa-plain", "Run DFA on plain text");
+        run_plain->parse_complete_callback([&] { type = TYPE::RUN_DFA_PLAIN; });
+        run_plain->add_option("--ap", num_ap)
+            ->required()
+            ->check(CLI::PositiveNumber);
+        run_plain->add_option("--spec", spec)
+            ->required()
+            ->check(CLI::ExistingFile);
+        run_plain->add_option("--in", input)
+            ->required()
+            ->check(CLI::ExistingFile);
+    }
 
     CLI11_PARSE(app, argc, argv);
 
@@ -385,6 +424,11 @@ int main(int argc, char **argv)
 
     case TYPE::SPEC2DOT:
         do_spec2dot(spec);
+        break;
+
+    case TYPE::RUN_DFA_PLAIN:
+        assert(spec && input);
+        do_run_dfa_plain(*spec, *input, num_ap);
         break;
     }
 

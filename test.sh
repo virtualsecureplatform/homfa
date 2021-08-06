@@ -12,22 +12,29 @@ failwith(){
 }
 
 enc_run_dec(){
-    $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
     case "$1" in
         "offline-dfa" )
+            $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
             $HOMFA run-offline-dfa --bkey _test_bk --spec "$3" --in _test_in --out _test_out
+            $HOMFA dec --key _test_sk --in _test_out
             ;;
         "online-dfa-reversed" )
+            $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
             $HOMFA run-online-dfa --method reversed --bkey _test_bk --spec "$3" --in _test_in --out _test_out
+            $HOMFA dec --key _test_sk --in _test_out
             ;;
         "online-dfa-qtrlwe2" )
+            $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
             $HOMFA run-online-dfa --method qtrlwe2 --bkey _test_bk --spec "$3" --in _test_in --out _test_out
+            $HOMFA dec --key _test_sk --in _test_out
+            ;;
+        "dfa-plain" )
+            $HOMFA run-dfa-plain --ap "$2" --spec "$3" --in "$4"
             ;;
         * )
             failwith "Invalid run $1"
             ;;
     esac
-    $HOMFA dec --key _test_sk --in _test_out
 }
 
 check_true(){
@@ -49,6 +56,16 @@ check_false(){
 ### Now start testing
 $TEST0
 #cat test/safety_ltl_5ap.txt | $TEST_PLAIN_RANDOM 5 _test_random.log
+#### Plain DFA
+check_true  dfa-plain 2 test/01.spec test/01-01.in # [1, 1] * 8 * 100
+check_false dfa-plain 2 test/01.spec test/01-02.in # [1, 0] * 8 * 100
+check_true  dfa-plain 2 test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
+check_false dfa-plain 2 test/01.spec test/01-04.in # [1, 0] + ([0, 0, 1, 0] * 8 * 20) + [0, 1] + ([0, 0, 0, 1] * 8 * 20)
+check_true  dfa-plain 2 test/01.spec test/01-05.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 100
+check_false dfa-plain 2 test/01.spec test/01-06.in # [1, 0] + ([0, 0, 1, 0] * 8 * 100) + [0, 1] + ([0, 0, 0, 1] * 8 * 150)
+check_true  dfa-plain 2 test/01.spec test/01-07.in # [1, 1] * 4
+check_false dfa-plain 2 test/01.spec test/01-08.in # [1, 0] * 4
+
 #### Offline DFA
 check_true  offline-dfa 2 test/01.spec test/01-01.in # [1, 1] * 8 * 100
 check_false offline-dfa 2 test/01.spec test/01-02.in # [1, 0] * 8 * 100
