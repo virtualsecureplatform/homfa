@@ -88,6 +88,30 @@ void enc_run_dec_loop(const SecretKey& skey, const BKey& bkey,
     });
 }
 
+class OfflineBenchRunner {
+private:
+    OfflineDFARunner runner_;
+
+public:
+    OfflineBenchRunner(const std::string& spec_filename, size_t input_size,
+                       size_t boot_interval, const BKey& bkey)
+        : runner_(Graph::from_file(spec_filename), input_size, boot_interval,
+                  bkey.gkey)
+    {
+    }
+
+    bool run(const TRGSWLvl1FFT& input)
+    {
+        runner_.eval_one(input);
+        return false;
+    }
+
+    TLWELvl1 result() const
+    {
+        return runner_.result();
+    }
+};
+
 class OnlineDFA2BenchRunner {
 private:
     OnlineDFARunner2 runner_;
@@ -156,6 +180,53 @@ public:
     }
 };
 
+void do_offline(const std::string& spec_filename,
+                const std::string& input_filename, size_t bootstrapping_freq,
+                size_t num_ap)
+{
+    print("config-method", "offline");
+    print("config-spec", spec_filename);
+    print("config-input", input_filename);
+    print("config-bootstrapping_freq", bootstrapping_freq);
+    print("config-num_ap", num_ap);
+
+    std::optional<SecretKey> skey_opt;
+    std::optional<BKey> bkey_opt;
+
+    auto skey_elapsed = timeit([&] { skey_opt.emplace(); });
+    const SecretKey& skey = skey_opt.value();
+    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey); });
+    const BKey& bkey = bkey_opt.value();
+
+    print("skey", skey_elapsed.count());
+    print("bkey", bkey_elapsed.count());
+
+    std::vector<bool> input_bits;
+    each_input_bit(input_filename, num_ap,
+                   [&](bool b) { input_bits.push_back(b); });
+
+    OfflineBenchRunner runner{spec_filename, input_bits.size(),
+                              bootstrapping_freq, bkey};
+    for (auto it = input_bits.rbegin(); it != input_bits.rend(); it++) {
+        bool input = *it;
+
+        // Encrypt
+        TRGSWLvl1FFT enc_input;
+        print_elapsed("enc", [&] {
+            enc_input = encrypt_bit_to_TRGSWLvl1FFT(input, skey);
+        });
+
+        // Run
+        print_elapsed("run", [&] { runner.run(enc_input); });
+    }
+    // Decrypt
+    bool result = false;
+    print_elapsed("dec", [&] {
+        result = decrypt_TLWELvl1_to_bit(runner.result(), skey);
+    });
+    print("result", result);
+}
+
 void do_reversed(const std::string& spec_filename,
                  const std::string& input_filename, size_t output_freq,
                  size_t bootstrapping_freq, size_t num_ap)
@@ -215,12 +286,29 @@ int main(int argc, char** argv)
     app.require_subcommand();
 
     enum class TYPE {
+        OFFLINE,
         REVERSED,
         QTRLWE2,
     } type;
     std::string spec_filename, input_filename;
     size_t output_freq, num_ap, queue_size, bootstrapping_freq;
 
+    {
+        CLI::App* offline = app.add_subcommand("offline", "Run offline");
+        offline->parse_complete_callback([&] { type = TYPE::OFFLINE; });
+        offline->add_option("--ap", num_ap)
+            ->required()
+            ->check(CLI::PositiveNumber);
+        offline->add_option("--bootstrapping-freq", bootstrapping_freq)
+            ->required()
+            ->check(CLI::PositiveNumber);
+        offline->add_option("--spec", spec_filename)
+            ->required()
+            ->check(CLI::ExistingFile);
+        offline->add_option("--in", input_filename)
+            ->required()
+            ->check(CLI::ExistingFile);
+    }
     {
         CLI::App* rev = app.add_subcommand("reversed", "Run online-reversed");
         rev->parse_complete_callback([&] { type = TYPE::REVERSED; });
@@ -266,6 +354,10 @@ int main(int argc, char** argv)
     print("time", current_time_str());
 
     switch (type) {
+    case TYPE::OFFLINE:
+        do_offline(spec_filename, input_filename, bootstrapping_freq, num_ap);
+        break;
+
     case TYPE::REVERSED:
         do_reversed(spec_filename, input_filename, output_freq,
                     bootstrapping_freq, num_ap);

@@ -78,7 +78,7 @@ void do_run_offline_dfa(
 
     auto bkey = read_from_archive<BKey>(*bkey_filename);
     OfflineDFARunner runner{Graph::from_file(spec_filename).minimized(),
-                            input_stream, bootstrapping_freq, bkey.gkey};
+                            input_stream.size(), bootstrapping_freq, bkey.gkey};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Offline FA Runner");
@@ -94,7 +94,9 @@ void do_run_offline_dfa(
     }
     spdlog::info("");
 
-    runner.eval();
+    size_t input_size = input_stream.size();
+    for (size_t i = 0; i < input_size; i++)
+        runner.eval_one(input_stream.next());
 
     write_to_archive(output_filename, runner.result());
 }

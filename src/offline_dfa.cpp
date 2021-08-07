@@ -4,12 +4,10 @@
 
 #include <spdlog/spdlog.h>
 
-OfflineDFARunner::OfflineDFARunner(Graph graph,
-                                   InputStream<TRGSWLvl1FFT> &input_stream,
+OfflineDFARunner::OfflineDFARunner(Graph graph, size_t input_size,
                                    size_t boot_interval,
                                    std::shared_ptr<GateKey> gate_key)
-    : runner_(std::move(graph), boot_interval, input_stream.size(), gate_key),
-      input_stream_(input_stream)
+    : runner_(std::move(graph), boot_interval, input_size, gate_key)
 {
 }
 
@@ -18,11 +16,7 @@ TLWELvl1 OfflineDFARunner::result() const
     return runner_.result();
 }
 
-void OfflineDFARunner::eval()
+void OfflineDFARunner::eval_one(const TRGSWLvl1FFT& input)
 {
-    size_t input_size = input_stream_.size();
-    for (int j = input_size - 1; j >= 0; --j) {
-        TRGSWLvl1FFT input = input_stream_.next();
-        runner_.eval(input);
-    }
+    runner_.eval(input);
 }

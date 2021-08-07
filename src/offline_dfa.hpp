@@ -6,11 +6,9 @@
 class OfflineDFARunner {
 private:
     BackstreamDFARunner runner_;
-    InputStream<TRGSWLvl1FFT> &input_stream_;
 
 public:
-    OfflineDFARunner(Graph graph, InputStream<TRGSWLvl1FFT> &input_stream,
-                     size_t boot_interval,
+    OfflineDFARunner(Graph graph, size_t input_size, size_t boot_interval,
                      std::shared_ptr<GateKey> gate_key = nullptr);
 
     const Graph &graph() const
@@ -19,7 +17,7 @@ public:
     }
 
     TLWELvl1 result() const;
-    void eval();
+    void eval_one(const TRGSWLvl1FFT &input);
 };
 
 #endif
