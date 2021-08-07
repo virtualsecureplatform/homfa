@@ -231,6 +231,7 @@ void do_reversed(const std::string& spec_filename,
                  const std::string& input_filename, size_t output_freq,
                  size_t bootstrapping_freq, size_t num_ap)
 {
+    print("config-method", "reversed");
     print("config-spec", spec_filename);
     print("config-input", input_filename);
     print("config-output_freq", output_freq);
@@ -257,6 +258,7 @@ void do_qtrlwe2(const std::string& spec_filename,
                 const std::string& input_filename, size_t output_freq,
                 size_t queue_size, size_t bootstrapping_freq, size_t num_ap)
 {
+    print("config-method", "qtrlwe2");
     print("config-spec", spec_filename);
     print("config-input", input_filename);
     print("config-output_freq", output_freq);
