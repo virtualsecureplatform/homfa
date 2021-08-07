@@ -9,6 +9,17 @@
 
 #include <CLI/CLI.hpp>
 
+std::string current_time_str()
+{
+    auto now = std::chrono::system_clock::now();
+    std::time_t t1 = std::chrono::system_clock::to_time_t(now);
+    std::tm* t = std::localtime(&t1);
+    std::stringstream ss;
+    ss << t->tm_year + 1900 << "-" << t->tm_mon << "-" << t->tm_mday << "_"
+       << t->tm_hour << "-" << t->tm_min << "-" << t->tm_sec;
+    return ss.str();
+}
+
 template <class Func>
 std::chrono::microseconds timeit(Func f)
 {
@@ -251,6 +262,8 @@ int main(int argc, char** argv)
     }
 
     CLI11_PARSE(app, argc, argv);
+
+    print("time", current_time_str());
 
     switch (type) {
     case TYPE::REVERSED:
