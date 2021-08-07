@@ -85,8 +85,9 @@ private:
 
 public:
     OnlineDFA2BenchRunner(const std::string& spec_filename, size_t output_freq,
-                          const BKey& bkey)
-        : runner_(Graph::from_file(spec_filename), bkey.gkey),
+                          size_t bootstrapping_freq, const BKey& bkey)
+        : runner_(Graph::from_file(spec_filename), bootstrapping_freq,
+                  bkey.gkey),
           output_freq_(output_freq),
           num_processed_(0)
     {
@@ -146,11 +147,12 @@ public:
 
 void do_reversed(const std::string& spec_filename,
                  const std::string& input_filename, size_t output_freq,
-                 size_t num_ap)
+                 size_t bootstrapping_freq, size_t num_ap)
 {
     print("config-spec", spec_filename);
     print("config-input", input_filename);
     print("config-output_freq", output_freq);
+    print("config-bootstrapping_freq", bootstrapping_freq);
     print("config-num_ap", num_ap);
 
     std::optional<SecretKey> skey_opt;
@@ -164,7 +166,8 @@ void do_reversed(const std::string& spec_filename,
     print("skey", skey_elapsed.count());
     print("bkey", bkey_elapsed.count());
 
-    OnlineDFA2BenchRunner runner{spec_filename, output_freq, bkey};
+    OnlineDFA2BenchRunner runner{spec_filename, output_freq, bootstrapping_freq,
+                                 bkey};
     enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
 }
 
@@ -214,6 +217,9 @@ int main(int argc, char** argv)
         rev->add_option("--out-freq", output_freq)
             ->required()
             ->check(CLI::PositiveNumber);
+        rev->add_option("--bootstrapping-freq", bootstrapping_freq)
+            ->required()
+            ->check(CLI::PositiveNumber);
         rev->add_option("--spec", spec_filename)
             ->required()
             ->check(CLI::ExistingFile);
@@ -248,7 +254,8 @@ int main(int argc, char** argv)
 
     switch (type) {
     case TYPE::REVERSED:
-        do_reversed(spec_filename, input_filename, output_freq, num_ap);
+        do_reversed(spec_filename, input_filename, output_freq,
+                    bootstrapping_freq, num_ap);
         break;
     case TYPE::QTRLWE2:
         do_qtrlwe2(spec_filename, input_filename, output_freq, queue_size,

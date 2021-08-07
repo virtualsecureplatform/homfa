@@ -71,20 +71,21 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
 
 void do_run_offline_dfa(
     const std::string &spec_filename, const std::string &input_filename,
-    const std::string &output_filename,
+    const std::string &output_filename, size_t bootstrapping_freq,
     const std::optional<std::string> &bkey_filename = std::nullopt)
 {
     ReversedTRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
 
     auto bkey = read_from_archive<BKey>(*bkey_filename);
     OfflineDFARunner runner{Graph::from_file(spec_filename).minimized(),
-                            input_stream, bkey.gkey};
+                            input_stream, bootstrapping_freq, bkey.gkey};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Offline FA Runner");
     spdlog::info("\tInput size:\t{}", input_stream.size());
     spdlog::info("\tState size:\t{}", runner.graph().size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+    spdlog::info("\tBootstrapping frequency:\t{}", bootstrapping_freq);
     {
         size_t total_cnt_cmux = 0;
         for (size_t j = 0; j < input_stream.size(); j++)
@@ -127,6 +128,7 @@ void do_run_online_dfa2(
     const std::string &spec_filename, const std::string &input_filename,
     const std::optional<std::string> &output_filename,
     const std::optional<std::string> &output_dirname, size_t output_freq,
+    size_t bootstrapping_freq,
     const std::optional<std::string> &bkey_filename = std::nullopt)
 {
     assert((output_filename && !output_dirname) ||
@@ -134,7 +136,8 @@ void do_run_online_dfa2(
 
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     auto bkey = read_from_archive<BKey>(*bkey_filename);
-    OnlineDFARunner2 runner{Graph::from_file(spec_filename), bkey.gkey};
+    OnlineDFARunner2 runner{Graph::from_file(spec_filename), bootstrapping_freq,
+                            bkey.gkey};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner2 (reversed)");
@@ -147,6 +150,7 @@ void do_run_online_dfa2(
         spdlog::info("\tOutput directory:\t{}", *output_dirname);
         spdlog::info("\tOutput frequency:\t{}", output_freq);
     }
+    spdlog::info("\tBootstrapping frequency:\t{}", bootstrapping_freq);
     spdlog::info("");
 
     if (output_dirname)
@@ -211,6 +215,7 @@ void do_run_online_dfa3(const std::string &spec_filename,
         spdlog::info("\tOutput directory:\t{}", *output_dirname);
         spdlog::info("\tOutput frequency:\t{}", output_freq);
     }
+    spdlog::info("\tBootstrapping frequency:\t{}", bootstrapping_freq);
     spdlog::info("");
 
     if (output_freq % queue_size != 0)
@@ -329,8 +334,8 @@ int main(int argc, char **argv)
     std::optional<std::string> spec, skey, bkey, input, output, output_dir,
         debug_skey;
     std::string formula, online_method = "qtrlwe2";
-    std::optional<size_t> num_vars;
-    size_t num_ap = 0, queue_size = 15, bootstrapping_freq = 1, output_freq = 1;
+    std::optional<size_t> num_vars, bootstrapping_freq;
+    size_t num_ap = 0, queue_size = 15, output_freq = 1;
 
     app.add_flag("--verbose", verbose, "");
     app.add_flag("--quiet", quiet, "");
@@ -364,6 +369,8 @@ int main(int argc, char **argv)
         run->add_option("--spec", spec)->required()->check(CLI::ExistingFile);
         run->add_option("--in", input)->required()->check(CLI::ExistingFile);
         run->add_option("--out", output)->required();
+        run->add_option("--bootstrapping-freq", bootstrapping_freq)
+            ->check(CLI::PositiveNumber);
     }
     {
         CLI::App *run = app.add_subcommand("run-online-dfa", "Run online DFA");
@@ -452,7 +459,8 @@ int main(int argc, char **argv)
 
     case TYPE::RUN_OFFLINE_DFA:
         assert(spec && input && output);
-        do_run_offline_dfa(*spec, *input, *output, bkey);
+        do_run_offline_dfa(*spec, *input, *output,
+                           bootstrapping_freq.value_or(8000), bkey);
         break;
 
     case TYPE::RUN_ONLINE_DFA:
@@ -468,14 +476,14 @@ int main(int argc, char **argv)
         }
         else if (online_method == "reversed") {
             do_run_online_dfa2(*spec, *input, output, output_dir, output_freq,
-                               bkey);
+                               bootstrapping_freq.value_or(8000), bkey);
         }
         else {
             assert(online_method == "qtrlwe2");
             assert(bkey);
             do_run_online_dfa3(*spec, *input, output, output_dir, output_freq,
-                               queue_size, bootstrapping_freq, *bkey,
-                               debug_skey);
+                               queue_size, bootstrapping_freq.value_or(1),
+                               *bkey, debug_skey);
         }
         break;
 

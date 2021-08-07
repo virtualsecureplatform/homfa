@@ -5,14 +5,12 @@
 #include "tfhepp_util.hpp"
 
 class BackstreamDFARunner {
-    // Interval for bootstrapping
-    const static size_t BOOT_INTERVAL = 8000;
-
 private:
     Graph graph_;
     std::vector<RedundantTRLWELvl1> weight_;
     std::shared_ptr<GateKey> gate_key_;
     std::optional<size_t> input_size_;
+    const size_t boot_interval_;
     size_t num_processed_inputs_;
     const TRLWELvl1 trlwelvl1_trivial_0_, trlwelvl1_trivial_1_;
 
@@ -20,7 +18,7 @@ private:
     std::vector<RedundantTRLWELvl1> workspace_;
 
 public:
-    BackstreamDFARunner(Graph graph,
+    BackstreamDFARunner(Graph graph, size_t boot_interval,
                         std::optional<size_t> input_size = std::nullopt,
                         std::shared_ptr<GateKey> gate_key = nullptr);
 

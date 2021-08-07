@@ -28,7 +28,7 @@ private:
     BackstreamDFARunner runner_;
 
 public:
-    OnlineDFARunner2(const Graph &graph,
+    OnlineDFARunner2(const Graph &graph, size_t boot_interval_,
                      std::shared_ptr<GateKey> gate_key = nullptr);
 
     const Graph &graph() const

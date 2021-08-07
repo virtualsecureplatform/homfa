@@ -4,13 +4,14 @@
 
 #include <spdlog/spdlog.h>
 
-BackstreamDFARunner::BackstreamDFARunner(Graph graph,
+BackstreamDFARunner::BackstreamDFARunner(Graph graph, size_t boot_interval,
                                          std::optional<size_t> input_size,
                                          std::shared_ptr<GateKey> gate_key)
     : graph_(std::move(graph)),
       weight_(graph_.size()),
       gate_key_(std::move(gate_key)),
       input_size_(std::move(input_size)),
+      boot_interval_(boot_interval),
       num_processed_inputs_(0),
       trlwelvl1_trivial_0_(trivial_TRLWELvl1_minus_1over8()),
       trlwelvl1_trivial_1_(trivial_TRLWELvl1_1over8()),
@@ -82,7 +83,7 @@ void BackstreamDFARunner::eval(const TRGSWLvl1FFT &input)
     }
 
     num_processed_inputs_++;
-    if (gate_key_ && num_processed_inputs_ % BOOT_INTERVAL == 0) {
+    if (gate_key_ && num_processed_inputs_ % boot_interval_ == 0) {
         spdlog::debug("Bootstrapping occurred");
         bootstrap_weight(*states);
     }
