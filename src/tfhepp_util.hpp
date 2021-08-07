@@ -164,6 +164,7 @@ uint32_t phase_of_TLWELvl1(const TLWELvl1 &src, const SecretKey &skey);
 PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1 &src, const SecretKey &skey);
 void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKey &gk);
 TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey &skey);
+bool decrypt_TLWELvl1_to_bit(const TLWELvl1 &c, const SecretKey &skey);
 PolyLvl1 uint2weight(uint64_t n);
 bool between_25_75(uint32_t n);
 void dump_weight(std::ostream &os, const PolyLvl1 &w);
