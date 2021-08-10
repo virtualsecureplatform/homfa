@@ -152,11 +152,11 @@ private:
 
 public:
     OnlineDFA3BenchRunner(const std::string& spec_filename, size_t output_freq,
-                          size_t queue_size, size_t bootstrapping_freq,
-                          const BKey& bkey)
-        : runner_(Graph::from_file(spec_filename), queue_size,
-                  bootstrapping_freq, *bkey.gkey, *bkey.tlwel1_trlwel1_ikskey,
-                  std::nullopt),
+                          size_t max_second_lut_depth, size_t queue_size,
+                          size_t bootstrapping_freq, const BKey& bkey)
+        : runner_(Graph::from_file(spec_filename), max_second_lut_depth,
+                  queue_size, bootstrapping_freq, *bkey.gkey,
+                  *bkey.tlwel1_trlwel1_ikskey, std::nullopt),
           output_freq_(output_freq),
           queue_size_(queue_size),
           bootstrapping_freq_(bootstrapping_freq),
@@ -256,12 +256,14 @@ void do_reversed(const std::string& spec_filename,
 
 void do_qtrlwe2(const std::string& spec_filename,
                 const std::string& input_filename, size_t output_freq,
-                size_t queue_size, size_t bootstrapping_freq, size_t num_ap)
+                size_t max_second_lut_depth, size_t queue_size,
+                size_t bootstrapping_freq, size_t num_ap)
 {
     print("config-method", "qtrlwe2");
     print("config-spec", spec_filename);
     print("config-input", input_filename);
     print("config-output_freq", output_freq);
+    print("config-max_second_lut_depth", max_second_lut_depth);
     print("config-queue_size", queue_size);
     print("config-bootstrapping_freq", bootstrapping_freq);
     print("config-num_ap", num_ap);
@@ -277,8 +279,9 @@ void do_qtrlwe2(const std::string& spec_filename,
     print("skey", skey_elapsed.count());
     print("bkey", bkey_elapsed.count());
 
-    OnlineDFA3BenchRunner runner{spec_filename, output_freq, queue_size,
-                                 bootstrapping_freq, bkey};
+    OnlineDFA3BenchRunner runner{spec_filename,        output_freq,
+                                 max_second_lut_depth, queue_size,
+                                 bootstrapping_freq,   bkey};
     enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
 }
 
@@ -293,7 +296,8 @@ int main(int argc, char** argv)
         QTRLWE2,
     } type;
     std::string spec_filename, input_filename;
-    size_t output_freq, num_ap, queue_size, bootstrapping_freq;
+    size_t output_freq, num_ap, max_second_lut_depth, queue_size,
+        bootstrapping_freq;
 
     {
         CLI::App* offline = app.add_subcommand("offline", "Run offline");
@@ -349,6 +353,9 @@ int main(int argc, char** argv)
         qtrlwe2->add_option("--in", input_filename)
             ->required()
             ->check(CLI::ExistingFile);
+        qtrlwe2->add_option("--max_second_lut_depth", max_second_lut_depth)
+            ->required()
+            ->check(CLI::PositiveNumber);
     }
 
     CLI11_PARSE(app, argc, argv);
@@ -365,8 +372,9 @@ int main(int argc, char** argv)
                     bootstrapping_freq, num_ap);
         break;
     case TYPE::QTRLWE2:
-        do_qtrlwe2(spec_filename, input_filename, output_freq, queue_size,
-                   bootstrapping_freq, num_ap);
+        do_qtrlwe2(spec_filename, input_filename, output_freq,
+                   max_second_lut_depth, queue_size, bootstrapping_freq,
+                   num_ap);
         break;
     }
 

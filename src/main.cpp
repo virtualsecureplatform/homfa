@@ -186,6 +186,7 @@ void do_run_online_dfa3(const std::string &spec_filename,
                         size_t output_freq, size_t queue_size,
                         size_t bootstrapping_freq,
                         const std::string &bkey_filename,
+                        const std::optional<size_t> &max_second_lut_depth,
                         const std::optional<std::string> &debug_skey_filename)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
@@ -198,11 +199,9 @@ void do_run_online_dfa3(const std::string &spec_filename,
     if (debug_skey_filename)
         debug_skey.emplace(read_from_archive<SecretKey>(*debug_skey_filename));
 
-    OnlineDFARunner3 runner{gr,
-                            queue_size,
-                            bootstrapping_freq,
-                            *bkey.gkey,
-                            *bkey.tlwel1_trlwel1_ikskey,
+    OnlineDFARunner3 runner{gr,         max_second_lut_depth.value_or(8),
+                            queue_size, bootstrapping_freq,
+                            *bkey.gkey, *bkey.tlwel1_trlwel1_ikskey,
                             debug_skey};
 
     spdlog::info("Parameter:");
@@ -336,7 +335,7 @@ int main(int argc, char **argv)
     std::optional<std::string> spec, skey, bkey, input, output, output_dir,
         debug_skey;
     std::string formula, online_method = "qtrlwe2";
-    std::optional<size_t> num_vars, bootstrapping_freq;
+    std::optional<size_t> num_vars, bootstrapping_freq, max_second_lut_depth;
     size_t num_ap = 0, queue_size = 15, output_freq = 1;
 
     app.add_flag("--verbose", verbose, "");
@@ -390,6 +389,8 @@ int main(int argc, char **argv)
             ->check(CLI::PositiveNumber);
         run->add_option("--debug-secret-key", debug_skey)
             ->check(CLI::ExistingFile);
+        run->add_option("--max-second-lut-depth", max_second_lut_depth)
+            ->check(CLI::PositiveNumber);
     }
     {
         CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
@@ -485,7 +486,7 @@ int main(int argc, char **argv)
             assert(bkey);
             do_run_online_dfa3(*spec, *input, output, output_dir, output_freq,
                                queue_size, bootstrapping_freq.value_or(1),
-                               *bkey, debug_skey);
+                               *bkey, max_second_lut_depth, debug_skey);
         }
         break;
 

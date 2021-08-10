@@ -104,8 +104,8 @@ void OnlineDFARunner2::eval_one(const TRGSWLvl1FFT &input)
 
 /* OnlineDFARunner3 */
 OnlineDFARunner3::OnlineDFARunner3(
-    const Graph &graph, size_t queue_size, size_t bootstrapping_freq,
-    const GateKey &gate_key,
+    const Graph &graph, size_t max_second_lut_depth, size_t queue_size,
+    size_t bootstrapping_freq, const GateKey &gate_key,
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param> &tlwel1_trlwel1_iks_key,
     std::optional<SecretKey> debug_skey)
     : graph_(graph),
@@ -113,6 +113,7 @@ OnlineDFARunner3::OnlineDFARunner3(
       tlwel1_trlwel1_iks_key_(tlwel1_trlwel1_iks_key),
       weight_(graph.size(), trivial_TRLWELvl1_zero()),
       queued_inputs_(0),
+      max_second_lut_depth_(max_second_lut_depth),
       queue_size_(queue_size),
       live_states_(),
       memo_transition_(),
@@ -222,7 +223,8 @@ void OnlineDFARunner3::eval_queued_inputs()
 
     // Determine 1st and 2nd LUT depth
     const size_t second_lut_depth = std::min<size_t>(
-        input_size / 2, std::log2(Lvl1::n / next_live_states.size()));
+        input_size / 2,
+        max_second_lut_depth_ - std::log2(next_live_states.size()));
     const size_t first_lut_depth =
         std::max<int>(0, input_size - second_lut_depth);
     assert(first_lut_depth + second_lut_depth == input_size);
