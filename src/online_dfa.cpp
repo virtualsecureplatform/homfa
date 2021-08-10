@@ -217,6 +217,9 @@ void OnlineDFARunner3::eval_queued_inputs()
     for (size_t i = 0; i < next_live_states.size(); i++)
         st2idx.at(next_live_states.at(i)) = i;
 
+    spdlog::debug("live states: {}", live_states_.size());
+    spdlog::debug("next live states: {}", next_live_states.size());
+
     // Determine 1st and 2nd LUT depth
     const size_t second_lut_depth = std::min<size_t>(
         input_size / 2, std::log2(Lvl1::n / next_live_states.size()));
