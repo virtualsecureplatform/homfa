@@ -7,7 +7,7 @@
 
 class OnlineDFARunner {
 private:
-    const Graph &graph_;
+    Graph graph_;
     std::vector<TRLWELvl1> weight_;
     std::shared_ptr<GateKey> gate_key_;
     size_t bootstrap_interval_, num_processed_inputs_;
@@ -42,7 +42,7 @@ public:
 
 class OnlineDFARunner3 {
 private:
-    const Graph &graph_;
+    Graph graph_;
     const GateKey &gate_key_;
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param> &tlwel1_trlwel1_iks_key_;
     std::vector<TRLWELvl1> weight_;
@@ -58,7 +58,7 @@ private:
     std::vector<TRLWELvl1> workspace_table1_, workspace_table2_;
 
 public:
-    OnlineDFARunner3(const Graph &graph, size_t max_second_lut_depth,
+    OnlineDFARunner3(Graph graph, size_t max_second_lut_depth,
                      size_t queue_size, size_t bootstrapping_freq,
                      const GateKey &gate_key,
                      const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>

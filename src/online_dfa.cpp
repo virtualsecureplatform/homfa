@@ -104,14 +104,14 @@ void OnlineDFARunner2::eval_one(const TRGSWLvl1FFT &input)
 
 /* OnlineDFARunner3 */
 OnlineDFARunner3::OnlineDFARunner3(
-    const Graph &graph, size_t max_second_lut_depth, size_t queue_size,
+    Graph graph, size_t max_second_lut_depth, size_t queue_size,
     size_t bootstrapping_freq, const GateKey &gate_key,
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param> &tlwel1_trlwel1_iks_key,
     std::optional<SecretKey> debug_skey)
-    : graph_(graph),
+    : graph_(std::move(graph)),
       gate_key_(gate_key),
       tlwel1_trlwel1_iks_key_(tlwel1_trlwel1_iks_key),
-      weight_(graph.size(), trivial_TRLWELvl1_zero()),
+      weight_(graph_.size(), trivial_TRLWELvl1_zero()),
       queued_inputs_(0),
       max_second_lut_depth_(max_second_lut_depth),
       queue_size_(queue_size),
@@ -121,7 +121,7 @@ OnlineDFARunner3::OnlineDFARunner3(
       bootstrapping_freq_(bootstrapping_freq),
       debug_skey_(std::move(debug_skey))
 {
-    assert(graph.size() < Lvl1::n);
+    assert(graph_.size() < Lvl1::n);
 
     for (Graph::State st : graph_.all_states())
         if (st == graph_.initial_state())
