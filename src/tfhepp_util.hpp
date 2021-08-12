@@ -166,6 +166,10 @@ PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1 &src, const SecretKey &skey);
 void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKey &gk);
 void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1 &w, const GateKey &gk);
 void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1 &w, const GateKey &gk);
+void BS_TLWE_0_1o2_to_TRLWE_0_1o2(TRLWELvl1 &out, TLWELvl0 &src,
+                                  const GateKey &gk);
+void BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(TRLWELvl1 &out, TLWELvl0 &src,
+                                     const GateKey &gk);
 TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey &skey);
 bool decrypt_TLWELvl1_to_bit(const TLWELvl1 &c, const SecretKey &skey);
 PolyLvl1 uint2weight(uint64_t n);

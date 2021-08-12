@@ -324,6 +324,38 @@ void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKey &gk)
                                                                gk.bkfftlvl01);
 }
 
+// BootstrappingTLWE-to-TRLWE
+// {0, 1/2} -> {0, 1/2}
+// NOTE: src is MODIFIED for efficiency!
+void BS_TLWE_0_1o2_to_TRLWE_0_1o2(TRLWELvl1 &out, TLWELvl0 &src,
+                                  const GateKey &gk)
+{
+    using namespace TFHEpp;
+
+    // Convert {0, 1/2} to {-1/4, 1/4}
+    src[Lvl0::n] -= (1 << 30);  // 1/4
+    // Bootstrapping without changing plaintext space
+    BlindRotate<lvl01param>(out, src, gk.bkfftlvl01,
+                            μpolygen<Lvl1, (1 << 30) /* 1/4 */>());
+    // Convert {-1/4, 1/4} to {0, 1/2}
+    out[1][0] += (1 << 30);  // 1/4
+}
+
+// BootstrappingTLWE-to-TRLWE
+// {0, 1/2} -> {-1/8, 1/8}
+// NOTE: src is MODIFIED for efficiency!
+void BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(TRLWELvl1 &out, TLWELvl0 &src,
+                                     const GateKey &gk)
+{
+    using namespace TFHEpp;
+
+    // Convert {0, 1/2} to {-1/4, 1/4}
+    src[Lvl0::n] -= (1 << 30);  // 1/4
+    // Bootstrapping and convert {-1/4, 1/4} to {-1/8, 1/8}
+    BlindRotate<lvl01param>(out, src, gk.bkfftlvl01,
+                            μpolygen<Lvl1, (1 << 29) /* 1/8 */>());
+}
+
 // w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
 // {0, 1/2} -> {0, 1/2}
 void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1 &w, const GateKey &gk)
@@ -336,13 +368,7 @@ void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1 &w, const GateKey &gk)
     TLWELvl0 tlwel0;
     IdentityKeySwitch<lvl10param>(tlwel0, tlwel1, gk.ksk);
 
-    // Convert {0, 1/2} to {-1/4, 1/4}
-    tlwel0[Lvl0::n] -= (1 << 30);  // 1/4
-    // Bootstrapping without changing plaintext space
-    BlindRotate<lvl01param>(w, tlwel0, gk.bkfftlvl01,
-                            μpolygen<Lvl1, (1 << 30) /* 1/4 */>());
-    // Convert {-1/4, 1/4} to {0, 1/2}
-    w[1][0] += (1 << 30);  // 1/4
+    BS_TLWE_0_1o2_to_TRLWE_0_1o2(w, tlwel0, gk);
 }
 
 // w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
@@ -356,12 +382,7 @@ void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1 &w, const GateKey &gk)
 
     TLWELvl0 tlwel0;
     IdentityKeySwitch<lvl10param>(tlwel0, tlwel1, gk.ksk);
-
-    // Convert {0, 1/2} to {-1/4, 1/4}
-    tlwel0[Lvl0::n] -= (1 << 30);  // 1/4
-    // Bootstrapping and convert {-1/4, 1/4} to {-1/8, 1/8}
-    BlindRotate<lvl01param>(w, tlwel0, gk.bkfftlvl01,
-                            μpolygen<Lvl1, (1 << 29) /* 1/8 */>());
+    BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(w, tlwel0, gk);
 }
 
 TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey &skey)

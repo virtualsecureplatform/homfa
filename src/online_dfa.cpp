@@ -125,7 +125,7 @@ OnlineDFARunner3::OnlineDFARunner3(
 
     for (Graph::State st : graph_.all_states())
         if (st == graph_.initial_state())
-            weight_.at(st)[1][0] = (1u << 30);  // 1/4
+            weight_.at(st)[1][0] = (1u << 31);  // 1/2
 
     queued_inputs_.reserve(queue_size_);
 
@@ -154,8 +154,7 @@ TLWELvl1 OnlineDFARunner3::result()
         if (graph_.is_final_state(st))
             TRLWELvl1_add(acc, weight_.at(st));
     }
-    TRLWELvl1_add(acc, trivial_TRLWELvl1_minus_1over8());
-    do_SEI_IKS_GBTLWE2TRLWE(acc, gate_key_);
+    do_SEI_IKS_GBTLWE2TRLWE_3(acc, gate_key_);
     TLWELvl1 ret;
     TFHEpp::SampleExtractIndex<Lvl1>(ret, acc, 0);
     return ret;
@@ -287,30 +286,27 @@ void OnlineDFARunner3::eval_queued_inputs()
     bool should_bootstrap = (num_eval_ % bootstrapping_freq_ == 0);
     // Split next_trlwe into |Q| TLWE, perform bootstrapping, and convert
     // them to |Q| TRLWE
-    std::for_each(
-        std::execution::par, next_live_states.begin(), next_live_states.end(),
-        [&](Graph::State st) {
-            TLWELvl1 tlwe_l1;
-            TLWELvl0 tlwe_l0;
-            TRLWELvl1 trlwe;
+    std::for_each(std::execution::par, next_live_states.begin(),
+                  next_live_states.end(), [&](Graph::State st) {
+                      TLWELvl1 tlwe_l1;
+                      TLWELvl0 tlwe_l0;
+                      TRLWELvl1 trlwe;
 
-            // Extract
-            TFHEpp::SampleExtractIndex<Lvl1>(tlwe_l1, next_trlwe,
-                                             st2idx.at(st));
-            if (should_bootstrap) {
-                // Bootstrap
-                TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwe_l0, tlwe_l1,
-                                                              gate_key_.ksk);
-                TLWELvl0_add(tlwe_l0, trivial_TLWELvl0_minus_1over8());
-                TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(
-                    trlwe, tlwe_l0, gate_key_.bkfftlvl01);
-                TFHEpp::SampleExtractIndex<Lvl1>(tlwe_l1, trlwe, 0);
-                TLWELvl1_add(tlwe_l1, trivial_TLWELvl1_1over8());
-            }
-            // Convert
-            TFHEpp::TLWE2TRLWEIKS<TFHEpp::lvl11param>(weight_.at(st), tlwe_l1,
-                                                      tlwel1_trlwel1_iks_key_);
-        });
+                      // Extract
+                      TFHEpp::SampleExtractIndex<Lvl1>(tlwe_l1, next_trlwe,
+                                                       st2idx.at(st));
+                      if (should_bootstrap) {
+                          // Bootstrap
+                          TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(
+                              tlwe_l0, tlwe_l1, gate_key_.ksk);
+                          BS_TLWE_0_1o2_to_TRLWE_0_1o2(trlwe, tlwe_l0,
+                                                       gate_key_);
+                          TFHEpp::SampleExtractIndex<Lvl1>(tlwe_l1, trlwe, 0);
+                      }
+                      // Convert
+                      TFHEpp::TLWE2TRLWEIKS<TFHEpp::lvl11param>(
+                          weight_.at(st), tlwe_l1, tlwel1_trlwel1_iks_key_);
+                  });
 
     // Clear the queued inputs. Note that reserved space will NOT freed, which
     // is better.
