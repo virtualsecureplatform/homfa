@@ -91,24 +91,31 @@ void enc_run_dec_loop(const SecretKey& skey, const BKey& bkey,
 class OfflineBenchRunner {
 private:
     OfflineDFARunner runner_;
+    TLWELvl1 result_;
+    size_t remaining_input_size_;
 
 public:
     OfflineBenchRunner(const std::string& spec_filename, size_t input_size,
                        size_t boot_interval, const BKey& bkey)
         : runner_(Graph::from_file(spec_filename), input_size, boot_interval,
-                  bkey.gkey)
+                  bkey.gkey),
+          result_(),
+          remaining_input_size_(input_size)
     {
     }
 
     bool run(const TRGSWLvl1FFT& input)
     {
         runner_.eval_one(input);
+        --remaining_input_size_;
+        if (remaining_input_size_ == 0)
+            result_ = runner_.result();
         return false;
     }
 
     TLWELvl1 result() const
     {
-        return runner_.result();
+        return result_;
     }
 };
 
