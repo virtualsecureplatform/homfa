@@ -236,6 +236,13 @@ TRLWELvl1 trivial_TRLWELvl1_1over8()
     return ret;
 }
 
+TRLWELvl1 trivial_TRLWELvl1_1over2()
+{
+    TRLWELvl1 ret = trivial_TRLWELvl1_zero();
+    ret[1][0] = (1u << 31);  // 1/2
+    return ret;
+}
+
 void TLWELvl0_add(TLWELvl0 &lhs, const TLWELvl0 &rhs)
 {
     for (size_t i = 0; i <= Lvl0::n; i++)
@@ -315,6 +322,46 @@ void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKey &gk)
     TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwel0, tlwel1, gk.ksk);
     TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(w, tlwel0,
                                                                gk.bkfftlvl01);
+}
+
+// w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
+// {0, 1/2} -> {0, 1/2}
+void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1 &w, const GateKey &gk)
+{
+    using namespace TFHEpp;
+
+    TLWELvl1 tlwel1;
+    SampleExtractIndex<Lvl1>(tlwel1, w, 0);
+
+    TLWELvl0 tlwel0;
+    IdentityKeySwitch<lvl10param>(tlwel0, tlwel1, gk.ksk);
+
+    // Convert {0, 1/2} to {-1/4, 1/4}
+    tlwel0[Lvl0::n] -= (1 << 30);  // 1/4
+    // Bootstrapping without changing plaintext space
+    BlindRotate<lvl01param>(w, tlwel0, gk.bkfftlvl01,
+                            μpolygen<Lvl1, (1 << 30) /* 1/4 */>());
+    // Convert {-1/4, 1/4} to {0, 1/2}
+    w[1][0] += (1 << 30);  // 1/4
+}
+
+// w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
+// {0, 1/2} -> {-1/8, 1/8}
+void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1 &w, const GateKey &gk)
+{
+    using namespace TFHEpp;
+
+    TLWELvl1 tlwel1;
+    SampleExtractIndex<Lvl1>(tlwel1, w, 0);
+
+    TLWELvl0 tlwel0;
+    IdentityKeySwitch<lvl10param>(tlwel0, tlwel1, gk.ksk);
+
+    // Convert {0, 1/2} to {-1/4, 1/4}
+    tlwel0[Lvl0::n] -= (1 << 30);  // 1/4
+    // Bootstrapping and convert {-1/4, 1/4} to {-1/8, 1/8}
+    BlindRotate<lvl01param>(w, tlwel0, gk.bkfftlvl01,
+                            μpolygen<Lvl1, (1 << 29) /* 1/8 */>());
 }
 
 TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey &skey)

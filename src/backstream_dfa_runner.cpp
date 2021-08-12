@@ -13,8 +13,8 @@ BackstreamDFARunner::BackstreamDFARunner(Graph graph, size_t boot_interval,
       input_size_(std::move(input_size)),
       boot_interval_(boot_interval),
       num_processed_inputs_(0),
-      trlwelvl1_trivial_0_(trivial_TRLWELvl1_minus_1over8()),
-      trlwelvl1_trivial_1_(trivial_TRLWELvl1_1over8()),
+      trlwelvl1_trivial_0_(trivial_TRLWELvl1_zero()),
+      trlwelvl1_trivial_1_(trivial_TRLWELvl1_1over2()),
       workspace_(graph_.size())
 {
     if (input_size_)
@@ -30,19 +30,23 @@ BackstreamDFARunner::BackstreamDFARunner(Graph graph, size_t boot_interval,
 
 TLWELvl1 BackstreamDFARunner::result() const
 {
-    RedundantTRLWELvl1 w = weight_.at(graph_.initial_state());
-    switch (w.s) {
+    RedundantTRLWELvl1 rw = weight_.at(graph_.initial_state());
+    TRLWELvl1 w;
+    switch (rw.s) {
     case RedundantTRLWELvl1::TRIVIAL_0:
-        return trivial_TLWELvl1_minus_1over8();
+        w = trivial_TRLWELvl1_zero();
+        break;
     case RedundantTRLWELvl1::TRIVIAL_1:
-        return trivial_TLWELvl1_1over8();
+        w = trivial_TRLWELvl1_1over2();
+        break;
     default:
+        w = rw.c;
         break;
     }
     if (gate_key_)
-        do_SEI_IKS_GBTLWE2TRLWE(w.c, *gate_key_);
+        do_SEI_IKS_GBTLWE2TRLWE_3(w, *gate_key_);
     TLWELvl1 ret;
-    TFHEpp::SampleExtractIndex<Lvl1>(ret, w.c, 0);
+    TFHEpp::SampleExtractIndex<Lvl1>(ret, w, 0);
     return ret;
 }
 
@@ -110,6 +114,6 @@ void BackstreamDFARunner::bootstrap_weight(
                   [&](Graph::State q) {
                       RedundantTRLWELvl1 &rw = weight_.at(q);
                       if (rw.s == RedundantTRLWELvl1::NON_TRIVIAL)
-                          do_SEI_IKS_GBTLWE2TRLWE(rw.c, *gate_key_);
+                          do_SEI_IKS_GBTLWE2TRLWE_2(rw.c, *gate_key_);
                   });
 }
