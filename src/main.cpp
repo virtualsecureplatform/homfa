@@ -219,7 +219,7 @@ void do_run_online_dfa3(const std::string &spec_filename,
     spdlog::info("\tBootstrapping frequency:\t{}", bootstrapping_freq);
     spdlog::info("");
 
-    if (output_freq % queue_size != 0)
+    if (output_dirname && output_freq % queue_size != 0)
         spdlog::warn("Output frequency ({}) is not the same as queue size ({})",
                      output_freq, queue_size);
 
