@@ -353,7 +353,7 @@ int main(int argc, char** argv)
         qtrlwe2->add_option("--in", input_filename)
             ->required()
             ->check(CLI::ExistingFile);
-        qtrlwe2->add_option("--max_second_lut_depth", max_second_lut_depth)
+        qtrlwe2->add_option("--max-second-lut-depth", max_second_lut_depth)
             ->required()
             ->check(CLI::PositiveNumber);
     }
