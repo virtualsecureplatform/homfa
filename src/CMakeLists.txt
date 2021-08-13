@@ -73,7 +73,7 @@ if(HOMFA_BUILD_TEST_PLAIN_RANDOM)
     install(TARGETS test_plain_random DESTINATION bin)
 endif()
 
-if(HOMFA_BUILD_CRYPTO_RANDOM)
+if(HOMFA_BUILD_TEST_CRYPTO_RANDOM)
     add_executable(test_crypto_random
         backstream_dfa_runner.cpp
         error.cpp

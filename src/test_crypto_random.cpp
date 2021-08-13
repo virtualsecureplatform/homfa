@@ -278,8 +278,11 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
             switch (method) {
             case METHOD::OFFLINE: {
                 ReversedTestInputStream input_stream{in, c0, c1};
-                OfflineDFARunner runner{gr, input_stream, bkey.gkey};
-                runner.eval();
+                OfflineDFARunner runner{gr, input_stream.size(), 30000,
+                                        bkey.gkey};
+                size_t input_size = input_stream.size();
+                for (size_t i = 0; i < input_size; i++)
+                    runner.eval_one(input_stream.next());
                 bool got = TFHEpp::tlweSymDecrypt<Lvl1>(runner.result(),
                                                         skey.key.lvl1);
                 if (expected != got)
@@ -290,7 +293,7 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
 
             case METHOD::ONLINE_REVERSED: {
                 TestInputStream input_stream{in, c0, c1};
-                OnlineDFARunner2 runner{gr, bkey.gkey};
+                OnlineDFARunner2 runner{gr, 30000, bkey.gkey};
                 while (input_stream.size() != 0)
                     runner.eval_one(input_stream.next());
                 bool got = TFHEpp::tlweSymDecrypt<Lvl1>(runner.result(),
@@ -303,7 +306,7 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
 
             case METHOD::ONLINE_QTRLWE2: {
                 TestInputStream input_stream{in, c0, c1};
-                OnlineDFARunner3 runner(gr, 15, 1, *bkey.gkey,
+                OnlineDFARunner3 runner(gr, 8, 15, 1, *bkey.gkey,
                                         *bkey.tlwel1_trlwel1_ikskey,
                                         std::nullopt);
                 while (input_stream.size() != 0)
