@@ -117,51 +117,6 @@ std::string bvec2str(const std::vector<bool>& src)
     return ss.str();
 }
 
-std::vector<size_t> create_table_to_permutate_input_bits(
-    const spot::twa_graph_ptr& aut, size_t num_ap)
-{
-    spot::bdd_dict_ptr dict = aut->get_dict();
-    std::unordered_map<int, size_t> var2idx;
-    for (size_t i = 0; i < num_ap; i++) {
-        std::stringstream ss;
-        ss << "p" << i;
-        auto it = dict->var_map.find(spot::formula::ap(ss.str()));
-        if (it != dict->var_map.end())
-            var2idx.emplace(it->second, i);
-    }
-
-    std::vector<size_t> in_idx;
-    bdd all = aut->ap_vars();
-    while (all != bddtrue) {
-        int v = bdd_var(all);
-        all = bdd_high(all);
-        auto it = var2idx.find(v);
-        if (it != var2idx.end())
-            in_idx.push_back(it->second);
-    }
-
-    while (in_idx.size() < num_ap)  // FIXME: correct?
-        in_idx.push_back(0);
-    assert(in_idx.size() == num_ap);
-
-    return in_idx;
-}
-
-std::vector<bool> permutate_input_bits(const std::vector<size_t>& tbl,
-                                       const std::vector<bool>& src)
-{
-    std::vector<bool> in;
-    size_t num_ap = tbl.size();
-    size_t input_size = src.size() / num_ap;
-    for (size_t i = 0; i < input_size; i++) {
-        for (size_t j : tbl) {
-            size_t index = i * num_ap + j;
-            in.push_back(src.at(index));
-        }
-    }
-    return in;
-}
-
 template <class Logger>
 void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
                            Logger& log1)
@@ -193,9 +148,6 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
         spot::twa_graph_ptr aut = ltl_to_monitor(fml, num_ap, false),
                             det_aut = ltl_to_monitor(fml, num_ap, true);
 
-        std::vector<size_t> perm_tbl =
-            create_table_to_permutate_input_bits(aut, num_ap);
-
         {
             int gr_size = gr.size(), rgr_size = rgr.size(),
                 rgr2_size = rgr2.size(), mgr_size = mgr ? mgr->size() : -1,
@@ -224,12 +176,11 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
         }
 
         for (size_t i = 0; i < num_test; i++) {
-            std::vector<bool> in_src = i < 100 ? int2bvec(i + 1, num_ap)
-                                               : rand_bvec.at(i - 100),
-                              in = permutate_input_bits(perm_tbl, in_src),
+            std::vector<bool> in = i < 100 ? int2bvec(i + 1, num_ap)
+                                           : rand_bvec.at(i - 100),
                               rin(in.rbegin(), in.rend());
 
-            bool expected = check_if_accept(aut, in_src, num_ap);
+            bool expected = check_if_accept(aut, in, num_ap);
 
             {
                 bool got = check_if_accept(gr, in);

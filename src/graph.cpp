@@ -567,13 +567,13 @@ Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size,
 
     std::unordered_map<int, size_t> var2idx;
     {
-        bdd all = aut->ap_vars();
-        while (all != bddtrue) {
-            int v = bdd_var(all);
-            all = bdd_high(all);
-            var2idx.emplace(v, var2idx.size());
+        spot::bdd_dict_ptr dict = aut->get_dict();
+        for (size_t i = 0; i < var_size; i++) {
+            auto it =
+                dict->var_map.find(spot::formula::ap(fmt::format("p{}", i)));
+            if (it != dict->var_map.end())
+                var2idx.emplace(it->second, i);
         }
-        assert(var2idx.size() <= var_size);
     }
 
     size_t ns = aut->num_states();
