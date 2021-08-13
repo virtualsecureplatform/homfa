@@ -259,8 +259,7 @@ void do_ltl2spec(const std::string &fml, size_t num_vars,
                  bool make_all_live_states_final)
 {
     Graph gr =
-        Graph::from_ltl_formula(fml, num_vars, make_all_live_states_final)
-            .minimized();
+        Graph::from_ltl_formula(fml, num_vars, make_all_live_states_final);
     gr.dump(std::cout);
 }
 
