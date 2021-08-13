@@ -237,6 +237,40 @@ void test_monitor()
                                "10",  "7", "0",   //
                            }));
     }
+    {
+        Graph gr =
+            Graph::from_ltl_formula("G(p3 | p4 | (p0 & p1 & p2))", 5, false);
+        std::stringstream ss;
+        gr.dump(ss);
+        std::cerr << ss.str() << std::endl;
+        assert(ss.str() == expected_dump({
+                               ">0*", "1",  "2",   //
+                               "1",   "3",  "3",   //
+                               "2",   "4",  "5",   //
+                               "3",   "6",  "6",   //
+                               "4",   "6",  "6",   //
+                               "5",   "6",  "7",   //
+                               "6",   "8",  "9",   //
+                               "7",   "10", "10",  //
+                               "8",   "11", "0",   //
+                               "9",   "0",  "0",   //
+                               "10",  "0",  "0",   //
+                               "11",  "11", "11",  //
+                           }));
+    }
+    {
+        Graph gr = Graph::from_ltl_formula("G(p3 & p4)", 5, false);
+        std::stringstream ss;
+        gr.dump(ss);
+        assert(ss.str() == expected_dump({
+                               ">0*", "1", "1",  //
+                               "1", "2", "2",    //
+                               "2", "3", "3",    //
+                               "3", "4", "5",    //
+                               "4", "4", "4",    //
+                               "5", "4", "0",    //
+                           }));
+    }
 }
 
 void test_negated()
