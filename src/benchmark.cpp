@@ -187,6 +187,31 @@ public:
     }
 };
 
+void do_plain(const std::string& spec_filename,
+              const std::string& input_filename, size_t output_freq,
+              size_t num_ap)
+{
+    print("config-method", "plain");
+    print("config-spec", spec_filename);
+    print("config-input", input_filename);
+    print("config-num_ap", num_ap);
+
+    Graph gr = Graph::from_file(spec_filename);
+    Graph::State cur = gr.initial_state();
+    size_t i = 0;
+    each_input_bit(input_filename, num_ap, [&](bool b) {
+        cur = gr.next_state(cur, b);
+        print("state", cur);
+        i++;
+        if (i % output_freq == 0) {
+            if (gr.is_final_state(cur))
+                print("result", 1);
+            else
+                print("result", 0);
+        }
+    });
+}
+
 void do_offline(const std::string& spec_filename,
                 const std::string& input_filename, size_t bootstrapping_freq,
                 size_t num_ap)
@@ -298,6 +323,7 @@ int main(int argc, char** argv)
     app.require_subcommand();
 
     enum class TYPE {
+        PLAIN,
         OFFLINE,
         REVERSED,
         QTRLWE2,
@@ -306,6 +332,22 @@ int main(int argc, char** argv)
     size_t output_freq, num_ap, max_second_lut_depth, queue_size,
         bootstrapping_freq;
 
+    {
+        CLI::App* plain = app.add_subcommand("plain", "Run in plaintext");
+        plain->parse_complete_callback([&] { type = TYPE::PLAIN; });
+        plain->add_option("--ap", num_ap)
+            ->required()
+            ->check(CLI::PositiveNumber);
+        plain->add_option("--spec", spec_filename)
+            ->required()
+            ->check(CLI::ExistingFile);
+        plain->add_option("--in", input_filename)
+            ->required()
+            ->check(CLI::ExistingFile);
+        plain->add_option("--out-freq", output_freq)
+            ->required()
+            ->check(CLI::PositiveNumber);
+    }
     {
         CLI::App* offline = app.add_subcommand("offline", "Run offline");
         offline->parse_complete_callback([&] { type = TYPE::OFFLINE; });
@@ -370,6 +412,10 @@ int main(int argc, char** argv)
     print("time", current_time_str());
 
     switch (type) {
+    case TYPE::PLAIN:
+        do_plain(spec_filename, input_filename, output_freq, num_ap);
+        break;
+
     case TYPE::OFFLINE:
         do_offline(spec_filename, input_filename, bootstrapping_freq, num_ap);
         break;
