@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include <spot/twa/twagraph.hh>
+
 class Graph {
 public:
     using State = int;
@@ -62,4 +64,6 @@ private:
     static NFADelta reversed_nfa_delta(const NFADelta& src);
 };
 
+spot::twa_graph_ptr ltl_to_monitor(const std::string& formula, size_t var_size,
+                                   bool deterministic);
 #endif

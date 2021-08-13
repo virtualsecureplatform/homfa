@@ -543,15 +543,27 @@ void Graph::dump_dot(std::ostream &os) const
     os << "}\n";
 }
 
+spot::twa_graph_ptr ltl_to_monitor(const std::string &formula, size_t var_size,
+                                   bool deterministic)
+{
+    spot::parsed_formula pf = spot::parse_infix_psl(formula);
+    assert(!pf.format_errors(std::cerr));
+    spot::bdd_dict_ptr dict = spot::make_bdd_dict();
+    spot::twa_graph_ptr aut = spot::make_twa_graph(dict);
+    for (size_t i = 0; i < var_size; i++)
+        aut->register_ap(fmt::format("p{}", i));
+    spot::translator trans{dict};
+    trans.set_type(spot::postprocessor::Monitor);
+    if (deterministic)
+        trans.set_pref(spot::postprocessor::Deterministic);
+    return trans.run(pf.f);
+}
+
 std::tuple<std::set<Graph::State>, std::set<Graph::State>, Graph::NFADelta>
 Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size,
                         bool make_all_live_states_final)
 {
-    spot::parsed_formula pf = spot::parse_infix_psl(formula);
-    assert(!pf.format_errors(std::cerr));
-    spot::translator trans;
-    trans.set_type(spot::postprocessor::Monitor);
-    spot::twa_graph_ptr aut = trans.run(pf.f);
+    spot::twa_graph_ptr aut = ltl_to_monitor(formula, var_size, false);
 
     std::unordered_map<int, size_t> var2idx;
     {

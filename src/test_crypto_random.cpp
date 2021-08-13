@@ -260,11 +260,7 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
         Graph gr = Graph::from_ltl_formula(fml, num_ap, false).minimized();
         gr.reserve_states_at_depth(MAX_INPUT_LENGTH);
 
-        spot::parsed_formula pf = spot::parse_infix_psl(fml);
-        assert(!pf.format_errors(std::cerr));
-        spot::translator trans;
-        trans.set_type(spot::postprocessor::Monitor);
-        spot::twa_graph_ptr aut = trans.run(pf.f);
+        spot::twa_graph_ptr aut = ltl_to_monitor(fml, num_ap, false);
 
         std::vector<size_t> perm_tbl =
             create_table_to_permutate_input_bits(aut, num_ap);
