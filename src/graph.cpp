@@ -556,6 +556,7 @@ spot::twa_graph_ptr ltl_to_monitor(const std::string &formula, size_t var_size,
     trans.set_type(spot::postprocessor::Monitor);
     if (deterministic)
         trans.set_pref(spot::postprocessor::Deterministic);
+    trans.set_level(spot::postprocessor::Low);
     return trans.run(pf.f);
 }
 
