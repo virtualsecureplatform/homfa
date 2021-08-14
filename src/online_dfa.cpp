@@ -1,4 +1,5 @@
 #include "online_dfa.hpp"
+#include "error.hpp"
 
 #include <execution>
 
@@ -121,8 +122,6 @@ OnlineDFARunner3::OnlineDFARunner3(
       bootstrapping_freq_(bootstrapping_freq),
       debug_skey_(std::move(debug_skey))
 {
-    assert(graph_.size() < Lvl1::n);
-
     for (Graph::State st : graph_.all_states())
         if (st == graph_.initial_state())
             weight_.at(st)[1][0] = (1u << 31);  // 1/2
@@ -219,6 +218,12 @@ void OnlineDFARunner3::eval_queued_inputs()
 
     spdlog::debug("live states: {}", live_states_.size());
     spdlog::debug("next live states: {}", next_live_states.size());
+
+    if (next_live_states.size() >= (1 << max_second_lut_depth_))
+        error::die(
+            "The number of next live states ({}) must be smaller than "
+            "2^max_second_lut_depth ({})",
+            next_live_states.size(), 1 << max_second_lut_depth_);
 
     // Determine 1st and 2nd LUT depth
     const size_t second_lut_depth = std::min<size_t>(
