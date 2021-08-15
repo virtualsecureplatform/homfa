@@ -382,7 +382,7 @@ int main(int argc, char** argv)
         rev->add_option("--in", input_filename)
             ->required()
             ->check(CLI::ExistingFile);
-        rev->add_option("--spec-reversed", spec_reversed);
+        rev->add_flag("--spec-reversed", spec_reversed);
     }
     {
         CLI::App* qtrlwe2 = app.add_subcommand("qtrlwe2", "Run online-qtrlwe2");
