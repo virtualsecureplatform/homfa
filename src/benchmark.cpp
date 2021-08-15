@@ -32,7 +32,7 @@ std::chrono::microseconds timeit(Func f)
 template <class T1, class T2>
 void print(T1 key, T2 value)
 {
-    std::cout << key << "," << value << "\n";
+    std::cout << key << "," << value << std::endl;
 }
 
 template <class Key, class Func>
