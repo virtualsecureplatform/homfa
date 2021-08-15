@@ -130,7 +130,7 @@ void do_run_online_dfa2(
     const std::string &spec_filename, const std::string &input_filename,
     const std::optional<std::string> &output_filename,
     const std::optional<std::string> &output_dirname, size_t output_freq,
-    size_t bootstrapping_freq,
+    size_t bootstrapping_freq, bool is_spec_reversed,
     const std::optional<std::string> &bkey_filename = std::nullopt)
 {
     assert((output_filename && !output_dirname) ||
@@ -139,7 +139,7 @@ void do_run_online_dfa2(
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     auto bkey = read_from_archive<BKey>(*bkey_filename);
     OnlineDFARunner2 runner{Graph::from_file(spec_filename), bootstrapping_freq,
-                            bkey.gkey};
+                            is_spec_reversed, bkey.gkey};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner2 (reversed)");
@@ -330,7 +330,7 @@ int main(int argc, char **argv)
     } type;
 
     bool verbose = false, quiet = false, minimized = false, reversed = false,
-         negated, make_all_live_states_final = false;
+         negated, make_all_live_states_final = false, is_spec_reversed = false;
     std::optional<std::string> spec, skey, bkey, input, output, output_dir,
         debug_skey;
     std::string formula, online_method = "qtrlwe2";
@@ -390,6 +390,7 @@ int main(int argc, char **argv)
             ->check(CLI::ExistingFile);
         run->add_option("--max-second-lut-depth", max_second_lut_depth)
             ->check(CLI::PositiveNumber);
+        run->add_flag("--spec-reversed", is_spec_reversed);
     }
     {
         CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
@@ -478,7 +479,8 @@ int main(int argc, char **argv)
         }
         else if (online_method == "reversed") {
             do_run_online_dfa2(*spec, *input, output, output_dir, output_freq,
-                               bootstrapping_freq.value_or(8000), bkey);
+                               bootstrapping_freq.value_or(8000),
+                               is_spec_reversed, bkey);
         }
         else {
             assert(online_method == "qtrlwe2");

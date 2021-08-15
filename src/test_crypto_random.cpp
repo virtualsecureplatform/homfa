@@ -293,7 +293,7 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
 
             case METHOD::ONLINE_REVERSED: {
                 TestInputStream input_stream{in, c0, c1};
-                OnlineDFARunner2 runner{gr, 30000, bkey.gkey};
+                OnlineDFARunner2 runner{gr, 30000, false, bkey.gkey};
                 while (input_stream.size() != 0)
                     runner.eval_one(input_stream.next());
                 bool got = TFHEpp::tlweSymDecrypt<Lvl1>(runner.result(),

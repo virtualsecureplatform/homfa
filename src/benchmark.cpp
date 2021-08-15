@@ -127,9 +127,10 @@ private:
 
 public:
     OnlineDFA2BenchRunner(const std::string& spec_filename, size_t output_freq,
-                          size_t bootstrapping_freq, const BKey& bkey)
+                          size_t bootstrapping_freq, bool spec_reversed,
+                          const BKey& bkey)
         : runner_(Graph::from_file(spec_filename), bootstrapping_freq,
-                  bkey.gkey),
+                  spec_reversed, bkey.gkey),
           output_freq_(output_freq),
           num_processed_(0)
     {
@@ -261,7 +262,7 @@ void do_offline(const std::string& spec_filename,
 
 void do_reversed(const std::string& spec_filename,
                  const std::string& input_filename, size_t output_freq,
-                 size_t bootstrapping_freq, size_t num_ap)
+                 size_t bootstrapping_freq, size_t num_ap, bool spec_reversed)
 {
     print("config-method", "reversed");
     print("config-spec", spec_filename);
@@ -282,7 +283,7 @@ void do_reversed(const std::string& spec_filename,
     print("bkey", bkey_elapsed.count());
 
     OnlineDFA2BenchRunner runner{spec_filename, output_freq, bootstrapping_freq,
-                                 bkey};
+                                 spec_reversed, bkey};
     enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
 }
 
@@ -331,6 +332,7 @@ int main(int argc, char** argv)
     std::string spec_filename, input_filename;
     size_t output_freq, num_ap, max_second_lut_depth, queue_size,
         bootstrapping_freq;
+    bool spec_reversed;
 
     {
         CLI::App* plain = app.add_subcommand("plain", "Run in plaintext");
@@ -380,6 +382,7 @@ int main(int argc, char** argv)
         rev->add_option("--in", input_filename)
             ->required()
             ->check(CLI::ExistingFile);
+        rev->add_option("--spec-reversed", spec_reversed);
     }
     {
         CLI::App* qtrlwe2 = app.add_subcommand("qtrlwe2", "Run online-qtrlwe2");
@@ -422,7 +425,7 @@ int main(int argc, char** argv)
 
     case TYPE::REVERSED:
         do_reversed(spec_filename, input_filename, output_freq,
-                    bootstrapping_freq, num_ap);
+                    bootstrapping_freq, num_ap, spec_reversed);
         break;
     case TYPE::QTRLWE2:
         do_qtrlwe2(spec_filename, input_filename, output_freq,

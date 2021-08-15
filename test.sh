@@ -23,6 +23,11 @@ enc_run_dec(){
             $HOMFA run-online-dfa --method reversed --bkey _test_bk --spec "$3" --in _test_in --out _test_out
             $HOMFA dec --key _test_sk --in _test_out
             ;;
+        "online-dfa-reversed-with-rev-spec" )
+            $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
+            $HOMFA run-online-dfa --method reversed --bkey _test_bk --spec "$3" --in _test_in --out _test_out --spec-reversed
+            $HOMFA dec --key _test_sk --in _test_out
+            ;;
         "online-dfa-qtrlwe2" )
             $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
             $HOMFA run-online-dfa --method qtrlwe2 --bkey _test_bk --spec "$3" --in _test_in --out _test_out
@@ -80,6 +85,8 @@ check_false online-dfa-reversed 2 test/01.spec test/01-08.in # [1, 0] * 4
 check_true  online-dfa-reversed 2 test/01.spec test/01-01.in # [0, 0] * 8 * 100
 check_false online-dfa-reversed 2 test/01.spec test/01-02.in # [1, 0] * 8 * 100
 check_true  online-dfa-reversed 2 test/01.spec test/01-03.in # [0, 0, 1, 0, 0, 1, 0, 1, 1, 1] * 8 * 20
+check_true  online-dfa-reversed-with-rev-spec 2 test/01_rev.spec test/01-07.in
+check_false online-dfa-reversed-with-rev-spec 2 test/01_rev.spec test/01-08.in
 
 #### Online DFA (qtrlwe2)
 check_true  online-dfa-qtrlwe2 2 test/01.spec test/01-07.in # [1, 1] * 4
