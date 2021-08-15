@@ -53,8 +53,14 @@ TLWELvl1 BackstreamDFARunner::result() const
 void BackstreamDFARunner::eval(const TRGSWLvl1FFT &input)
 {
     std::vector<RedundantTRLWELvl1> &out = workspace_;
-    out.clear();
-    out.resize(graph_.size(), {RedundantTRLWELvl1::TRIVIAL_0});
+    if (out.size() == graph_.size()) {
+        for (auto &&r : out)
+            r.s = RedundantTRLWELvl1::TRIVIAL_0;
+    }
+    else {
+        out.clear();
+        out.resize(graph_.size(), {RedundantTRLWELvl1::TRIVIAL_0});
+    }
 
     std::optional<std::vector<Graph::State>> states;
     if (input_size_) {
