@@ -242,7 +242,6 @@ void test_monitor()
             Graph::from_ltl_formula("G(p3 | p4 | (p0 & p1 & p2))", 5, false);
         std::stringstream ss;
         gr.dump(ss);
-        std::cerr << ss.str() << std::endl;
         assert(ss.str() == expected_dump({
                                ">0*", "1",  "2",   //
                                "1",   "3",  "3",   //
