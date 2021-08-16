@@ -51,7 +51,7 @@ private:
     size_t max_second_lut_depth_, queue_size_;
     std::vector<Graph::State> live_states_;
     std::vector<std::vector<Graph::State>> memo_transition_;
-    size_t num_eval_, bootstrapping_freq_;
+    size_t num_eval_, bootstrapping_freq_, first_lut_depth_, second_lut_depth_;
 
     std::optional<SecretKey> debug_skey_;
 
@@ -65,6 +65,21 @@ public:
                      const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>
                          &tlwel1_trlwel1_iks_key,
                      std::optional<SecretKey> debug_skey);
+
+    size_t num_live_states() const
+    {
+        return live_states_.size();
+    }
+
+    size_t first_lut_depth() const
+    {
+        return first_lut_depth_;
+    }
+
+    size_t second_lut_depth() const
+    {
+        return second_lut_depth_;
+    }
 
     size_t queue_size() const
     {

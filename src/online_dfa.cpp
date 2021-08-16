@@ -121,6 +121,8 @@ OnlineDFARunner3::OnlineDFARunner3(
       memo_transition_(),
       num_eval_(0),
       bootstrapping_freq_(bootstrapping_freq),
+      first_lut_depth_(0),
+      second_lut_depth_(0),
       debug_skey_(std::move(debug_skey))
 {
     for (Graph::State st : graph_.all_states())
@@ -235,6 +237,8 @@ void OnlineDFARunner3::eval_queued_inputs()
     assert(first_lut_depth + second_lut_depth == input_size);
     spdlog::debug("LUT {} + {} = {}", first_lut_depth, second_lut_depth,
                   input_size);
+    first_lut_depth_ = first_lut_depth;
+    second_lut_depth_ = second_lut_depth;
 
     // Prepare workspace avoiding malloc in eval
     std::vector<TRLWELvl1> &table = workspace_table1_,

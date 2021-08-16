@@ -174,6 +174,9 @@ public:
 
     bool run(const TRGSWLvl1FFT& input)
     {
+        print("num_live_states", runner_.num_live_states());
+        print("first_lut_depth", runner_.first_lut_depth());
+        print("second_lut_depth", runner_.second_lut_depth());
         runner_.eval_one(input);
         num_processed_++;
         if (num_processed_ % output_freq_ != 0)
