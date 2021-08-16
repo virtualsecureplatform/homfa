@@ -66,6 +66,11 @@ public:
                          &tlwel1_trlwel1_iks_key,
                      std::optional<SecretKey> debug_skey);
 
+    const Graph &graph() const
+    {
+        return graph_;
+    }
+
     size_t num_live_states() const
     {
         return live_states_.size();

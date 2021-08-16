@@ -104,6 +104,11 @@ public:
     {
     }
 
+    size_t num_states() const
+    {
+        return runner_.graph().size();
+    }
+
     bool run(const TRGSWLvl1FFT& input)
     {
         runner_.eval_one(input);
@@ -134,6 +139,11 @@ public:
           output_freq_(output_freq),
           num_processed_(0)
     {
+    }
+
+    size_t num_states() const
+    {
+        return runner_.graph().size();
     }
 
     bool run(const TRGSWLvl1FFT& input)
@@ -172,6 +182,11 @@ public:
     {
     }
 
+    size_t num_states() const
+    {
+        return runner_.graph().size();
+    }
+
     bool run(const TRGSWLvl1FFT& input)
     {
         print("num_live_states", runner_.num_live_states());
@@ -201,6 +216,12 @@ void do_plain(const std::string& spec_filename,
     print("config-num_ap", num_ap);
 
     Graph gr = Graph::from_file(spec_filename);
+    print("config-spec_num_states", gr.size());
+
+    size_t input_size = 0;
+    each_input_bit(input_filename, num_ap, [&](bool) { input_size++; });
+    print("config-input_size", input_size);
+
     Graph::State cur = gr.initial_state();
     size_t i = 0;
     each_input_bit(input_filename, num_ap, [&](bool b) {
@@ -243,6 +264,10 @@ void do_offline(const std::string& spec_filename,
 
     OfflineBenchRunner runner{spec_filename, input_bits.size(),
                               bootstrapping_freq, bkey};
+
+    print("config-spec_num_states", runner.num_states());
+    print("config-input_size", input_bits.size());
+
     for (auto it = input_bits.rbegin(); it != input_bits.rend(); it++) {
         bool input = *it;
 
@@ -287,6 +312,12 @@ void do_reversed(const std::string& spec_filename,
 
     OnlineDFA2BenchRunner runner{spec_filename, output_freq, bootstrapping_freq,
                                  spec_reversed, bkey};
+    print("config-spec_num_states", runner.num_states());
+
+    size_t input_size = 0;
+    each_input_bit(input_filename, num_ap, [&](bool) { input_size++; });
+    print("config-input_size", input_size);
+
     enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
 }
 
@@ -318,6 +349,12 @@ void do_qtrlwe2(const std::string& spec_filename,
     OnlineDFA3BenchRunner runner{spec_filename,        output_freq,
                                  max_second_lut_depth, queue_size,
                                  bootstrapping_freq,   bkey};
+    print("config-spec_num_states", runner.num_states());
+
+    size_t input_size = 0;
+    each_input_bit(input_filename, num_ap, [&](bool) { input_size++; });
+    print("config-input_size", input_size);
+
     enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
 }
 
