@@ -335,8 +335,9 @@ int main(int argc, char** argv)
     std::string spec_filename, input_filename;
     size_t output_freq, num_ap, max_second_lut_depth, queue_size,
         bootstrapping_freq;
-    bool spec_reversed;
+    bool verbose = false, spec_reversed;
 
+    app.add_flag("--verbose", verbose, "");
     {
         CLI::App* plain = app.add_subcommand("plain", "Run in plaintext");
         plain->parse_complete_callback([&] { type = TYPE::PLAIN; });
@@ -416,6 +417,9 @@ int main(int argc, char** argv)
     CLI11_PARSE(app, argc, argv);
 
     print("time", current_time_str());
+
+    if (verbose)
+        spdlog::set_level(spdlog::level::debug);
 
     switch (type) {
     case TYPE::PLAIN:
