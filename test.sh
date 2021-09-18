@@ -37,7 +37,9 @@ enc_run_dec(){
             $HOMFA run-dfa-plain --ap "$2" --spec "$3" --in "$4"
             ;;
         "online-dfa-blockbackstream" )
+            $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
             $HOMFA run-online-dfa --method block-backstream --bkey _test_bk --spec "$3" --in _test_in --out _test_out
+            $HOMFA dec --key _test_sk --in _test_out
             ;;
         * )
             failwith "Invalid run $1"
