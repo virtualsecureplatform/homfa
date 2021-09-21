@@ -62,9 +62,8 @@ void each_input_bit(const std::string& input_filename, size_t num_ap, Func func)
 }
 
 template <class Runner>
-void enc_run_dec_loop(const SecretKey& skey, const BKey& bkey,
-                      const std::string& input_filename, size_t num_ap,
-                      Runner runner)
+void enc_run_dec_loop(const SecretKey& skey, const std::string& input_filename,
+                      size_t num_ap, Runner runner)
 {
     each_input_bit(input_filename, num_ap, [&](bool input) {
         // Encrypt
@@ -358,7 +357,7 @@ void do_reversed(const std::string& spec_filename,
     each_input_bit(input_filename, num_ap, [&](bool) { input_size++; });
     print("config-input_size", input_size);
 
-    enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
+    enc_run_dec_loop(skey, input_filename, num_ap, runner);
 }
 
 void do_qtrlwe2(const std::string& spec_filename,
@@ -395,7 +394,7 @@ void do_qtrlwe2(const std::string& spec_filename,
     each_input_bit(input_filename, num_ap, [&](bool) { input_size++; });
     print("config-input_size", input_size);
 
-    enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
+    enc_run_dec_loop(skey, input_filename, num_ap, runner);
 }
 
 void do_bbs(const std::string& spec_filename, const std::string& input_filename,
@@ -432,7 +431,7 @@ void do_bbs(const std::string& spec_filename, const std::string& input_filename,
     each_input_bit(input_filename, num_ap, [&](bool) { input_size++; });
     print("config-input_size", input_size);
 
-    enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
+    enc_run_dec_loop(skey, input_filename, num_ap, runner);
 }
 
 int main(int argc, char** argv)

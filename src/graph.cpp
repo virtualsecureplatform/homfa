@@ -119,7 +119,7 @@ Graph Graph::from_istream(std::istream &is)
             while (std::getline(iss, field, ','))
                 ret.push_back(std::stoi(field));
         }
-        catch (std::invalid_argument e) {
+        catch (const std::invalid_argument &e) {
             error::die(
                 "Expected number as comma separted state, but got {} ({})",
                 field, e.what());
@@ -422,7 +422,7 @@ Graph Graph::grouped_nondistinguishable() const
     for (State qa = 0; qa < siz; qa++) {
         for (State qb = qa + 1; qb < siz; qb++) {
             bool qa_final = is_final_state(qa), qb_final = is_final_state(qb);
-            if (qa_final && !qb_final || !qa_final && qb_final) {
+            if ((qa_final && !qb_final) || (!qa_final && qb_final)) {
                 que.emplace(qa, qb);
                 table.at(qa + qb * siz) = true;
             }
@@ -472,7 +472,7 @@ Graph Graph::grouped_nondistinguishable() const
         }
     }
 
-    State init_st;
+    std::optional<State> init_st;
     std::set<State> final_sts;
     DFADelta delta;
     for (size_t q = 0; q < st.size(); q++) {
@@ -484,7 +484,7 @@ Graph Graph::grouped_nondistinguishable() const
         });
         bool final = is_final_state(repr);
         if (initial)
-            init_st = q;
+            init_st.emplace(q);
         if (final)
             final_sts.insert(q);
 
@@ -493,7 +493,7 @@ Graph Graph::grouped_nondistinguishable() const
         delta.emplace_back(q, q0, q1);
     }
 
-    return Graph{init_st, final_sts, delta};
+    return Graph{init_st.value(), final_sts, delta};
 }
 
 Graph Graph::negated() const

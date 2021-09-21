@@ -59,7 +59,7 @@ void BackstreamDFARunner::eval(const TRGSWLvl1FFT &input)
     }
     else {
         out.clear();
-        out.resize(graph_.size(), {RedundantTRLWELvl1::TRIVIAL_0});
+        out.resize(graph_.size(), {RedundantTRLWELvl1::TRIVIAL_0, {}});
     }
 
     std::optional<std::vector<Graph::State>> states;
