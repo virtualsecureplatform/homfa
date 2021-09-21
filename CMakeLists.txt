@@ -28,8 +28,8 @@ add_subdirectory(thirdparty/TFHEpp)
 add_subdirectory(thirdparty/spdlog)
 
 set(HOMFA_CXXFLAGS -Wall -Wextra -pedantic -Wno-sign-compare)
-set(HOMFA_CXXFLAGS_DEBUG   ${IYOKAN_CXXFLAGS} -O0 -g3)
-set(HOMFA_CXXFLAGS_RELEASE ${IYOKAN_CXXFLAGS} -O3 -march=native -g3)
+set(HOMFA_CXXFLAGS_DEBUG   ${HOMFA_CXXFLAGS} -O0 -g3)
+set(HOMFA_CXXFLAGS_RELEASE ${HOMFA_CXXFLAGS} -O3 -march=native -g3)
 set(HOMFA_INCLUDE_DIRS
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/CLI11/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/spdlog/include>
