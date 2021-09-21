@@ -368,7 +368,6 @@ void OnlineDFARunner4::eval_queued_inputs()
     const std::vector<Graph::State> all_states = graph_.all_states();
     const std::vector<Graph::State> live_states = live_states_;
     const std::vector<Graph::State> next_live_states = [&] {
-        // Update live_states_ to next live states
         std::set<Graph::State> tmp1(live_states.begin(), live_states.end()),
             tmp2;
         for (size_t i = 0; i < input_size; i++) {
@@ -384,8 +383,12 @@ void OnlineDFARunner4::eval_queued_inputs()
         }
         return std::vector<Graph::State>(tmp1.begin(), tmp1.end());
     }();
+
+    // Update live_states_ to next live states.
+    // Note that live_states (not suffixed a '_') have current live states.
     live_states_ = next_live_states;
 
+    // Map from next live state to index
     std::vector<int> next_live_to_index(graph_.size(), -1);
     for (size_t i = 0; i < next_live_states.size(); i++)
         next_live_to_index.at(next_live_states.at(i)) = i;
@@ -398,6 +401,7 @@ void OnlineDFARunner4::eval_queued_inputs()
 
     const size_t next_width =
         std::floor(std::log2(next_live_states.size())) + 1;
+    // Initialize weights
     for (Graph::State q : next_live_states) {
         if (graph_.is_final_state(q))
             weight.at(q)[1][0] = (1u << 29);  // 1/8
@@ -412,6 +416,7 @@ void OnlineDFARunner4::eval_queued_inputs()
                 weight.at(q)[1][i + 1] = (1u << 29);  // 1/8
     }
 
+    // Propagate weight from back to front
     for (int i = input_size - 1; i >= 0; i--) {
         std::for_each(std::execution::par, all_states.begin(), all_states.end(),
                       [&](Graph::State q) {
@@ -426,14 +431,19 @@ void OnlineDFARunner4::eval_queued_inputs()
             swap(out, weight);
         }
     }
-
     queued_inputs_.clear();
 
+    // Now choose correct weight from the previous block's result, that is,
+    // selector.
+
+    // If it's the first block, we don't have to choose a weight
+    // because we have only one candidate.
     if (!selector_) {
         selector_ = weight.at(graph_.initial_state());
         return;
     }
 
+    // First apply CB to get the selector in TRGSW
     size_t width = std::floor(std::log2(live_states.size())) + 1;
     std::vector<TRGSWLvl1FFT> &cond = workspace3_;
     cond.clear();
@@ -447,6 +457,7 @@ void OnlineDFARunner4::eval_queued_inputs()
                                                       gate_key_.ksk);
         CircuitBootstrappingFFTLvl01(cond.at(i), tlwel0, circuit_key_);
     });
+    // Then choose the correct weight specified by the selector
     for (size_t i = 0; i < live_states.size(); i++)
         out.at(i) = weight.at(live_states.at(i));
     {
