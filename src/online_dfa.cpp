@@ -327,10 +327,10 @@ void OnlineDFARunner3::eval_queued_inputs()
 }
 
 /* OnlineDFARunner4 */
-OnlineDFARunner4::OnlineDFARunner4(const Graph &graph, size_t queue_size,
+OnlineDFARunner4::OnlineDFARunner4(Graph graph, size_t queue_size,
                                    const GateKey &gate_key,
                                    const CircuitKey &circuit_key)
-    : graph_(graph),
+    : graph_(std::move(graph)),
       gate_key_(gate_key),
       circuit_key_(circuit_key),
       queue_size_(queue_size),

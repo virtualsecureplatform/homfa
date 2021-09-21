@@ -100,7 +100,7 @@ private:
 
 class OnlineDFARunner4 {
 private:
-    const Graph &graph_;
+    Graph graph_;
     const GateKey &gate_key_;
     const CircuitKey &circuit_key_;
     size_t queue_size_;
@@ -112,12 +112,22 @@ private:
     std::vector<TRGSWLvl1FFT> workspace3_;
 
 public:
-    OnlineDFARunner4(const Graph &graph, size_t queue_size,
-                     const GateKey &gate_key, const CircuitKey &circuit_key);
+    OnlineDFARunner4(Graph graph, size_t queue_size, const GateKey &gate_key,
+                     const CircuitKey &circuit_key);
+
+    const Graph &graph() const
+    {
+        return graph_;
+    }
 
     size_t queue_size() const
     {
         return queue_size_;
+    }
+
+    size_t num_live_states() const
+    {
+        return live_states_.size();
     }
 
     TLWELvl1 result();

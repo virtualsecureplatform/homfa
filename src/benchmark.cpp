@@ -206,6 +206,46 @@ public:
     }
 };
 
+class OnlineDFA4BenchRunner {
+private:
+    OnlineDFARunner4 runner_;
+    size_t output_freq_, queue_size_, num_processed_;
+    TLWELvl1 result_;
+
+public:
+    OnlineDFA4BenchRunner(const std::string& spec_filename, size_t output_freq,
+                          size_t queue_size, const BKey& bkey,
+                          const CircuitKey& circuit_key)
+        : runner_(Graph::from_file(spec_filename), queue_size, *bkey.gkey,
+                  circuit_key),
+          output_freq_(output_freq),
+          queue_size_(queue_size),
+          num_processed_(0)
+    {
+    }
+
+    size_t num_states() const
+    {
+        return runner_.graph().size();
+    }
+
+    bool run(const TRGSWLvl1FFT& input)
+    {
+        print("num_live_states", runner_.num_live_states());
+        runner_.eval_one(input);
+        num_processed_++;
+        if (num_processed_ % output_freq_ != 0)
+            return false;
+        result_ = runner_.result();
+        return true;
+    }
+
+    TLWELvl1 result() const
+    {
+        return result_;
+    }
+};
+
 void do_plain(const std::string& spec_filename,
               const std::string& input_filename, size_t output_freq,
               size_t num_ap)
@@ -358,6 +398,43 @@ void do_qtrlwe2(const std::string& spec_filename,
     enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
 }
 
+void do_bbs(const std::string& spec_filename, const std::string& input_filename,
+            size_t output_freq, size_t queue_size, size_t num_ap)
+{
+    print("config-method", "bbs");
+    print("config-spec", spec_filename);
+    print("config-input", input_filename);
+    print("config-output_freq", output_freq);
+    print("config-queue_size", queue_size);
+    print("config-num_ap", num_ap);
+
+    std::optional<SecretKey> skey_opt;
+    std::optional<BKey> bkey_opt;
+    std::unique_ptr<CircuitKey> circuit_key_ptr;
+
+    auto skey_elapsed = timeit([&] { skey_opt.emplace(); });
+    const SecretKey& skey = skey_opt.value();
+    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey); });
+    const BKey& bkey = bkey_opt.value();
+    auto circuit_key_elapsed =
+        timeit([&] { circuit_key_ptr = std::make_unique<CircuitKey>(skey); });
+    const CircuitKey& circuit_key = *circuit_key_ptr;
+
+    print("skey", skey_elapsed.count());
+    print("bkey", bkey_elapsed.count());
+    print("circuit_key", circuit_key_elapsed.count());
+
+    OnlineDFA4BenchRunner runner{spec_filename, output_freq, queue_size, bkey,
+                                 circuit_key};
+    print("config-spec_num_states", runner.num_states());
+
+    size_t input_size = 0;
+    each_input_bit(input_filename, num_ap, [&](bool) { input_size++; });
+    print("config-input_size", input_size);
+
+    enc_run_dec_loop(skey, bkey, input_filename, num_ap, runner);
+}
+
 int main(int argc, char** argv)
 {
     CLI::App app{"Benchmark runner"};
@@ -368,6 +445,7 @@ int main(int argc, char** argv)
         OFFLINE,
         REVERSED,
         QTRLWE2,
+        BBS,
     } type;
     std::string spec_filename, input_filename;
     size_t output_freq, num_ap, max_second_lut_depth, queue_size,
@@ -450,6 +528,24 @@ int main(int argc, char** argv)
             ->required()
             ->check(CLI::PositiveNumber);
     }
+    {
+        CLI::App* bbs =
+            app.add_subcommand("bbs", "Run online-block-backstream");
+        bbs->parse_complete_callback([&] { type = TYPE::BBS; });
+        bbs->add_option("--ap", num_ap)->required()->check(CLI::PositiveNumber);
+        bbs->add_option("--out-freq", output_freq)
+            ->required()
+            ->check(CLI::PositiveNumber);
+        bbs->add_option("--queue-size", queue_size)
+            ->required()
+            ->check(CLI::PositiveNumber);
+        bbs->add_option("--spec", spec_filename)
+            ->required()
+            ->check(CLI::ExistingFile);
+        bbs->add_option("--in", input_filename)
+            ->required()
+            ->check(CLI::ExistingFile);
+    }
 
     CLI11_PARSE(app, argc, argv);
 
@@ -471,10 +567,15 @@ int main(int argc, char** argv)
         do_reversed(spec_filename, input_filename, output_freq,
                     bootstrapping_freq, num_ap, spec_reversed);
         break;
+
     case TYPE::QTRLWE2:
         do_qtrlwe2(spec_filename, input_filename, output_freq,
                    max_second_lut_depth, queue_size, bootstrapping_freq,
                    num_ap);
+        break;
+
+    case TYPE::BBS:
+        do_bbs(spec_filename, input_filename, output_freq, queue_size, num_ap);
         break;
     }
 
