@@ -367,7 +367,10 @@ void OnlineDFARunner4::eval_queued_inputs()
 
     const std::vector<Graph::State> all_states = graph_.all_states();
     const std::vector<Graph::State> live_states = live_states_;
-    const std::vector<Graph::State> next_live_states = [&] {
+    const std::vector<std::vector<Graph::State>> live_states_at_depth = [&] {
+        std::vector<std::vector<Graph::State>> at_depth;
+        at_depth.push_back(live_states);
+
         std::set<Graph::State> tmp1(live_states.begin(), live_states.end()),
             tmp2;
         for (size_t i = 0; i < input_size; i++) {
@@ -380,9 +383,13 @@ void OnlineDFARunner4::eval_queued_inputs()
                 using std::swap;
                 swap(tmp1, tmp2);
             }
+            at_depth.emplace_back(tmp1.begin(), tmp1.end());
         }
-        return std::vector<Graph::State>(tmp1.begin(), tmp1.end());
+
+        return at_depth;
     }();
+    const std::vector<Graph::State> next_live_states =
+        live_states_at_depth.back();
 
     // Update live_states_ to next live states.
     // Note that live_states (not suffixed a '_') have current live states.
@@ -418,7 +425,8 @@ void OnlineDFARunner4::eval_queued_inputs()
 
     // Propagate weight from back to front
     for (int i = input_size - 1; i >= 0; i--) {
-        std::for_each(std::execution::par, all_states.begin(), all_states.end(),
+        const auto &states = live_states_at_depth.at(i);
+        std::for_each(std::execution::par, states.begin(), states.end(),
                       [&](Graph::State q) {
                           Graph::State q0 = graph_.next_state(q, false),
                                        q1 = graph_.next_state(q, true);
