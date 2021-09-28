@@ -449,7 +449,7 @@ int main(int argc, char** argv)
     std::string spec_filename, input_filename;
     size_t output_freq, num_ap, max_second_lut_depth, queue_size,
         bootstrapping_freq;
-    bool verbose = false, spec_reversed;
+    bool verbose = false, spec_reversed = false;
 
     app.add_flag("--verbose", verbose, "");
     {
