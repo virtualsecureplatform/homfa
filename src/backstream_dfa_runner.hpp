@@ -13,14 +13,16 @@ private:
     const size_t boot_interval_;
     size_t num_processed_inputs_;
     const TRLWELvl1 trlwelvl1_trivial_0_, trlwelvl1_trivial_1_;
+    bool sanitize_result_;
 
     // Workspace for eval
     std::vector<RedundantTRLWELvl1> workspace_;
 
 public:
     BackstreamDFARunner(Graph graph, size_t boot_interval,
-                        std::optional<size_t> input_size = std::nullopt,
-                        std::shared_ptr<GateKey> gate_key = nullptr);
+                        std::optional<size_t> input_size,
+                        std::shared_ptr<GateKey> gate_key,
+                        bool sanitize_result);
 
     const Graph &graph() const
     {

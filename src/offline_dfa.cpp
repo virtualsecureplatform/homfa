@@ -6,8 +6,10 @@
 
 OfflineDFARunner::OfflineDFARunner(Graph graph, size_t input_size,
                                    size_t boot_interval,
-                                   std::shared_ptr<GateKey> gate_key)
-    : runner_(std::move(graph), boot_interval, input_size, gate_key)
+                                   std::shared_ptr<GateKey> gate_key,
+                                   bool sanitize_result)
+    : runner_(std::move(graph), boot_interval, input_size, gate_key,
+              sanitize_result)
 {
 }
 

@@ -392,7 +392,11 @@ TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey &skey)
 
 bool decrypt_TLWELvl1_to_bit(const TLWELvl1 &c, const SecretKey &skey)
 {
-    return TFHEpp::tlweSymDecrypt<Lvl1>(c, skey.key.lvl1);
+    // Use {0, 1/2} as message space
+    uint32_t phase = c[Lvl1::n];
+    for (size_t i = 0; i < Lvl1::n; i++)
+        phase -= c[i] * skey.key.lvl1[i];
+    return (phase + (1u << 30 /* 1/4 */)) > (1u << 31 /* 1/2 */);
 }
 
 PolyLvl1 uint2weight(uint64_t n)

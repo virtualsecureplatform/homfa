@@ -1,4 +1,5 @@
 #include "backstream_dfa_runner.hpp"
+#include "error.hpp"
 
 #include <execution>
 
@@ -6,7 +7,8 @@
 
 BackstreamDFARunner::BackstreamDFARunner(Graph graph, size_t boot_interval,
                                          std::optional<size_t> input_size,
-                                         std::shared_ptr<GateKey> gate_key)
+                                         std::shared_ptr<GateKey> gate_key,
+                                         bool sanitize_result)
     : graph_(std::move(graph)),
       weight_(graph_.size()),
       gate_key_(std::move(gate_key)),
@@ -15,8 +17,14 @@ BackstreamDFARunner::BackstreamDFARunner(Graph graph, size_t boot_interval,
       num_processed_inputs_(0),
       trlwelvl1_trivial_0_(trivial_TRLWELvl1_zero()),
       trlwelvl1_trivial_1_(trivial_TRLWELvl1_1over2()),
+      sanitize_result_(sanitize_result),
       workspace_(graph_.size())
 {
+    assert(gate_key_);
+
+    if (sanitize_result_)
+        error::die("Sanitization of results is not implemented");
+
     if (input_size_)
         graph_.reserve_states_at_depth(*input_size_);
 
@@ -43,8 +51,8 @@ TLWELvl1 BackstreamDFARunner::result() const
         w = rw.c;
         break;
     }
-    if (gate_key_)
-        do_SEI_IKS_GBTLWE2TRLWE_3(w, *gate_key_);
+
+    assert(!sanitize_result_);
     TLWELvl1 ret;
     TFHEpp::SampleExtractIndex<Lvl1>(ret, w, 0);
     return ret;

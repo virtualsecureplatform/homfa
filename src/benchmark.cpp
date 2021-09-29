@@ -95,9 +95,10 @@ private:
 
 public:
     OfflineBenchRunner(const std::string& spec_filename, size_t input_size,
-                       size_t boot_interval, const BKey& bkey)
+                       size_t boot_interval, const BKey& bkey,
+                       bool sanitize_result)
         : runner_(Graph::from_file(spec_filename), input_size, boot_interval,
-                  bkey.gkey),
+                  bkey.gkey, sanitize_result),
           result_(),
           remaining_input_size_(input_size)
     {
@@ -132,9 +133,9 @@ private:
 public:
     OnlineDFA2BenchRunner(const std::string& spec_filename, size_t output_freq,
                           size_t bootstrapping_freq, bool spec_reversed,
-                          const BKey& bkey)
+                          const BKey& bkey, bool sanitize_result)
         : runner_(Graph::from_file(spec_filename), bootstrapping_freq,
-                  spec_reversed, bkey.gkey),
+                  spec_reversed, bkey.gkey, sanitize_result),
           output_freq_(output_freq),
           num_processed_(0)
     {
@@ -170,10 +171,11 @@ private:
 public:
     OnlineDFA3BenchRunner(const std::string& spec_filename, size_t output_freq,
                           size_t max_second_lut_depth, size_t queue_size,
-                          size_t bootstrapping_freq, const BKey& bkey)
+                          size_t bootstrapping_freq, const BKey& bkey,
+                          bool sanitize_result)
         : runner_(Graph::from_file(spec_filename), max_second_lut_depth,
                   queue_size, bootstrapping_freq, *bkey.gkey,
-                  *bkey.tlwel1_trlwel1_ikskey, std::nullopt),
+                  *bkey.tlwel1_trlwel1_ikskey, std::nullopt, sanitize_result),
           output_freq_(output_freq),
           queue_size_(queue_size),
           bootstrapping_freq_(bootstrapping_freq),
@@ -214,9 +216,9 @@ private:
 public:
     OnlineDFA4BenchRunner(const std::string& spec_filename, size_t output_freq,
                           size_t queue_size, const BKey& bkey,
-                          const CircuitKey& circuit_key)
+                          const CircuitKey& circuit_key, bool sanitize_result)
         : runner_(Graph::from_file(spec_filename), queue_size, *bkey.gkey,
-                  circuit_key),
+                  circuit_key, sanitize_result),
           output_freq_(output_freq),
           queue_size_(queue_size),
           num_processed_(0)
@@ -278,13 +280,14 @@ void do_plain(const std::string& spec_filename,
 
 void do_offline(const std::string& spec_filename,
                 const std::string& input_filename, size_t bootstrapping_freq,
-                size_t num_ap)
+                size_t num_ap, bool sanitize_result)
 {
     print("config-method", "offline");
     print("config-spec", spec_filename);
     print("config-input", input_filename);
     print("config-bootstrapping_freq", bootstrapping_freq);
     print("config-num_ap", num_ap);
+    print("config-sanitize_result", sanitize_result);
 
     std::optional<SecretKey> skey_opt;
     std::optional<BKey> bkey_opt;
@@ -302,7 +305,7 @@ void do_offline(const std::string& spec_filename,
                    [&](bool b) { input_bits.push_back(b); });
 
     OfflineBenchRunner runner{spec_filename, input_bits.size(),
-                              bootstrapping_freq, bkey};
+                              bootstrapping_freq, bkey, sanitize_result};
 
     print("config-spec_num_states", runner.num_states());
     print("config-input_size", input_bits.size());
@@ -329,7 +332,8 @@ void do_offline(const std::string& spec_filename,
 
 void do_reversed(const std::string& spec_filename,
                  const std::string& input_filename, size_t output_freq,
-                 size_t bootstrapping_freq, size_t num_ap, bool spec_reversed)
+                 size_t bootstrapping_freq, size_t num_ap, bool spec_reversed,
+                 bool sanitize_result)
 {
     print("config-method", "reversed");
     print("config-spec", spec_filename);
@@ -337,6 +341,7 @@ void do_reversed(const std::string& spec_filename,
     print("config-output_freq", output_freq);
     print("config-bootstrapping_freq", bootstrapping_freq);
     print("config-num_ap", num_ap);
+    print("config-sanitize_result", sanitize_result);
 
     std::optional<SecretKey> skey_opt;
     std::optional<BKey> bkey_opt;
@@ -350,7 +355,7 @@ void do_reversed(const std::string& spec_filename,
     print("bkey", bkey_elapsed.count());
 
     OnlineDFA2BenchRunner runner{spec_filename, output_freq, bootstrapping_freq,
-                                 spec_reversed, bkey};
+                                 spec_reversed, bkey,        sanitize_result};
     print("config-spec_num_states", runner.num_states());
 
     size_t input_size = 0;
@@ -363,7 +368,7 @@ void do_reversed(const std::string& spec_filename,
 void do_qtrlwe2(const std::string& spec_filename,
                 const std::string& input_filename, size_t output_freq,
                 size_t max_second_lut_depth, size_t queue_size,
-                size_t bootstrapping_freq, size_t num_ap)
+                size_t bootstrapping_freq, size_t num_ap, bool sanitize_result)
 {
     print("config-method", "qtrlwe2");
     print("config-spec", spec_filename);
@@ -373,6 +378,7 @@ void do_qtrlwe2(const std::string& spec_filename,
     print("config-queue_size", queue_size);
     print("config-bootstrapping_freq", bootstrapping_freq);
     print("config-num_ap", num_ap);
+    print("config-sanitize_result", sanitize_result);
 
     std::optional<SecretKey> skey_opt;
     std::optional<BKey> bkey_opt;
@@ -385,9 +391,9 @@ void do_qtrlwe2(const std::string& spec_filename,
     print("skey", skey_elapsed.count());
     print("bkey", bkey_elapsed.count());
 
-    OnlineDFA3BenchRunner runner{spec_filename,        output_freq,
-                                 max_second_lut_depth, queue_size,
-                                 bootstrapping_freq,   bkey};
+    OnlineDFA3BenchRunner runner{
+        spec_filename,      output_freq, max_second_lut_depth, queue_size,
+        bootstrapping_freq, bkey,        sanitize_result};
     print("config-spec_num_states", runner.num_states());
 
     size_t input_size = 0;
@@ -398,7 +404,8 @@ void do_qtrlwe2(const std::string& spec_filename,
 }
 
 void do_bbs(const std::string& spec_filename, const std::string& input_filename,
-            size_t output_freq, size_t queue_size, size_t num_ap)
+            size_t output_freq, size_t queue_size, size_t num_ap,
+            bool sanitize_result)
 {
     print("config-method", "bbs");
     print("config-spec", spec_filename);
@@ -406,6 +413,7 @@ void do_bbs(const std::string& spec_filename, const std::string& input_filename,
     print("config-output_freq", output_freq);
     print("config-queue_size", queue_size);
     print("config-num_ap", num_ap);
+    print("config-sanitize_reuslt", sanitize_result);
 
     std::optional<SecretKey> skey_opt;
     std::optional<BKey> bkey_opt;
@@ -423,8 +431,8 @@ void do_bbs(const std::string& spec_filename, const std::string& input_filename,
     print("bkey", bkey_elapsed.count());
     print("circuit_key", circuit_key_elapsed.count());
 
-    OnlineDFA4BenchRunner runner{spec_filename, output_freq, queue_size, bkey,
-                                 circuit_key};
+    OnlineDFA4BenchRunner runner{spec_filename, output_freq, queue_size,
+                                 bkey,          circuit_key, sanitize_result};
     print("config-spec_num_states", runner.num_states());
 
     size_t input_size = 0;
@@ -449,7 +457,7 @@ int main(int argc, char** argv)
     std::string spec_filename, input_filename;
     size_t output_freq, num_ap, max_second_lut_depth, queue_size,
         bootstrapping_freq;
-    bool verbose = false, spec_reversed = false;
+    bool verbose = false, spec_reversed = false, sanitize_result = false;
 
     app.add_flag("--verbose", verbose, "");
     {
@@ -483,6 +491,7 @@ int main(int argc, char** argv)
         offline->add_option("--in", input_filename)
             ->required()
             ->check(CLI::ExistingFile);
+        offline->add_flag("--sanitize-result", sanitize_result);
     }
     {
         CLI::App* rev = app.add_subcommand("reversed", "Run online-reversed");
@@ -501,6 +510,7 @@ int main(int argc, char** argv)
             ->required()
             ->check(CLI::ExistingFile);
         rev->add_flag("--spec-reversed", spec_reversed);
+        rev->add_flag("--sanitize-result", sanitize_result);
     }
     {
         CLI::App* qtrlwe2 = app.add_subcommand("qtrlwe2", "Run online-qtrlwe2");
@@ -526,6 +536,7 @@ int main(int argc, char** argv)
         qtrlwe2->add_option("--max-second-lut-depth", max_second_lut_depth)
             ->required()
             ->check(CLI::PositiveNumber);
+        qtrlwe2->add_flag("--sanitize-result", sanitize_result);
     }
     {
         CLI::App* bbs =
@@ -544,6 +555,7 @@ int main(int argc, char** argv)
         bbs->add_option("--in", input_filename)
             ->required()
             ->check(CLI::ExistingFile);
+        bbs->add_flag("--sanitize-result", sanitize_result);
     }
 
     CLI11_PARSE(app, argc, argv);
@@ -559,22 +571,24 @@ int main(int argc, char** argv)
         break;
 
     case TYPE::OFFLINE:
-        do_offline(spec_filename, input_filename, bootstrapping_freq, num_ap);
+        do_offline(spec_filename, input_filename, bootstrapping_freq, num_ap,
+                   sanitize_result);
         break;
 
     case TYPE::REVERSED:
         do_reversed(spec_filename, input_filename, output_freq,
-                    bootstrapping_freq, num_ap, spec_reversed);
+                    bootstrapping_freq, num_ap, spec_reversed, sanitize_result);
         break;
 
     case TYPE::QTRLWE2:
         do_qtrlwe2(spec_filename, input_filename, output_freq,
-                   max_second_lut_depth, queue_size, bootstrapping_freq,
-                   num_ap);
+                   max_second_lut_depth, queue_size, bootstrapping_freq, num_ap,
+                   sanitize_result);
         break;
 
     case TYPE::BBS:
-        do_bbs(spec_filename, input_filename, output_freq, queue_size, num_ap);
+        do_bbs(spec_filename, input_filename, output_freq, queue_size, num_ap,
+               sanitize_result);
         break;
     }
 

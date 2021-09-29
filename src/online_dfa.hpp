@@ -11,10 +11,11 @@ private:
     std::vector<TRLWELvl1> weight_;
     std::shared_ptr<GateKey> gate_key_;
     size_t bootstrap_interval_, num_processed_inputs_;
+    bool sanitize_result_;
 
 public:
-    OnlineDFARunner(const Graph &graph,
-                    std::shared_ptr<GateKey> gate_key = nullptr);
+    OnlineDFARunner(const Graph &graph, std::shared_ptr<GateKey> gate_key,
+                    bool sanitize_result);
 
     TLWELvl1 result();
     void eval_one(const TRGSWLvl1FFT &input);
@@ -29,8 +30,8 @@ private:
 
 public:
     OnlineDFARunner2(const Graph &graph, size_t boot_interval_,
-                     bool is_spec_reversed,
-                     std::shared_ptr<GateKey> gate_key = nullptr);
+                     bool is_spec_reversed, std::shared_ptr<GateKey> gate_key,
+                     bool sanitize_result);
 
     const Graph &graph() const
     {
@@ -52,8 +53,8 @@ private:
     std::vector<Graph::State> live_states_;
     std::vector<std::vector<Graph::State>> memo_transition_;
     size_t num_eval_, bootstrapping_freq_, first_lut_depth_, second_lut_depth_;
-
     std::optional<SecretKey> debug_skey_;
+    bool sanitize_result_;
 
     // Workspace for eval_queued_inputs()
     std::vector<TRLWELvl1> workspace_table1_, workspace_table2_;
@@ -64,7 +65,7 @@ public:
                      const GateKey &gate_key,
                      const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>
                          &tlwel1_trlwel1_iks_key,
-                     std::optional<SecretKey> debug_skey);
+                     std::optional<SecretKey> debug_skey, bool sanitize_result);
 
     const Graph &graph() const
     {
@@ -107,13 +108,14 @@ private:
     std::vector<TRGSWLvl1FFT> queued_inputs_;
     std::optional<TRLWELvl1> selector_;
     std::vector<Graph::State> live_states_;
+    bool sanitize_result_;
 
     std::vector<TRLWELvl1> workspace1_, workspace2_;
     std::vector<TRGSWLvl1FFT> workspace3_;
 
 public:
     OnlineDFARunner4(Graph graph, size_t queue_size, const GateKey &gate_key,
-                     const CircuitKey &circuit_key);
+                     const CircuitKey &circuit_key, bool sanitize_result);
 
     const Graph &graph() const
     {

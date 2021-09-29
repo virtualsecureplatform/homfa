@@ -8,13 +8,20 @@
 
 /* OnlineDFARunner */
 OnlineDFARunner::OnlineDFARunner(const Graph &graph,
-                                 std::shared_ptr<GateKey> gate_key)
+                                 std::shared_ptr<GateKey> gate_key,
+                                 bool sanitize_result)
     : graph_(graph),
       weight_(graph.size(), trivial_TRLWELvl1_zero()),
       gate_key_(std::move(gate_key)),
       bootstrap_interval_(0),
-      num_processed_inputs_(0)
+      num_processed_inputs_(0),
+      sanitize_result_(sanitize_result)
 {
+    assert(gate_key_);
+
+    if (sanitize_result_)
+        error::die("Sanitization of results is not implemented (qtrlwe)");
+
     for (Graph::State st = 0; st < graph_.size(); st++)
         if (st == graph_.initial_state())
             weight_.at(st)[1][0] = (1u << 29);  // 1/8
@@ -29,8 +36,8 @@ OnlineDFARunner::OnlineDFARunner(const Graph &graph,
 
 TLWELvl1 OnlineDFARunner::result()
 {
-    if (gate_key_)
-        bootstrap_weight();  // FIXME: is this necessary?
+    assert(!sanitize_result_);
+
     TRLWELvl1 acc = trivial_TRLWELvl1_minus_1over8(),
               offset = trivial_TRLWELvl1_1over8();
     for (Graph::State st = 0; st < graph_.size(); st++) {
@@ -39,8 +46,11 @@ TLWELvl1 OnlineDFARunner::result()
             TRLWELvl1_add(acc, offset);
         }
     }
-    if (gate_key_)
-        do_SEI_IKS_GBTLWE2TRLWE(acc, *gate_key_);
+
+    assert(0 &&
+           "We need convert {-1/8,1/8} to {0,1/2}, but it is not implemented "
+           "here.");
+
     TLWELvl1 ret;
     TFHEpp::SampleExtractIndex<Lvl1>(ret, acc, 0);
     return ret;
@@ -88,9 +98,10 @@ void OnlineDFARunner::bootstrap_weight()
 /* OnlineDFARunner2 */
 OnlineDFARunner2::OnlineDFARunner2(const Graph &graph, size_t boot_interval,
                                    bool is_spec_reversed,
-                                   std::shared_ptr<GateKey> gate_key)
+                                   std::shared_ptr<GateKey> gate_key,
+                                   bool sanitize_result)
     : runner_(is_spec_reversed ? graph : graph.reversed().minimized(),
-              boot_interval, std::nullopt, gate_key)
+              boot_interval, std::nullopt, gate_key, sanitize_result)
 {
 }
 
@@ -109,7 +120,7 @@ OnlineDFARunner3::OnlineDFARunner3(
     Graph graph, size_t max_second_lut_depth, size_t queue_size,
     size_t bootstrapping_freq, const GateKey &gate_key,
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param> &tlwel1_trlwel1_iks_key,
-    std::optional<SecretKey> debug_skey)
+    std::optional<SecretKey> debug_skey, bool sanitize_result)
     : graph_(std::move(graph)),
       gate_key_(gate_key),
       tlwel1_trlwel1_iks_key_(tlwel1_trlwel1_iks_key),
@@ -123,8 +134,12 @@ OnlineDFARunner3::OnlineDFARunner3(
       bootstrapping_freq_(bootstrapping_freq),
       first_lut_depth_(0),
       second_lut_depth_(0),
-      debug_skey_(std::move(debug_skey))
+      debug_skey_(std::move(debug_skey)),
+      sanitize_result_(sanitize_result)
 {
+    if (sanitize_result_)
+        error::die("Sanitization of results is not implemented");
+
     for (Graph::State st : graph_.all_states())
         if (st == graph_.initial_state())
             weight_.at(st)[1][0] = (1u << 31);  // 1/2
@@ -149,6 +164,8 @@ OnlineDFARunner3::OnlineDFARunner3(
 
 TLWELvl1 OnlineDFARunner3::result()
 {
+    assert(!sanitize_result_);
+
     eval_queued_inputs();
 
     TRLWELvl1 acc = trivial_TRLWELvl1_zero();
@@ -156,7 +173,6 @@ TLWELvl1 OnlineDFARunner3::result()
         if (graph_.is_final_state(st))
             TRLWELvl1_add(acc, weight_.at(st));
     }
-    do_SEI_IKS_GBTLWE2TRLWE_3(acc, gate_key_);
     TLWELvl1 ret;
     TFHEpp::SampleExtractIndex<Lvl1>(ret, acc, 0);
     return ret;
@@ -329,25 +345,29 @@ void OnlineDFARunner3::eval_queued_inputs()
 /* OnlineDFARunner4 */
 OnlineDFARunner4::OnlineDFARunner4(Graph graph, size_t queue_size,
                                    const GateKey &gate_key,
-                                   const CircuitKey &circuit_key)
+                                   const CircuitKey &circuit_key,
+                                   bool sanitize_result)
     : graph_(std::move(graph)),
       gate_key_(gate_key),
       circuit_key_(circuit_key),
       queue_size_(queue_size),
       queued_inputs_(),
       selector_(std::nullopt),
-      live_states_({graph_.initial_state()})
+      live_states_({graph_.initial_state()}),
+      sanitize_result_(sanitize_result)
 {
+    if (sanitize_result_)
+        error::die("Sanitization of results is not implemented");
 }
 
 TLWELvl1 OnlineDFARunner4::result()
 {
+    assert(!sanitize_result_);
+
     eval_queued_inputs();
     assert(selector_);
-    TRLWELvl1 t = *selector_;
-    do_SEI_IKS_GBTLWE2TRLWE(t, gate_key_);
     TLWELvl1 ret;
-    TFHEpp::SampleExtractIndex<Lvl1>(ret, t, 0);
+    TFHEpp::SampleExtractIndex<Lvl1>(ret, *selector_, 0);
     return ret;
 }
 
@@ -408,12 +428,15 @@ void OnlineDFARunner4::eval_queued_inputs()
 
     const size_t next_width =
         std::floor(std::log2(next_live_states.size())) + 1;
-    // Initialize weights
+    // Initialize weights.
+    // The content of a weight (TRLWE) at index i:
+    //   [0]: true iff the state is final
+    //   [1..]: index of the state (sum(2^{i-1} * w[i]))
     for (Graph::State q : next_live_states) {
         if (graph_.is_final_state(q))
-            weight.at(q)[1][0] = (1u << 29);  // 1/8
+            weight.at(q)[1][0] = (1u << 31);  // 1/2
         else
-            weight.at(q)[1][0] = -(1u << 29);  // -1/8
+            weight.at(q)[1][0] = 0;  // 0
 
         size_t t = next_live_to_index.at(q);
         for (size_t i = 0; i < next_width; i++)

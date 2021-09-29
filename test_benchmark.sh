@@ -79,18 +79,18 @@ run_test(){
     local input_filepath=$4
 
     run_benchmark plain $ap_size $spec_filepath $input_filepath 1
-    cat _test_log | grep "result" | tail -1 > _test_log_plain_last
+    cat _test_log | grep -E "^result" | tail -1 > _test_log_plain_last
     run_benchmark plain $ap_size $spec_filepath $input_filepath $OUTPUT_FREQ
-    cat _test_log | grep "result" > _test_log_plain
+    cat _test_log | grep -E "^result" > _test_log_plain
 
     run_benchmark offline $ap_size $spec_filepath $input_filepath 0
-    diff _test_log_plain_last <(cat _test_log | grep "result")
+    diff _test_log_plain_last <(cat _test_log | grep -E "^result")
     run_benchmark reversed $ap_size $spec_rev_filepath $input_filepath $OUTPUT_FREQ
-    diff _test_log_plain <(cat _test_log | grep "result")
+    diff _test_log_plain <(cat _test_log | grep -E "^result")
     run_benchmark flut $ap_size $spec_filepath $input_filepath $OUTPUT_FREQ
-    diff _test_log_plain <(cat _test_log | grep "result")
+    diff _test_log_plain <(cat _test_log | grep -E "^result")
     run_benchmark bbs $ap_size $spec_filepath $input_filepath $OUTPUT_FREQ
-    diff _test_log_plain <(cat _test_log | grep "result")
+    diff _test_log_plain <(cat _test_log | grep -E "^result")
 }
 
 run_test 2 test/01.spec test/01_rev.spec test/01-01.in

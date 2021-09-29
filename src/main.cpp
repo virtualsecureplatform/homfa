@@ -69,16 +69,19 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
     }
 }
 
-void do_run_offline_dfa(
-    const std::string &spec_filename, const std::string &input_filename,
-    const std::string &output_filename, size_t bootstrapping_freq,
-    const std::optional<std::string> &bkey_filename = std::nullopt)
+void do_run_offline_dfa(const std::string &spec_filename,
+                        const std::string &input_filename,
+                        const std::string &output_filename,
+                        size_t bootstrapping_freq,
+                        const std::optional<std::string> &bkey_filename,
+                        bool sanitize_result)
 {
     ReversedTRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
 
     auto bkey = read_from_archive<BKey>(*bkey_filename);
     OfflineDFARunner runner{Graph::from_file(spec_filename).minimized(),
-                            input_stream.size(), bootstrapping_freq, bkey.gkey};
+                            input_stream.size(), bootstrapping_freq, bkey.gkey,
+                            sanitize_result};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Offline FA Runner");
@@ -92,6 +95,7 @@ void do_run_offline_dfa(
             total_cnt_cmux += runner.graph().states_at_depth(j).size();
         spdlog::info("\tTotal #CMUX:\t{}", total_cnt_cmux);
     }
+    spdlog::info("\tSanitization:\t{}", sanitize_result);
     spdlog::info("");
 
     size_t input_size = input_stream.size();
@@ -101,21 +105,23 @@ void do_run_offline_dfa(
     write_to_archive(output_filename, runner.result());
 }
 
-void do_run_online_dfa(
-    const std::string &spec_filename, const std::string &input_filename,
-    const std::string &output_filename,
-    const std::optional<std::string> &bkey_filename = std::nullopt)
+void do_run_online_dfa(const std::string &spec_filename,
+                       const std::string &input_filename,
+                       const std::string &output_filename,
+                       const std::optional<std::string> &bkey_filename,
+                       bool sanitize_result)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr = Graph::from_file(spec_filename);
     auto bkey = read_from_archive<BKey>(*bkey_filename);
-    OnlineDFARunner runner{gr, bkey.gkey};
+    OnlineDFARunner runner{gr, bkey.gkey, sanitize_result};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner1 (qtrlwe)");
     spdlog::info("\tState size:\t{}", gr.size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     // spdlog::info("\tBootstrap interval:\t{}", bootstrap_interval_);
+    spdlog::info("\tSanitization:\t{}", sanitize_result);
     spdlog::info("");
 
     for (size_t i = 0; input_stream.size() != 0; i++) {
@@ -126,12 +132,14 @@ void do_run_online_dfa(
     write_to_archive(output_filename, runner.result());
 }
 
-void do_run_online_dfa2(
-    const std::string &spec_filename, const std::string &input_filename,
-    const std::optional<std::string> &output_filename,
-    const std::optional<std::string> &output_dirname, size_t output_freq,
-    size_t bootstrapping_freq, bool is_spec_reversed,
-    const std::optional<std::string> &bkey_filename = std::nullopt)
+void do_run_online_dfa2(const std::string &spec_filename,
+                        const std::string &input_filename,
+                        const std::optional<std::string> &output_filename,
+                        const std::optional<std::string> &output_dirname,
+                        size_t output_freq, size_t bootstrapping_freq,
+                        bool is_spec_reversed,
+                        const std::optional<std::string> &bkey_filename,
+                        bool sanitize_result)
 {
     assert((output_filename && !output_dirname) ||
            (!output_filename && output_dirname));
@@ -139,7 +147,7 @@ void do_run_online_dfa2(
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     auto bkey = read_from_archive<BKey>(*bkey_filename);
     OnlineDFARunner2 runner{Graph::from_file(spec_filename), bootstrapping_freq,
-                            is_spec_reversed, bkey.gkey};
+                            is_spec_reversed, bkey.gkey, sanitize_result};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner2 (reversed)");
@@ -153,6 +161,7 @@ void do_run_online_dfa2(
         spdlog::info("\tOutput frequency:\t{}", output_freq);
     }
     spdlog::info("\tBootstrapping frequency:\t{}", bootstrapping_freq);
+    spdlog::info("\tSanitization:\t{}", sanitize_result);
     spdlog::info("");
 
     if (output_dirname)
@@ -187,7 +196,8 @@ void do_run_online_dfa3(const std::string &spec_filename,
                         size_t bootstrapping_freq,
                         const std::string &bkey_filename,
                         const std::optional<size_t> &max_second_lut_depth,
-                        const std::optional<std::string> &debug_skey_filename)
+                        const std::optional<std::string> &debug_skey_filename,
+                        bool sanitize_result)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr = Graph::from_file(spec_filename);
@@ -202,7 +212,7 @@ void do_run_online_dfa3(const std::string &spec_filename,
     OnlineDFARunner3 runner{gr,         max_second_lut_depth.value_or(8),
                             queue_size, bootstrapping_freq,
                             *bkey.gkey, *bkey.tlwel1_trlwel1_ikskey,
-                            debug_skey};
+                            debug_skey, sanitize_result};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner3 (qtrlwe2)");
@@ -217,6 +227,7 @@ void do_run_online_dfa3(const std::string &spec_filename,
         spdlog::info("\tOutput frequency:\t{}", output_freq);
     }
     spdlog::info("\tBootstrapping frequency:\t{}", bootstrapping_freq);
+    spdlog::info("\tSanitization:\t{}", sanitize_result);
     spdlog::info("");
 
     if (output_dirname && output_freq % queue_size != 0)
@@ -250,7 +261,7 @@ void do_run_online_dfa3(const std::string &spec_filename,
 void do_run_online_dfa4(const std::string &spec_filename,
                         const std::string &input_filename,
                         const std::string &output_filename, size_t queue_size,
-                        const std::string &bkey_filename)
+                        const std::string &bkey_filename, bool sanitize_result)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr = Graph::from_file(spec_filename);
@@ -258,7 +269,8 @@ void do_run_online_dfa4(const std::string &spec_filename,
     auto bkey = read_from_archive<BKey>(bkey_filename);
     assert(bkey.gkey);
 
-    OnlineDFARunner4 runner{gr, queue_size, *bkey.gkey, *bkey.circuit_key};
+    OnlineDFARunner4 runner{gr, queue_size, *bkey.gkey, *bkey.circuit_key,
+                            sanitize_result};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner4 (block-backstream)");
@@ -266,6 +278,7 @@ void do_run_online_dfa4(const std::string &spec_filename,
     spdlog::info("\tState size:\t{}", gr.size());
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     spdlog::info("\tQueue size:\t{}", runner.queue_size());
+    spdlog::info("\tSanitization:\t{}", sanitize_result);
     spdlog::info("");
 
     for (size_t i = 0; input_stream.size() != 0; i++) {
@@ -281,7 +294,7 @@ void do_dec(const std::string &skey_filename, const std::string &input_filename)
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
     auto enc_res = read_from_archive<TLWELvl1>(input_filename);
-    bool res = TFHEpp::tlweSymDecrypt<Lvl1>(enc_res, skey.key.lvl1);
+    bool res = decrypt_TLWELvl1_to_bit(enc_res, skey);
     spdlog::info("Result (bool): {}", res);
 }
 
@@ -360,7 +373,8 @@ int main(int argc, char **argv)
     } type;
 
     bool verbose = false, quiet = false, minimized = false, reversed = false,
-         negated, make_all_live_states_final = false, is_spec_reversed = false;
+         negated, make_all_live_states_final = false, is_spec_reversed = false,
+         sanitize_result = false;
     std::optional<std::string> spec, skey, bkey, input, output, output_dir,
         debug_skey;
     std::string formula, online_method = "qtrlwe2";
@@ -402,6 +416,7 @@ int main(int argc, char **argv)
         run->add_option("--out", output)->required();
         run->add_option("--bootstrapping-freq", bootstrapping_freq)
             ->check(CLI::PositiveNumber);
+        run->add_option("--sanitize-result", sanitize_result);
     }
     {
         CLI::App *run = app.add_subcommand("run-online-dfa", "Run online DFA");
@@ -423,6 +438,7 @@ int main(int argc, char **argv)
         run->add_option("--max-second-lut-depth", max_second_lut_depth)
             ->check(CLI::PositiveNumber);
         run->add_flag("--spec-reversed", is_spec_reversed);
+        run->add_option("--sanitize-result", sanitize_result);
     }
     {
         CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
@@ -495,7 +511,8 @@ int main(int argc, char **argv)
     case TYPE::RUN_OFFLINE_DFA:
         assert(spec && input && output);
         do_run_offline_dfa(*spec, *input, *output,
-                           bootstrapping_freq.value_or(8000), bkey);
+                           bootstrapping_freq.value_or(8000), bkey,
+                           sanitize_result);
         break;
 
     case TYPE::RUN_ONLINE_DFA:
@@ -507,24 +524,24 @@ int main(int argc, char **argv)
         if (online_method == "qtrlwe") {
             spdlog::warn("FIXME: not support --out-dir and --output-freq");
             assert(output);
-            do_run_online_dfa(*spec, *input, *output, bkey);
+            do_run_online_dfa(*spec, *input, *output, bkey, sanitize_result);
         }
         else if (online_method == "reversed") {
             do_run_online_dfa2(*spec, *input, output, output_dir, output_freq,
                                bootstrapping_freq.value_or(8000),
-                               is_spec_reversed, bkey);
+                               is_spec_reversed, bkey, sanitize_result);
         }
         else if (online_method == "block-backstream") {
             do_run_online_dfa4(*spec, *input, *output, queue_size.value_or(100),
-                               *bkey);
+                               *bkey, sanitize_result);
         }
         else {
             assert(online_method == "qtrlwe2");
             assert(bkey);
-            do_run_online_dfa3(*spec, *input, output, output_dir, output_freq,
-                               queue_size.value_or(15),
-                               bootstrapping_freq.value_or(1), *bkey,
-                               max_second_lut_depth, debug_skey);
+            do_run_online_dfa3(
+                *spec, *input, output, output_dir, output_freq,
+                queue_size.value_or(15), bootstrapping_freq.value_or(1), *bkey,
+                max_second_lut_depth, debug_skey, sanitize_result);
         }
         break;
 
