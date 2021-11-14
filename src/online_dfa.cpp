@@ -467,10 +467,9 @@ void OnlineDFARunner4::eval_queued_inputs()
     // Now choose correct weight from the previous block's result, that is,
     // selector.
 
-    // If it's the first block, we don't have to choose a weight
-    // because we have only one candidate.
-    if (!selector_) {
-        selector_ = weight.at(graph_.initial_state());
+    // If the number of the live states is 1, all we need is just pick the one.
+    if (live_states.size() == 1) {
+        selector_ = weight.at(live_states.at(0));
         return;
     }
 
