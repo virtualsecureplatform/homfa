@@ -304,8 +304,12 @@ void do_offline(const std::string& spec_filename,
     each_input_bit(input_filename, num_ap,
                    [&](bool b) { input_bits.push_back(b); });
 
-    OfflineBenchRunner runner{spec_filename, input_bits.size(),
-                              bootstrapping_freq, bkey, sanitize_result};
+    std::optional<OfflineBenchRunner> runner_opt;
+    print_elapsed("init", [&] {
+        runner_opt.emplace(spec_filename, input_bits.size(), bootstrapping_freq,
+                           bkey, sanitize_result);
+    });
+    OfflineBenchRunner& runner = runner_opt.value();
 
     print("config-spec_num_states", runner.num_states());
     print("config-input_size", input_bits.size());
@@ -354,8 +358,13 @@ void do_reversed(const std::string& spec_filename,
     print("skey", skey_elapsed.count());
     print("bkey", bkey_elapsed.count());
 
-    OnlineDFA2BenchRunner runner{spec_filename, output_freq, bootstrapping_freq,
-                                 spec_reversed, bkey,        sanitize_result};
+    std::optional<OnlineDFA2BenchRunner> runner_opt;
+    print_elapsed("init", [&] {
+        runner_opt.emplace(spec_filename, output_freq, bootstrapping_freq,
+                           spec_reversed, bkey, sanitize_result);
+    });
+    OnlineDFA2BenchRunner& runner = runner_opt.value();
+
     print("config-spec_num_states", runner.num_states());
 
     size_t input_size = 0;
@@ -391,9 +400,14 @@ void do_qtrlwe2(const std::string& spec_filename,
     print("skey", skey_elapsed.count());
     print("bkey", bkey_elapsed.count());
 
-    OnlineDFA3BenchRunner runner{
-        spec_filename,      output_freq, max_second_lut_depth, queue_size,
-        bootstrapping_freq, bkey,        sanitize_result};
+    std::optional<OnlineDFA3BenchRunner> runner_opt;
+    print_elapsed("init", [&] {
+        runner_opt.emplace(spec_filename, output_freq, max_second_lut_depth,
+                           queue_size, bootstrapping_freq, bkey,
+                           sanitize_result);
+    });
+    OnlineDFA3BenchRunner& runner = runner_opt.value();
+
     print("config-spec_num_states", runner.num_states());
 
     size_t input_size = 0;
@@ -431,8 +445,13 @@ void do_bbs(const std::string& spec_filename, const std::string& input_filename,
     print("bkey", bkey_elapsed.count());
     print("circuit_key", circuit_key_elapsed.count());
 
-    OnlineDFA4BenchRunner runner{spec_filename, output_freq, queue_size,
-                                 bkey,          circuit_key, sanitize_result};
+    std::optional<OnlineDFA4BenchRunner> runner_opt;
+    print_elapsed("init", [&] {
+        runner_opt.emplace(spec_filename, output_freq, queue_size, bkey,
+                           circuit_key, sanitize_result);
+    });
+    OnlineDFA4BenchRunner& runner = runner_opt.value();
+
     print("config-spec_num_states", runner.num_states());
 
     size_t input_size = 0;
