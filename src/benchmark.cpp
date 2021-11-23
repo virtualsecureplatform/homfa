@@ -2,6 +2,7 @@
 #include "error.hpp"
 #include "offline_dfa.hpp"
 #include "online_dfa.hpp"
+#include "timeit.hpp"
 
 #include <chrono>
 #include <iostream>
@@ -18,15 +19,6 @@ std::string current_time_str()
     ss << t->tm_year + 1900 << "-" << t->tm_mon << "-" << t->tm_mday << "_"
        << t->tm_hour << "-" << t->tm_min << "-" << t->tm_sec;
     return ss.str();
-}
-
-template <class Func>
-std::chrono::microseconds timeit(Func f)
-{
-    auto begin = std::chrono::high_resolution_clock::now();
-    f();
-    auto end = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration_cast<std::chrono::microseconds>(end - begin);
 }
 
 template <class T1, class T2>

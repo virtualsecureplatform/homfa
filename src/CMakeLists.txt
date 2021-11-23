@@ -105,6 +105,7 @@ if(HOMFA_BUILD_BENCHMARK)
         offline_dfa.cpp
         online_dfa.cpp
         tfhepp_util.cpp
+        timeit.cpp
     )
     add_sanitizers(benchmark)
     target_compile_options(benchmark PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")
