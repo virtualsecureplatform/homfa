@@ -340,15 +340,17 @@ void do_run_dfa_plain(const std::string &spec_filename,
     assert(ifs);
 
     while (ifs) {
-        int ch = ifs.get();
-        if (ch == EOF)
-            break;
-        uint8_t v = ch;
-        for (size_t i = 0; i < num_ap; i++) {
-            bool b = (v & 1u) != 0;
-            v >>= 1;
-            dfa_state = gr.next_state(dfa_state, b);
-        }
+	for (size_t bytes = 0; bytes < ((num_ap-1)/8)+1; bytes++) {
+            int ch = ifs.get();
+            if (ch == EOF)
+                break;
+            uint8_t v = ch;
+            for (size_t i = bytes*8; i < std::min(num_ap, (bytes+1)*8); i++) {
+                bool b = (v & 1u) != 0;
+                v >>= 1;
+                dfa_state = gr.next_state(dfa_state, b);
+            }
+	}
     }
 
     spdlog::info("Result (bool): {}", gr.is_final_state(dfa_state));
