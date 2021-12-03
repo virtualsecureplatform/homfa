@@ -2,6 +2,7 @@
 #include "error.hpp"
 #include "offline_dfa.hpp"
 #include "online_dfa.hpp"
+#include "utility.hpp"
 
 #include <cassert>
 #include <execution>
@@ -40,33 +41,15 @@ void do_genbkey(const std::string &skey_filename,
 void do_enc(const std::string &skey_filename, const std::string &input_filename,
             const std::string &output_filename, const size_t num_ap)
 {
-    assert(num_ap <= 8);  // FIXME: relax this condition
     auto skey = read_from_archive<SecretKey>(skey_filename);
 
-    std::ifstream ifs{input_filename};
-    assert(ifs);
     std::ofstream ofs{output_filename};
     assert(ofs);
     TRGSWLvl1FFTSerializer ser{ofs};
-    while (ifs) {
-        int ch = ifs.get();
-        if (ch == EOF)
-            break;
-        uint8_t v = ch;
-        for (size_t i = 0; i < num_ap; i++) {
-            bool b = (v & 1u) != 0;
-            ser.save(encrypt_bit_to_TRGSWLvl1FFT(b, skey));
-            v >>= 1;
 
-            /*
-            if (i % 8 == 7) {
-                ch = ifs.get();
-                assert(ch != EOF);
-                v = ch;
-            }
-            */
-        }
-    }
+    each_input_bit(input_filename, num_ap, [&](bool b) {
+        ser.save(encrypt_bit_to_TRGSWLvl1FFT(b, skey));
+    });
 }
 
 void do_run_offline_dfa(const std::string &spec_filename,
@@ -336,20 +319,8 @@ void do_run_dfa_plain(const std::string &spec_filename,
     Graph gr = Graph::from_file(spec_filename);
     auto dfa_state = gr.initial_state();
 
-    std::ifstream ifs{input_filename};
-    assert(ifs);
-
-    while (ifs) {
-        int ch = ifs.get();
-        if (ch == EOF)
-            break;
-        uint8_t v = ch;
-        for (size_t i = 0; i < num_ap; i++) {
-            bool b = (v & 1u) != 0;
-            v >>= 1;
-            dfa_state = gr.next_state(dfa_state, b);
-        }
-    }
+    each_input_bit(input_filename, num_ap,
+                   [&](bool b) { dfa_state = gr.next_state(dfa_state, b); });
 
     spdlog::info("Result (bool): {}", gr.is_final_state(dfa_state));
 }

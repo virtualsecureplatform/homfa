@@ -3,6 +3,7 @@
 #include "offline_dfa.hpp"
 #include "online_dfa.hpp"
 #include "timeit.hpp"
+#include "utility.hpp"
 
 #include <chrono>
 #include <iostream>
@@ -32,25 +33,6 @@ void print_elapsed(Key key, Func func)
 {
     auto elapsed = timeit(func);
     print(key, elapsed.count());
-}
-
-template <class Func>
-void each_input_bit(const std::string& input_filename, size_t num_ap, Func func)
-{
-    std::ifstream ifs{input_filename};
-    assert(ifs);
-
-    while (ifs) {
-        int ch = ifs.get();
-        if (ch == EOF)
-            break;
-        uint8_t v = ch;
-        for (size_t i = 0; i < num_ap; i++) {
-            bool b = (v & 1u) != 0;
-            v >>= 1;
-            func(b);
-        }
-    }
 }
 
 template <class Runner>

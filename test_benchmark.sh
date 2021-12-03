@@ -99,4 +99,7 @@ run_test 2 test/01.spec test/01_rev.spec test/01-03.in
 run_test 2 test/01.spec test/01_rev.spec test/01-04.in
 run_test 2 test/01.spec test/01_rev.spec test/01-05.in
 run_test 2 test/01.spec test/01_rev.spec test/01-06.in
+run_test 9 test/10.spec test/10_rev.spec test/10-01.in
+run_test 9 test/10.spec test/10_rev.spec test/10-02.in
+run_test 9 test/10.spec test/10_rev.spec test/10-03.in
 
