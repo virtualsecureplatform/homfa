@@ -7,7 +7,7 @@
 class BackstreamDFARunner {
 private:
     Graph graph_;
-    std::vector<RedundantTRLWELvl1> weight_;
+    std::vector<TRLWELvl1> weight_;
     std::shared_ptr<GateKey> gate_key_;
     std::optional<size_t> input_size_;
     const size_t boot_interval_;
@@ -16,7 +16,7 @@ private:
     bool sanitize_result_;
 
     // Workspace for eval
-    std::vector<RedundantTRLWELvl1> workspace_;
+    std::vector<TRLWELvl1> workspace_;
 
 public:
     BackstreamDFARunner(Graph graph, size_t boot_interval,
@@ -33,7 +33,6 @@ public:
     void eval(const TRGSWLvl1FFT &input);
 
 private:
-    const TRLWELvl1 &remove_redundancy(const RedundantTRLWELvl1 &src);
     void bootstrap_weight(const std::vector<Graph::State> &targets);
 };
 

@@ -114,15 +114,6 @@ public:
     TRGSWLvl1FFT next() override;
 };
 
-struct RedundantTRLWELvl1 {
-    enum {
-        TRIVIAL_0,
-        TRIVIAL_1,
-        NON_TRIVIAL,
-    } s;
-    TRLWELvl1 c;
-};
-
 // Bootstrapping key in the broad sense
 struct BKey {
     std::shared_ptr<GateKey> gkey;
