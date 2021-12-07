@@ -56,14 +56,16 @@ void BackstreamDFARunner::eval(const TRGSWLvl1FFT &input)
         states.emplace(graph_.all_states());
     }
 
-    std::for_each(std::execution::par, states->begin(), states->end(),
-                  [&](Graph::State q) {
-                      Graph::State q0 = graph_.next_state(q, false),
-                                   q1 = graph_.next_state(q, true);
-                      const TRLWELvl1 &w0 = weight_.at(q0),
-                                      &w1 = weight_.at(q1);
-                      TFHEpp::CMUXFFT<Lvl1>(out.at(q), input, w1, w0);
-                  });
+    timer_.timeit(TimeRecorder::TARGET::CMUX, states->size(), [&] {
+        std::for_each(std::execution::par, states->begin(), states->end(),
+                      [&](Graph::State q) {
+                          Graph::State q0 = graph_.next_state(q, false),
+                                       q1 = graph_.next_state(q, true);
+                          const TRLWELvl1 &w0 = weight_.at(q0),
+                                          &w1 = weight_.at(q1);
+                          TFHEpp::CMUXFFT<Lvl1>(out.at(q), input, w1, w0);
+                      });
+    });
     {
         using std::swap;
         swap(out, weight_);
@@ -80,9 +82,11 @@ void BackstreamDFARunner::bootstrap_weight(
     const std::vector<Graph::State> &targets)
 {
     assert(gate_key_);
-    std::for_each(std::execution::par, targets.begin(), targets.end(),
-                  [&](Graph::State q) {
-                      TRLWELvl1 &w = weight_.at(q);
-                      do_SEI_IKS_GBTLWE2TRLWE_2(w, *gate_key_);
-                  });
+    timer_.timeit(TimeRecorder::TARGET::BOOTSTRAPPING, targets.size(), [&] {
+        std::for_each(std::execution::par, targets.begin(), targets.end(),
+                      [&](Graph::State q) {
+                          TRLWELvl1 &w = weight_.at(q);
+                          do_SEI_IKS_GBTLWE2TRLWE_2(w, *gate_key_);
+                      });
+    });
 }

@@ -39,6 +39,11 @@ public:
         return runner_.graph();
     }
 
+    const TimeRecorder &timer() const
+    {
+        return runner_.timer();
+    }
+
     TLWELvl1 result() const;
     void eval_one(const TRGSWLvl1FFT &input);
 };

@@ -115,6 +115,11 @@ public:
     {
     }
 
+    const OnlineDFARunner2& runner() const
+    {
+        return runner_;
+    }
+
     size_t num_states() const
     {
         return runner_.graph().size();
@@ -351,6 +356,7 @@ void do_reversed(const std::string& spec_filename,
     print("config-input_size", input_size);
 
     enc_run_dec_loop(skey, input_filename, num_ap, runner);
+    runner.runner().timer().dumpCSV(std::cout);
 }
 
 void do_qtrlwe2(const std::string& spec_filename,

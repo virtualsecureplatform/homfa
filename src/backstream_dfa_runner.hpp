@@ -3,6 +3,7 @@
 
 #include "graph.hpp"
 #include "tfhepp_util.hpp"
+#include "timeit.hpp"
 
 class BackstreamDFARunner {
 private:
@@ -18,6 +19,8 @@ private:
     // Workspace for eval
     std::vector<TRLWELvl1> workspace_;
 
+    TimeRecorder timer_;
+
 public:
     BackstreamDFARunner(Graph graph, size_t boot_interval,
                         std::optional<size_t> input_size,
@@ -27,6 +30,11 @@ public:
     const Graph &graph() const
     {
         return graph_;
+    }
+
+    const TimeRecorder &timer() const
+    {
+        return timer_;
     }
 
     TLWELvl1 result() const;
