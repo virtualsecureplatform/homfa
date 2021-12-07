@@ -13,6 +13,7 @@ if(HOMFA_BUILD_HOMFA)
         offline_dfa.cpp
         online_dfa.cpp
         tfhepp_util.cpp
+        timeit.cpp
     )
     add_sanitizers(homfa)
     target_compile_options(homfa PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")
@@ -36,6 +37,7 @@ if(HOMFA_BUILD_TEST0)
         offline_dfa.cpp
         online_dfa.cpp
         tfhepp_util.cpp
+        timeit.cpp
     )
     add_sanitizers(test0)
     target_compile_options(test0 PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")
@@ -59,6 +61,7 @@ if(HOMFA_BUILD_TEST_PLAIN_RANDOM)
         offline_dfa.cpp
         online_dfa.cpp
         tfhepp_util.cpp
+        timeit.cpp
     )
     add_sanitizers(test_plain_random)
     target_compile_options(test_plain_random PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")
@@ -82,6 +85,7 @@ if(HOMFA_BUILD_TEST_CRYPTO_RANDOM)
         offline_dfa.cpp
         online_dfa.cpp
         tfhepp_util.cpp
+        timeit.cpp
     )
     add_sanitizers(test_crypto_random)
     target_compile_options(test_crypto_random PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")

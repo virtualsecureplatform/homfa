@@ -4,6 +4,7 @@
 #include "backstream_dfa_runner.hpp"
 #include "graph.hpp"
 #include "tfhepp_util.hpp"
+#include "timeit.hpp"
 
 class OnlineDFARunner {
 private:
@@ -112,6 +113,9 @@ private:
 
     std::vector<TRLWELvl1> workspace1_, workspace2_;
     std::vector<TRGSWLvl1FFT> workspace3_;
+    std::vector<TLWELvl0> workspace4_;
+
+    TimeRecorder timer_;
 
 public:
     OnlineDFARunner4(Graph graph, size_t queue_size, const GateKey &gate_key,
@@ -130,6 +134,11 @@ public:
     size_t num_live_states() const
     {
         return live_states_.size();
+    }
+
+    const TimeRecorder &timer() const
+    {
+        return timer_;
     }
 
     TLWELvl1 result();

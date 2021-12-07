@@ -1,5 +1,6 @@
 #include "online_dfa.hpp"
 #include "error.hpp"
+#include "timeit.hpp"
 
 #include <execution>
 
@@ -211,6 +212,35 @@ void lookup_table(std::vector<TRLWELvl1> &table,
     }
 }
 
+void lookup_table_with_timer(
+    std::vector<TRLWELvl1> &table,
+    std::vector<TRGSWLvl1FFT>::const_iterator input_begin,
+    std::vector<TRGSWLvl1FFT>::const_iterator input_end,
+    std::vector<TRLWELvl1> &workspace, TimeRecorder &timer)
+{
+    const size_t input_size = std::distance(input_begin, input_end);
+    assert(table.size() == (1 << input_size));  // FIXME: relax this condition
+    if (input_size == 0)
+        return;
+
+    std::vector<TRLWELvl1> &tmp = workspace;
+    tmp.clear();
+    tmp.resize(1 << (input_size - 1));
+
+    size_t i = 0;
+    for (auto it = input_begin; it != input_end; ++it, ++i) {
+        timer.timeit(
+            TimeRecorder::TARGET::CMUX, 1 << (input_size - i - 1), [&] {
+                tbb::parallel_for(0, 1 << (input_size - i - 1), [&](size_t j) {
+                    TFHEpp::CMUXFFT<Lvl1>(tmp.at(j), *it, table.at(j * 2 + 1),
+                                          table.at(j * 2));
+                });
+            });
+        using std::swap;
+        swap(tmp, table);
+    }
+}
+
 void OnlineDFARunner3::eval_queued_inputs()
 {
     const size_t input_size = queued_inputs_.size();
@@ -354,7 +384,8 @@ OnlineDFARunner4::OnlineDFARunner4(Graph graph, size_t queue_size,
       queued_inputs_(),
       selector_(std::nullopt),
       live_states_({graph_.initial_state()}),
-      sanitize_result_(sanitize_result)
+      sanitize_result_(sanitize_result),
+      timer_()
 {
     if (sanitize_result_)
         error::die("Sanitization of results is not implemented");
@@ -449,14 +480,17 @@ void OnlineDFARunner4::eval_queued_inputs()
     // Propagate weight from back to front
     for (int i = input_size - 1; i >= 0; i--) {
         const auto &states = live_states_at_depth.at(i);
-        std::for_each(std::execution::par, states.begin(), states.end(),
-                      [&](Graph::State q) {
-                          Graph::State q0 = graph_.next_state(q, false),
-                                       q1 = graph_.next_state(q, true);
-                          const auto &w0 = weight.at(q0), &w1 = weight.at(q1);
-                          TFHEpp::CMUXFFT<Lvl1>(out.at(q), queued_inputs_.at(i),
-                                                w1, w0);
-                      });
+        timer_.timeit(TimeRecorder::TARGET::CMUX, states.size(), [&] {
+            std::for_each(std::execution::par, states.begin(), states.end(),
+                          [&](Graph::State q) {
+                              Graph::State q0 = graph_.next_state(q, false),
+                                           q1 = graph_.next_state(q, true);
+                              const auto &w0 = weight.at(q0),
+                                         &w1 = weight.at(q1);
+                              TFHEpp::CMUXFFT<Lvl1>(
+                                  out.at(q), queued_inputs_.at(i), w1, w0);
+                          });
+        });
         {
             using std::swap;
             swap(out, weight);
@@ -479,13 +513,18 @@ void OnlineDFARunner4::eval_queued_inputs()
     cond.clear();
     cond.resize(width);
     const TRLWELvl1 &sel = *selector_;
+    workspace4_.resize(width);
     tbb::parallel_for(0ul, width, [&](size_t i) {
         TLWELvl1 tlwel1;
         TFHEpp::SampleExtractIndex<Lvl1>(tlwel1, sel, i + 1);
-        TLWELvl0 tlwel0;
-        TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwel0, tlwel1,
+        TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(workspace4_.at(i), tlwel1,
                                                       gate_key_.ksk);
-        CircuitBootstrappingFFTLvl01(cond.at(i), tlwel0, circuit_key_);
+    });
+    timer_.timeit(TimeRecorder::TARGET::CIRCUIT_BOOTSTRAPPING, width, [&] {
+        tbb::parallel_for(0ul, width, [&](size_t i) {
+            CircuitBootstrappingFFTLvl01(cond.at(i), workspace4_.at(i),
+                                         circuit_key_);
+        });
     });
     // Then choose the correct weight specified by the selector
     for (size_t i = 0; i < live_states.size(); i++)
@@ -496,6 +535,6 @@ void OnlineDFARunner4::eval_queued_inputs()
     }
     weight.resize(1 << width);
     out.resize(1 << width);
-    lookup_table(weight, cond.begin(), cond.end(), out);
+    lookup_table_with_timer(weight, cond.begin(), cond.end(), out, timer_);
     selector_ = weight.at(0);
 }

@@ -37,7 +37,7 @@ void print_elapsed(Key key, Func func)
 
 template <class Runner>
 void enc_run_dec_loop(const SecretKey& skey, const std::string& input_filename,
-                      size_t num_ap, Runner runner)
+                      size_t num_ap, Runner&& runner)
 {
     each_input_bit(input_filename, num_ap, [&](bool input) {
         // Encrypt
@@ -197,6 +197,11 @@ public:
           queue_size_(queue_size),
           num_processed_(0)
     {
+    }
+
+    const OnlineDFARunner4& runner() const
+    {
+        return runner_;
     }
 
     size_t num_states() const
@@ -433,6 +438,7 @@ void do_bbs(const std::string& spec_filename, const std::string& input_filename,
     print("config-input_size", input_size);
 
     enc_run_dec_loop(skey, input_filename, num_ap, runner);
+    runner.runner().timer().dumpCSV(std::cout);
 }
 
 int main(int argc, char** argv)
