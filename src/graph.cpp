@@ -199,6 +199,49 @@ Graph Graph::from_file(const std::string &filename)
     return Graph::from_istream(ifs);
 }
 
+Graph Graph::from_att_istream(std::istream &is)
+{
+    assert(is);
+
+    std::set<State> init_sts = {0}, final_sts = {};
+    NFADelta delta;
+
+    std::regex re1(R"(^([0-9]+)\t([0-9]+)\t(0|1)$)"), re2(R"(^([0-9]+)$)");
+    std::smatch match;
+    std::string line;
+    while (std::getline(is, line)) {
+        if (std::regex_match(line, match, re1)) {  // Format: "from to ch"
+            int from = std::stoi(match[1].str()),
+                to = std::stoi(match[2].str()), ch = std::stoi(match[3].str());
+            while (delta.size() <= from)
+                delta.push_back({delta.size(), {}, {}});
+            if (ch == 0)
+                std::get<1>(delta.at(from)).push_back(to);
+            else if (ch == 1)
+                std::get<2>(delta.at(from)).push_back(to);
+            else
+                error::die("Invalid letter: {}", ch);
+        }
+        else if (std::regex_match(line, match, re2)) {  // Format: st
+            int st = std::stoi(match[1].str());
+            final_sts.insert(st);
+        }
+        else {
+            error::die("Invalid line: {}", line);
+        }
+    }
+
+    return Graph::from_nfa(init_sts, final_sts, delta);
+}
+
+Graph Graph::from_att_file(const std::string &filename)
+{
+    std::ifstream ifs{filename};
+    if (!ifs)
+        error::die("Invalid filename: {}", filename);
+    return Graph::from_att_istream(ifs);
+}
+
 // Input  NFA Mn: (Qn, {0, 1}, dn, q0n, Fn)
 // Output DFA Md: (Qd, {0, 1}, df, q0f, Ff)
 Graph Graph::from_nfa(const std::set<State> &q0n, const std::set<State> &Fn,
@@ -541,6 +584,16 @@ void Graph::dump_dot(std::ostream &os) const
         }
     }
     os << "}\n";
+}
+
+void Graph::dump_att(std::ostream &os) const
+{
+    for (Graph::State q : all_states()) {
+        os << q << "\t" << next_state(q, false) << "\t0\n"
+           << q << "\t" << next_state(q, true) << "\t1\n";
+        if (is_final_state(q))
+            os << q << "\n";
+    }
 }
 
 spot::twa_graph_ptr ltl_to_monitor(const std::string &formula, size_t var_size,

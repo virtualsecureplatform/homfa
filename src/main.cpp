@@ -313,6 +313,24 @@ void do_spec2dot(const std::optional<std::string> &spec_filename_opt)
         Graph::from_file(spec_filename).dump_dot(std::cout);
 }
 
+void do_att2spec(const std::optional<std::string> &att_filename_opt)
+{
+    std::string att_filename = att_filename_opt.value_or("-");
+    if (att_filename == "-")
+        Graph::from_att_istream(std::cin).dump(std::cout);
+    else
+        Graph::from_att_file(att_filename).dump(std::cout);
+}
+
+void do_spec2att(const std::optional<std::string> &spec_filename_opt)
+{
+    std::string spec_filename = spec_filename_opt.value_or("-");
+    if (spec_filename == "-")
+        Graph::from_istream(std::cin).dump_att(std::cout);
+    else
+        Graph::from_file(spec_filename).dump_att(std::cout);
+}
+
 void do_run_dfa_plain(const std::string &spec_filename,
                       const std::string &input_filename, size_t num_ap)
 {
@@ -340,6 +358,8 @@ int main(int argc, char **argv)
         LTL2SPEC,
         SPEC2SPEC,
         SPEC2DOT,
+        ATT2SPEC,
+        SPEC2ATT,
         RUN_DFA_PLAIN,
     } type;
 
@@ -442,6 +462,18 @@ int main(int argc, char **argv)
         spec2dot->add_option("SPEC-FILE", spec);
     }
     {
+        CLI::App *spec2att = app.add_subcommand(
+            "spec2att", "Convert spec format for HomFA to AT&T format");
+        spec2att->parse_complete_callback([&] { type = TYPE::SPEC2ATT; });
+        spec2att->add_option("SPEC-FILE", spec);
+    }
+    {
+        CLI::App *att2spec = app.add_subcommand(
+            "att2spec", "Convert AT&T format to spec format for HomFA");
+        att2spec->parse_complete_callback([&] { type = TYPE::ATT2SPEC; });
+        att2spec->add_option("ATT-SPEC-FILE", spec);
+    }
+    {
         CLI::App *run_plain =
             app.add_subcommand("run-dfa-plain", "Run DFA on plain text");
         run_plain->parse_complete_callback([&] { type = TYPE::RUN_DFA_PLAIN; });
@@ -532,6 +564,14 @@ int main(int argc, char **argv)
 
     case TYPE::SPEC2DOT:
         do_spec2dot(spec);
+        break;
+
+    case TYPE::SPEC2ATT:
+        do_spec2att(spec);
+        break;
+
+    case TYPE::ATT2SPEC:
+        do_att2spec(spec);
         break;
 
     case TYPE::RUN_DFA_PLAIN:

@@ -31,6 +31,8 @@ public:
 
     static Graph from_istream(std::istream& is);
     static Graph from_file(const std::string& filename);
+    static Graph from_att_istream(std::istream& is);
+    static Graph from_att_file(const std::string& filename);
     static Graph from_nfa(const std::set<State>& init_sts,
                           const std::set<State>& final_sts,
                           const NFADelta& delta);
@@ -56,6 +58,7 @@ public:
     Graph negated() const;
     void dump(std::ostream& os) const;
     void dump_dot(std::ostream& os) const;
+    void dump_att(std::ostream& os) const;
 
 private:
     static std::tuple<std::set<State>, std::set<State>, NFADelta>

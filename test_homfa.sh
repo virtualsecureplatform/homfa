@@ -59,13 +59,21 @@ check_false(){
     [ $? -eq 0 ] || failwith "Expected false, got true >>> enc_run_dec \"$1\" \"$2\" \"$3\" \"$4\"\\$res"
 }
 
+### Now start testing
+$TEST0
+#cat test/safety_ltl_5ap.txt | $TEST_PLAIN_RANDOM 5 _test_random.log
+
+#### spec <-> AT&T
+#### FIXME: more tests
+res=$(cat test/01.spec | $HOMFA spec2att | $HOMFA att2spec | wc -l)
+if [ $res -ne 9 ]; then
+    failwith "spec2att or att2spec failed"
+fi
+
 ### Prepare secret key and bootstrapping key
 [ -f _test_sk ] || $HOMFA genkey --out _test_sk
 [ -f _test_bk ] || $HOMFA genbkey --key _test_sk --out _test_bk
 
-### Now start testing
-$TEST0
-#cat test/safety_ltl_5ap.txt | $TEST_PLAIN_RANDOM 5 _test_random.log
 #### Plain DFA
 check_true  dfa-plain 2 test/01.spec test/01-01.in # [1, 1] * 8 * 100
 check_false dfa-plain 2 test/01.spec test/01-02.in # [1, 0] * 8 * 100
