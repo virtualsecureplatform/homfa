@@ -17,7 +17,8 @@ input=(
 )
 
 TIME="multitime -n5"
-HOMFA=build_rel/bin/homfa
+BUILD_BIN=${BUILD_BIN:-"build/bin"}
+HOMFA=${BUILD_BIN}/homfa
 
 output_file=$(date +'homfa-bench-%Y%m%d%H%M%S.log')
 
