@@ -1,4 +1,3 @@
-#include "archive.hpp"
 #include "error.hpp"
 #include "offline_dfa.hpp"
 #include "online_dfa.hpp"
@@ -127,51 +126,6 @@ public:
 
     bool run(const TRGSWLvl1FFT& input)
     {
-        runner_.eval_one(input);
-        num_processed_++;
-        if (num_processed_ % output_freq_ != 0)
-            return false;
-        result_ = runner_.result();
-        return true;
-    }
-
-    TLWELvl1 result() const
-    {
-        return result_;
-    }
-};
-
-class OnlineDFA3BenchRunner {
-private:
-    OnlineDFARunner3 runner_;
-    size_t output_freq_, queue_size_, bootstrapping_freq_, num_processed_;
-    TLWELvl1 result_;
-
-public:
-    OnlineDFA3BenchRunner(const std::string& spec_filename, size_t output_freq,
-                          size_t max_second_lut_depth, size_t queue_size,
-                          size_t bootstrapping_freq, const BKey& bkey,
-                          bool sanitize_result)
-        : runner_(Graph::from_file(spec_filename), max_second_lut_depth,
-                  queue_size, bootstrapping_freq, *bkey.gkey,
-                  *bkey.tlwel1_trlwel1_ikskey, std::nullopt, sanitize_result),
-          output_freq_(output_freq),
-          queue_size_(queue_size),
-          bootstrapping_freq_(bootstrapping_freq),
-          num_processed_(0)
-    {
-    }
-
-    size_t num_states() const
-    {
-        return runner_.graph().size();
-    }
-
-    bool run(const TRGSWLvl1FFT& input)
-    {
-        print("num_live_states", runner_.num_live_states());
-        print("first_lut_depth", runner_.first_lut_depth());
-        print("second_lut_depth", runner_.second_lut_depth());
         runner_.eval_one(input);
         num_processed_++;
         if (num_processed_ % output_freq_ != 0)
@@ -359,49 +313,6 @@ void do_reversed(const std::string& spec_filename,
     runner.runner().timer().dumpCSV(std::cout);
 }
 
-void do_qtrlwe2(const std::string& spec_filename,
-                const std::string& input_filename, size_t output_freq,
-                size_t max_second_lut_depth, size_t queue_size,
-                size_t bootstrapping_freq, size_t num_ap, bool sanitize_result)
-{
-    print("config-method", "qtrlwe2");
-    print("config-spec", spec_filename);
-    print("config-input", input_filename);
-    print("config-output_freq", output_freq);
-    print("config-max_second_lut_depth", max_second_lut_depth);
-    print("config-queue_size", queue_size);
-    print("config-bootstrapping_freq", bootstrapping_freq);
-    print("config-num_ap", num_ap);
-    print("config-sanitize_result", sanitize_result);
-
-    std::optional<SecretKey> skey_opt;
-    std::optional<BKey> bkey_opt;
-
-    auto skey_elapsed = timeit([&] { skey_opt.emplace(); });
-    const SecretKey& skey = skey_opt.value();
-    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey); });
-    const BKey& bkey = bkey_opt.value();
-
-    print("skey", skey_elapsed.count());
-    print("bkey", bkey_elapsed.count());
-
-    std::optional<OnlineDFA3BenchRunner> runner_opt;
-    print_elapsed("init", [&] {
-        runner_opt.emplace(spec_filename, output_freq, max_second_lut_depth,
-                           queue_size, bootstrapping_freq, bkey,
-                           sanitize_result);
-    });
-    OnlineDFA3BenchRunner& runner = runner_opt.value();
-
-    print("config-spec_num_states", runner.num_states());
-
-    size_t input_size = 0;
-    each_input_bit(input_filename, num_ap, [&](bool) { input_size++; });
-    print("config-input_size", input_size);
-
-    enc_run_dec_loop(skey, input_filename, num_ap, runner);
-}
-
 void do_bbs(const std::string& spec_filename, const std::string& input_filename,
             size_t output_freq, size_t queue_size, size_t num_ap,
             bool sanitize_result)
@@ -456,7 +367,6 @@ int main(int argc, char** argv)
         PLAIN,
         OFFLINE,
         REVERSED,
-        QTRLWE2,
         BBS,
     } type;
     std::string spec_filename, input_filename;
@@ -499,7 +409,7 @@ int main(int argc, char** argv)
         offline->add_flag("--sanitize-result", sanitize_result);
     }
     {
-        CLI::App* rev = app.add_subcommand("reversed", "Run online-reversed");
+        CLI::App* rev = app.add_subcommand("reversed", "Run ReversedStream");
         rev->parse_complete_callback([&] { type = TYPE::REVERSED; });
         rev->add_option("--ap", num_ap)->required()->check(CLI::PositiveNumber);
         rev->add_option("--out-freq", output_freq)
@@ -518,34 +428,7 @@ int main(int argc, char** argv)
         rev->add_flag("--sanitize-result", sanitize_result);
     }
     {
-        CLI::App* qtrlwe2 = app.add_subcommand("qtrlwe2", "Run online-qtrlwe2");
-        qtrlwe2->parse_complete_callback([&] { type = TYPE::QTRLWE2; });
-        qtrlwe2->add_option("--ap", num_ap)
-            ->required()
-            ->check(CLI::PositiveNumber);
-        qtrlwe2->add_option("--out-freq", output_freq)
-            ->required()
-            ->check(CLI::PositiveNumber);
-        qtrlwe2->add_option("--queue-size", queue_size)
-            ->required()
-            ->check(CLI::PositiveNumber);
-        qtrlwe2->add_option("--bootstrapping-freq", bootstrapping_freq)
-            ->required()
-            ->check(CLI::PositiveNumber);
-        qtrlwe2->add_option("--spec", spec_filename)
-            ->required()
-            ->check(CLI::ExistingFile);
-        qtrlwe2->add_option("--in", input_filename)
-            ->required()
-            ->check(CLI::ExistingFile);
-        qtrlwe2->add_option("--max-second-lut-depth", max_second_lut_depth)
-            ->required()
-            ->check(CLI::PositiveNumber);
-        qtrlwe2->add_flag("--sanitize-result", sanitize_result);
-    }
-    {
-        CLI::App* bbs =
-            app.add_subcommand("bbs", "Run online-block-backstream");
+        CLI::App* bbs = app.add_subcommand("bbs", "Run BlockStream");
         bbs->parse_complete_callback([&] { type = TYPE::BBS; });
         bbs->add_option("--ap", num_ap)->required()->check(CLI::PositiveNumber);
         bbs->add_option("--out-freq", output_freq)
@@ -583,12 +466,6 @@ int main(int argc, char** argv)
     case TYPE::REVERSED:
         do_reversed(spec_filename, input_filename, output_freq,
                     bootstrapping_freq, num_ap, spec_reversed, sanitize_result);
-        break;
-
-    case TYPE::QTRLWE2:
-        do_qtrlwe2(spec_filename, input_filename, output_freq,
-                   max_second_lut_depth, queue_size, bootstrapping_freq, num_ap,
-                   sanitize_result);
         break;
 
     case TYPE::BBS:
