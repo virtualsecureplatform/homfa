@@ -195,9 +195,9 @@ private:
 public:
     OnlineDFA4BenchRunner(const std::string& spec_filename, size_t output_freq,
                           size_t queue_size, const BKey& bkey,
-                          const CircuitKey& circuit_key, bool sanitize_result)
+                          bool sanitize_result)
         : runner_(Graph::from_file(spec_filename), queue_size, *bkey.gkey,
-                  circuit_key, sanitize_result),
+                  *bkey.circuit_key, sanitize_result),
           output_freq_(output_freq),
           queue_size_(queue_size),
           num_processed_(0)
@@ -416,24 +416,19 @@ void do_bbs(const std::string& spec_filename, const std::string& input_filename,
 
     std::optional<SecretKey> skey_opt;
     std::optional<BKey> bkey_opt;
-    std::unique_ptr<CircuitKey> circuit_key_ptr;
 
     auto skey_elapsed = timeit([&] { skey_opt.emplace(); });
     const SecretKey& skey = skey_opt.value();
     auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey); });
     const BKey& bkey = bkey_opt.value();
-    auto circuit_key_elapsed =
-        timeit([&] { circuit_key_ptr = std::make_unique<CircuitKey>(skey); });
-    const CircuitKey& circuit_key = *circuit_key_ptr;
 
     print("skey", skey_elapsed.count());
     print("bkey", bkey_elapsed.count());
-    print("circuit_key", circuit_key_elapsed.count());
 
     std::optional<OnlineDFA4BenchRunner> runner_opt;
     print_elapsed("init", [&] {
         runner_opt.emplace(spec_filename, output_freq, queue_size, bkey,
-                           circuit_key, sanitize_result);
+                           sanitize_result);
     });
     OnlineDFA4BenchRunner& runner = runner_opt.value();
 
