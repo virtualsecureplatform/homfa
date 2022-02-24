@@ -60,3 +60,8 @@ $ make -j30
 $ ../
 $ ./bench.sh
 ```
+
+## Enable profiling
+
+Pprof によるプロファイリングをサポートする。
+`cmake`を打つときに`-DHOMFA_ENABLE_PROFILE=On`をつけてビルドする。その後`HEAPPROFILE=filename`と`CPUPROFILE=filename`環境変数を使うことでプロファイルが取れる。
