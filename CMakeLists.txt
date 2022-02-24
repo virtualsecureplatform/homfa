@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
+option(HOMFA_ENABLE_PROFILE "Enable profiling with pprof" OFF)
+
 set(CMAKE_MODULE_PATH
     ${CMAKE_SOURCE_DIR}
     "${CMAKE_SOURCE_DIR}/thirdparty/sanitizers-cmake/cmake"
@@ -35,7 +37,11 @@ set(HOMFA_INCLUDE_DIRS
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/spdlog/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ThreadPool>
 )
-set(HOMFA_LIBS tfhe++ Threads::Threads OpenMP::OpenMP_CXX Backward::Backward tbb libspot.a libbddx.a)
+if(HOMFA_ENABLE_PROFILE)
+    set(HOMFA_LIBS tfhe++ Threads::Threads OpenMP::OpenMP_CXX Backward::Backward tbb libspot.a libbddx.a profiler tcmalloc)
+else()
+    set(HOMFA_LIBS tfhe++ Threads::Threads OpenMP::OpenMP_CXX Backward::Backward tbb libspot.a libbddx.a)
+endif()
 set(HOMFA_COMPILE_DEFINITIONS )
 
 set(CMAKE_C_FLAGS "")
