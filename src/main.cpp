@@ -70,7 +70,6 @@ void do_run_offline_dfa(const std::string &spec_filename,
     spdlog::info("\tMode:\t{}", "Offline FA Runner");
     spdlog::info("\tInput size:\t{}", input_stream.size());
     spdlog::info("\tState size:\t{}", runner.graph().size());
-    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     spdlog::info("\tBootstrapping frequency:\t{}", bootstrapping_freq);
     {
         size_t total_cnt_cmux = 0;
@@ -102,7 +101,6 @@ void do_run_online_dfa(const std::string &spec_filename,
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner1 (qtrlwe)");
     spdlog::info("\tState size:\t{}", gr.size());
-    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     // spdlog::info("\tBootstrap interval:\t{}", bootstrap_interval_);
     spdlog::info("\tSanitization:\t{}", sanitize_result);
     spdlog::info("");
@@ -136,7 +134,6 @@ void do_run_online_dfa2(const std::string &spec_filename,
     spdlog::info("\tMode:\t{}", "Online FA Runner2 (reversed)");
     spdlog::info("\tInput size:\t{} (hidden)", input_stream.size());
     spdlog::info("\tState size:\t{}", runner.graph().size());
-    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     if (output_filename)
         spdlog::info("\tOutput file name:\t{}", *output_filename);
     if (output_dirname) {
@@ -201,7 +198,6 @@ void do_run_online_dfa3(const std::string &spec_filename,
     spdlog::info("\tMode:\t{}", "Online FA Runner3 (qtrlwe2)");
     spdlog::info("\tInput size:\t{} (hidden)", input_stream.size());
     spdlog::info("\tState size:\t{}", gr.size());
-    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     spdlog::info("\tQueue size:\t{}", runner.queue_size());
     if (output_filename)
         spdlog::info("\tOutput file name:\t{}", *output_filename);
@@ -259,7 +255,6 @@ void do_run_online_dfa4(const std::string &spec_filename,
     spdlog::info("\tMode:\t{}", "Online FA Runner4 (block-backstream)");
     spdlog::info("\tInput size:\t{} (hidden)", input_stream.size());
     spdlog::info("\tState size:\t{}", gr.size());
-    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
     spdlog::info("\tQueue size:\t{}", runner.queue_size());
     spdlog::info("\tSanitization:\t{}", sanitize_result);
     spdlog::info("");
@@ -343,8 +338,51 @@ void do_run_dfa_plain(const std::string &spec_filename,
     spdlog::info("Result (bool): {}", gr.is_final_state(dfa_state));
 }
 
+namespace {
+void dumpBasicInfo(int argc, char **argv)
+{
+    // Show build config
+    spdlog::info("Built with:");
+#if defined(HOMFA_BUILD_DEBUG)
+    spdlog::info("\tType: debug");
+#else
+    spdlog::info("\tType: release");
+#endif
+#if defined(HOMFA_GIT_REVISION)
+    spdlog::info("\tGit revision: " HOMFA_GIT_REVISION);
+#else
+    spdlog::info("\tGit revision: unknown");
+#endif
+#if defined(HOMFA_ENABLE_PROFILE)
+    spdlog::info("\tProfiling: enabled");
+#else
+    spdlog::info("\tProfiling: disabled");
+#endif
+
+    // Show execution setting
+    spdlog::info("Executed with:");
+    {
+        std::stringstream ss;
+        for (int i = 0; i < argc; i++)
+            ss << argv[i] << " ";
+        spdlog::info("\tArgs: {}", ss.str());
+    }
+    {
+        std::stringstream ss;
+        if (char *envvar = std::getenv("CPUPROFILE"); envvar != nullptr)
+            ss << "CPUPROFILE=" << envvar << " ";
+        if (char *envvar = std::getenv("HEAPPROFILE"); envvar != nullptr)
+            ss << "HEAPPROFILE=" << envvar << " ";
+        spdlog::info("\tEnv var: {}", ss.str());
+    }
+    spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+}
+}  // namespace
+
 int main(int argc, char **argv)
 {
+    dumpBasicInfo(argc, argv);
+
     CLI::App app{"Homomorphic Final Answer"};
     app.require_subcommand();
 
