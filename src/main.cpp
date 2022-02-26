@@ -348,6 +348,17 @@ void do_run_dfa_plain(const std::string &spec_filename,
 namespace {
 void dumpBasicInfo(int argc, char **argv)
 {
+    spdlog::info(R"(===================================)");
+
+    // Logo: thanks to:
+    // https://patorjk.com/software/taag/#p=display&f=Standard&t=HomFA
+    spdlog::info(R"(  _   _                 _____ _    )");
+    spdlog::info(R"( | | | | ___  _ __ ___ |  ___/ \   )");
+    spdlog::info(R"( | |_| |/ _ \| '_ ` _ \| |_ / _ \  )");
+    spdlog::info(R"( |  _  | (_) | | | | | |  _/ ___ \ )");
+    spdlog::info(R"( |_| |_|\___/|_| |_| |_|_|/_/   \_\)");
+    spdlog::info(R"(                                   )");
+
     // Show build config
     spdlog::info("Built with:");
 #if defined(HOMFA_BUILD_DEBUG)
@@ -383,6 +394,8 @@ void dumpBasicInfo(int argc, char **argv)
         spdlog::info("\tEnv var: {}", ss.str());
     }
     spdlog::info("\tConcurrency:\t{}", std::thread::hardware_concurrency());
+
+    spdlog::info(R"(===================================)");
 }
 }  // namespace
 
