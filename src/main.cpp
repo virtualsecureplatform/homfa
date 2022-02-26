@@ -381,6 +381,7 @@ void dumpBasicInfo(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+    error::initialize("homfa");
     dumpBasicInfo(argc, argv);
 
     CLI::App app{"Homomorphic Final Answer"};
