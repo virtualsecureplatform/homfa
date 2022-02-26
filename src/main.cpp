@@ -247,11 +247,11 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
     });
 }
 
-void do_run_offline_dfa(const std::string &spec_filename,
-                        const std::string &input_filename,
-                        const std::string &output_filename,
-                        size_t bootstrapping_freq,
-                        const std::string &bkey_filename, bool sanitize_result)
+void do_run_offline(const std::string &spec_filename,
+                    const std::string &input_filename,
+                    const std::string &output_filename,
+                    size_t bootstrapping_freq, const std::string &bkey_filename,
+                    bool sanitize_result)
 {
     ReversedTRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
 
@@ -308,13 +308,13 @@ void do_run_online_dfa(const std::string &spec_filename,
 }
 */
 
-void do_run_online_dfa2(const std::string &spec_filename,
-                        const std::string &input_filename,
-                        const std::optional<std::string> &output_filename,
-                        const std::optional<std::string> &output_dirname,
-                        size_t output_freq, size_t bootstrapping_freq,
-                        bool is_spec_reversed, const std::string &bkey_filename,
-                        bool sanitize_result)
+void do_run_reverse(const std::string &spec_filename,
+                    const std::string &input_filename,
+                    const std::optional<std::string> &output_filename,
+                    const std::optional<std::string> &output_dirname,
+                    size_t output_freq, size_t bootstrapping_freq,
+                    bool is_spec_reversed, const std::string &bkey_filename,
+                    bool sanitize_result)
 {
     assert((output_filename && !output_dirname) ||
            (!output_filename && output_dirname));
@@ -362,16 +362,15 @@ void do_run_online_dfa2(const std::string &spec_filename,
     }
 }
 
-void do_run_online_dfa3(const std::string &spec_filename,
-                        const std::string &input_filename,
-                        const std::optional<std::string> &output_filename,
-                        const std::optional<std::string> &output_dirname,
-                        size_t output_freq, size_t queue_size,
-                        size_t bootstrapping_freq,
-                        const std::string &bkey_filename,
-                        const std::optional<size_t> &max_second_lut_depth,
-                        const std::optional<std::string> &debug_skey_filename,
-                        bool sanitize_result)
+void do_run_flut(const std::string &spec_filename,
+                 const std::string &input_filename,
+                 const std::optional<std::string> &output_filename,
+                 const std::optional<std::string> &output_dirname,
+                 size_t output_freq, size_t queue_size,
+                 size_t bootstrapping_freq, const std::string &bkey_filename,
+                 const std::optional<size_t> &max_second_lut_depth,
+                 const std::optional<std::string> &debug_skey_filename,
+                 bool sanitize_result)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr = Graph::from_file(spec_filename);
@@ -431,10 +430,10 @@ void do_run_online_dfa3(const std::string &spec_filename,
     }
 }
 
-void do_run_online_dfa4(const std::string &spec_filename,
-                        const std::string &input_filename,
-                        const std::string &output_filename, size_t queue_size,
-                        const std::string &bkey_filename, bool sanitize_result)
+void do_run_block(const std::string &spec_filename,
+                  const std::string &input_filename,
+                  const std::string &output_filename, size_t queue_size,
+                  const std::string &bkey_filename, bool sanitize_result)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr = Graph::from_file(spec_filename);
@@ -592,7 +591,9 @@ int main(int argc, char **argv)
     dumpBasicInfo(argc, argv);
 
     Args args;
-    CLI::App app{"Homomorphic Final Answer"};
+    CLI::App app{
+        "HomFA -- Oblivious Online LTL Monitor via Fully Homomorphic "
+        "Encryption"};
     app.require_subcommand();
     register_general_options(app, args);
     register_genkey(app, args);
@@ -666,45 +667,49 @@ int main(int argc, char **argv)
                args.num_ap.value());
         break;
 
+    case TYPE::DEC:
+        do_dec(args.skey.value(), args.input.value());
+        break;
+
     case TYPE::RUN_OFFLINE:
-        do_run_offline_dfa(args.spec.value(), args.input.value(),
-                           args.output.value(), args.bootstrapping_freq.value(),
-                           args.bkey.value(), args.sanitize_result);
+        do_run_offline(args.spec.value(), args.input.value(),
+                       args.output.value(), args.bootstrapping_freq.value(),
+                       args.bkey.value(), args.sanitize_result);
         break;
 
     case TYPE::RUN_REVERSE:
         if (!((args.output && !args.output_dir) ||
               (!args.output && args.output_dir)))
             error::die("Use --out or --out-dir");
-        do_run_online_dfa2(
-            args.spec.value(), args.input.value(), args.output, args.output_dir,
-            args.output_freq.value(), args.bootstrapping_freq.value(),
-            args.is_spec_reversed, args.bkey.value(), args.sanitize_result);
+        do_run_reverse(args.spec.value(), args.input.value(), args.output,
+                       args.output_dir, args.output_freq.value(),
+                       args.bootstrapping_freq.value(), args.is_spec_reversed,
+                       args.bkey.value(), args.sanitize_result);
         break;
 
     case TYPE::RUN_BLOCK:
         if (!((args.output && !args.output_dir) ||
               (!args.output && args.output_dir)))
             error::die("Use --out or --out-dir");
-        do_run_online_dfa4(args.spec.value(), args.input.value(),
-                           args.output.value(), args.queue_size.value(),
-                           args.bkey.value(), args.sanitize_result);
+        do_run_block(args.spec.value(), args.input.value(), args.output.value(),
+                     args.queue_size.value(), args.bkey.value(),
+                     args.sanitize_result);
         break;
 
     case TYPE::RUN_FLUT:
         if (!((args.output && !args.output_dir) ||
               (!args.output && args.output_dir)))
             error::die("Use --out or --out-dir");
-        do_run_online_dfa3(args.spec.value(), args.input.value(), args.output,
-                           args.output_dir, args.output_freq.value(),
-                           args.queue_size.value(),
-                           args.bootstrapping_freq.value(), args.bkey.value(),
-                           args.max_second_lut_depth.value(), args.debug_skey,
-                           args.sanitize_result);
+        do_run_flut(args.spec.value(), args.input.value(), args.output,
+                    args.output_dir, args.output_freq.value(),
+                    args.queue_size.value(), args.bootstrapping_freq.value(),
+                    args.bkey.value(), args.max_second_lut_depth.value(),
+                    args.debug_skey, args.sanitize_result);
         break;
 
-    case TYPE::DEC:
-        do_dec(args.skey.value(), args.input.value());
+    case TYPE::RUN_PLAIN:
+        do_run_dfa_plain(args.spec.value(), args.input.value(),
+                         args.num_ap.value());
         break;
 
     case TYPE::LTL2SPEC:
@@ -726,11 +731,6 @@ int main(int argc, char **argv)
 
     case TYPE::ATT2SPEC:
         do_att2spec(args.spec);
-        break;
-
-    case TYPE::RUN_PLAIN:
-        do_run_dfa_plain(args.spec.value(), args.input.value(),
-                         args.num_ap.value());
         break;
 
     case TYPE::BENCH_OFFLINE:
