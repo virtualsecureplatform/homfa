@@ -24,6 +24,12 @@ std::string concat_paths(const std::string &lhs, const std::string &rhs)
     return std::filesystem::path{lhs} / std::filesystem::path{rhs};
 }
 
+void print_result(bool res)
+{
+    spdlog::info("Result (bool): {}", res);
+    std::cout << res;  // FIXME: More appropriate or flexible way?
+}
+
 void do_genkey(const std::string &output_filename)
 {
     SecretKey skey;
@@ -273,7 +279,7 @@ void do_dec(const std::string &skey_filename, const std::string &input_filename)
     auto skey = read_from_archive<SecretKey>(skey_filename);
     auto enc_res = read_from_archive<TLWELvl1>(input_filename);
     bool res = decrypt_TLWELvl1_to_bit(enc_res, skey);
-    spdlog::info("Result (bool): {}", res);
+    print_result(res);
 }
 
 void do_ltl2spec(const std::string &fml, size_t num_vars,
@@ -335,7 +341,8 @@ void do_run_dfa_plain(const std::string &spec_filename,
     each_input_bit(input_filename, num_ap,
                    [&](bool b) { dfa_state = gr.next_state(dfa_state, b); });
 
-    spdlog::info("Result (bool): {}", gr.is_final_state(dfa_state));
+    bool res = gr.is_final_state(dfa_state);
+    print_result(res);
 }
 
 namespace {
