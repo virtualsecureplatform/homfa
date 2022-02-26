@@ -16,6 +16,8 @@ inline void initialize(const std::string& tag)
     spdlog::set_level(spdlog::level::info);
     spdlog::drop_all();
     spdlog::set_default_logger(spdlog::stderr_color_mt(tag));
+    // Use ISO 8601 for the datetime format
+    spdlog::set_pattern("[%Y-%m-%dT%T.%e%z] [%n] [%^%l%$]\t%v");
 }
 
 template <class... Args>
