@@ -133,5 +133,5 @@ check_false online-dfa-blockbackstream 9 test/10.spec test/10-02.in # "111111110
 check_true  online-dfa-blockbackstream 9 test/10.spec test/10-03.in # "111111110" * 90
 
 ### Clean up temporary files
-rm _test_sk _test_bk _test_in _test_out #_test_random.log
+#rm _test_sk _test_bk _test_in _test_out #_test_random.log
 
