@@ -19,6 +19,83 @@
 #include <CLI/CLI.hpp>
 #include <tfhe++.hpp>
 
+namespace {
+enum class VERBOSITY { VERBOSE, NORMAL, QUIET };
+
+enum class TYPE {
+    GENKEY,
+    GENBKEY,
+    ENC,
+    RUN_OFFLINE_DFA,
+    RUN_ONLINE_DFA,
+    DEC,
+    LTL2SPEC,
+    SPEC2SPEC,
+    SPEC2DOT,
+    ATT2SPEC,
+    SPEC2ATT,
+    RUN_DFA_PLAIN,
+};
+
+struct Args {
+    VERBOSITY verbosity = VERBOSITY::NORMAL;
+    TYPE type;
+
+    bool verbose = false, quiet = false, minimized = false, reversed = false,
+         negated = false, make_all_live_states_final = false,
+         is_spec_reversed = false, sanitize_result = false;
+    std::optional<std::string> spec, skey, bkey, input, output, output_dir,
+        debug_skey, formula, online_method;
+    std::optional<size_t> num_vars, queue_size, bootstrapping_freq,
+        max_second_lut_depth, num_ap, output_freq;
+};
+
+void register_general_options(CLI::App &app, Args &args)
+{
+    app.add_flag_callback("--verbose",
+                          [&] { args.verbosity = VERBOSITY::VERBOSE; });
+    app.add_flag_callback("--quiet",
+                          [&] { args.verbosity = VERBOSITY::QUIET; });
+}
+
+void register_genkey(CLI::App &app, Args &args)
+{
+    CLI::App *genkey = app.add_subcommand("genkey", "Generate secret key");
+    genkey->parse_complete_callback([&] { args.type = TYPE::GENKEY; });
+    genkey->add_option("--out", args.output)->required();
+}
+
+void register_genbkey(CLI::App &app, Args &args)
+{
+    CLI::App *genbkey = app.add_subcommand(
+        "genbkey", "Generate bootstrapping key from secret key");
+    genbkey->parse_complete_callback([&] { args.type = TYPE::GENBKEY; });
+    genbkey->add_option("--key", args.skey)
+        ->required()
+        ->check(CLI::ExistingFile);
+    genbkey->add_option("--out", args.output)->required();
+}
+
+void register_enc(CLI::App &app, Args &args)
+{
+    CLI::App *enc = app.add_subcommand("enc", "Encrypt input file");
+    enc->parse_complete_callback([&] { args.type = TYPE::ENC; });
+    enc->add_option("--ap", args.num_ap)
+        ->required()
+        ->check(CLI::PositiveNumber);
+    enc->add_option("--key", args.skey)->required()->check(CLI::ExistingFile);
+    enc->add_option("--in", args.input)->required()->check(CLI::ExistingFile);
+    enc->add_option("--out", args.output)->required();
+}
+
+void register_dec(CLI::App &app, Args &args)
+{
+    CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
+    dec->parse_complete_callback([&] { args.type = TYPE::DEC; });
+    dec->add_option("--key", args.skey)->required()->check(CLI::ExistingFile);
+    dec->add_option("--in", args.input)->required()->check(CLI::ExistingFile);
+}
+
 std::string concat_paths(const std::string &lhs, const std::string &rhs)
 {
     return std::filesystem::path{lhs} / std::filesystem::path{rhs};
@@ -342,7 +419,6 @@ void do_run_dfa_plain(const std::string &spec_filename,
     print_result(res);
 }
 
-namespace {
 void dumpBasicInfo(int argc, char **argv)
 {
     spdlog::info(R"(===================================)");
@@ -401,234 +477,209 @@ int main(int argc, char **argv)
     error::initialize("homfa");
     dumpBasicInfo(argc, argv);
 
+    Args args;
     CLI::App app{"Homomorphic Final Answer"};
     app.require_subcommand();
-
-    enum class TYPE {
-        GENKEY,
-        GENBKEY,
-        ENC,
-        RUN_OFFLINE_DFA,
-        RUN_ONLINE_DFA,
-        DEC,
-        LTL2SPEC,
-        SPEC2SPEC,
-        SPEC2DOT,
-        ATT2SPEC,
-        SPEC2ATT,
-        RUN_DFA_PLAIN,
-    } type;
-
-    bool verbose = false, quiet = false, minimized = false, reversed = false,
-         negated = false, make_all_live_states_final = false,
-         is_spec_reversed = false, sanitize_result = false;
-    std::optional<std::string> spec, skey, bkey, input, output, output_dir,
-        debug_skey, formula, online_method;
-    std::optional<size_t> num_vars, queue_size, bootstrapping_freq,
-        max_second_lut_depth, num_ap, output_freq;
-
-    app.add_flag("--verbose", verbose, "");
-    app.add_flag("--quiet", quiet, "");
-    {
-        CLI::App *genkey = app.add_subcommand("genkey", "Generate secret key");
-        genkey->parse_complete_callback([&] { type = TYPE::GENKEY; });
-        genkey->add_option("--out", output)->required();
-    }
-    {
-        CLI::App *genbkey = app.add_subcommand(
-            "genbkey", "Generate bootstrapping key from secret key");
-        genbkey->parse_complete_callback([&] { type = TYPE::GENBKEY; });
-        genbkey->add_option("--key", skey)
-            ->required()
-            ->check(CLI::ExistingFile);
-        genbkey->add_option("--out", output)->required();
-    }
-    {
-        CLI::App *enc = app.add_subcommand("enc", "Encrypt input file");
-        enc->parse_complete_callback([&] { type = TYPE::ENC; });
-        enc->add_option("--ap", num_ap)->required()->check(CLI::PositiveNumber);
-        enc->add_option("--key", skey)->required()->check(CLI::ExistingFile);
-        enc->add_option("--in", input)->required()->check(CLI::ExistingFile);
-        enc->add_option("--out", output)->required();
-    }
+    register_general_options(app, args);
+    register_genkey(app, args);
+    register_genbkey(app, args);
+    register_enc(app, args);
+    register_dec(app, args);
     {
         CLI::App *run =
             app.add_subcommand("run-offline-dfa", "Run offline DFA");
-        run->parse_complete_callback([&] { type = TYPE::RUN_OFFLINE_DFA; });
-        run->add_option("--bkey", bkey)->required()->check(CLI::ExistingFile);
-        run->add_option("--spec", spec)->required()->check(CLI::ExistingFile);
-        run->add_option("--in", input)->required()->check(CLI::ExistingFile);
-        run->add_option("--out", output)->required();
-        run->add_option("--bootstrapping-freq", bootstrapping_freq)
+        run->parse_complete_callback(
+            [&] { args.type = TYPE::RUN_OFFLINE_DFA; });
+        run->add_option("--bkey", args.bkey)
+            ->required()
+            ->check(CLI::ExistingFile);
+        run->add_option("--spec", args.spec)
+            ->required()
+            ->check(CLI::ExistingFile);
+        run->add_option("--in", args.input)
+            ->required()
+            ->check(CLI::ExistingFile);
+        run->add_option("--out", args.output)->required();
+        run->add_option("--bootstrapping-freq", args.bootstrapping_freq)
             ->required()
             ->check(CLI::PositiveNumber);
-        run->add_option("--sanitize-result", sanitize_result);
+        run->add_option("--sanitize-result", args.sanitize_result);
     }
     {
         CLI::App *run = app.add_subcommand("run-online-dfa", "Run online DFA");
-        run->parse_complete_callback([&] { type = TYPE::RUN_ONLINE_DFA; });
-        run->add_option("--bkey", bkey)->required()->check(CLI::ExistingFile);
-        run->add_option("--spec", spec)->required()->check(CLI::ExistingFile);
-        run->add_option("--in", input)->required()->check(CLI::ExistingFile);
-        run->add_option("--out", output);
-        run->add_option("--out-dir", output_dir);
-        run->add_option("--out-freq", output_freq)
+        run->parse_complete_callback([&] { args.type = TYPE::RUN_ONLINE_DFA; });
+        run->add_option("--bkey", args.bkey)
+            ->required()
+            ->check(CLI::ExistingFile);
+        run->add_option("--spec", args.spec)
+            ->required()
+            ->check(CLI::ExistingFile);
+        run->add_option("--in", args.input)
+            ->required()
+            ->check(CLI::ExistingFile);
+        run->add_option("--out", args.output);
+        run->add_option("--out-dir", args.output_dir);
+        run->add_option("--out-freq", args.output_freq)
             ->required()
             ->check(CLI::PositiveNumber);
-        run->add_option("--method", online_method)
+        run->add_option("--method", args.online_method)
             ->required()
             ->check(CLI::IsMember(
                 {"qtrlwe", "reversed", "qtrlwe2", "block-backstream"}));
-        run->add_option("--queue-size", queue_size)->check(CLI::PositiveNumber);
-        run->add_option("--bootstrapping-freq", bootstrapping_freq)
+        run->add_option("--queue-size", args.queue_size)
             ->check(CLI::PositiveNumber);
-        run->add_option("--max-second-lut-depth", max_second_lut_depth)
+        run->add_option("--bootstrapping-freq", args.bootstrapping_freq)
             ->check(CLI::PositiveNumber);
-        run->add_flag("--spec-reversed", is_spec_reversed);
-        run->add_option("--sanitize-result", sanitize_result);
-        run->add_option("--debug-secret-key", debug_skey)
+        run->add_option("--max-second-lut-depth", args.max_second_lut_depth)
+            ->check(CLI::PositiveNumber);
+        run->add_flag("--spec-reversed", args.is_spec_reversed);
+        run->add_option("--sanitize-result", args.sanitize_result);
+        run->add_option("--debug-secret-key", args.debug_skey)
             ->check(CLI::ExistingFile);
-    }
-    {
-        CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
-        dec->parse_complete_callback([&] { type = TYPE::DEC; });
-        dec->add_option("--key", skey)->required()->check(CLI::ExistingFile);
-        dec->add_option("--in", input)->required()->check(CLI::ExistingFile);
     }
     {
         CLI::App *ltl2spec = app.add_subcommand(
             "ltl2spec", "Convert LTL to spec format for HomFA");
-        ltl2spec->parse_complete_callback([&] { type = TYPE::LTL2SPEC; });
+        ltl2spec->parse_complete_callback([&] { args.type = TYPE::LTL2SPEC; });
         ltl2spec->add_flag("--make-all-live-states-final",
-                           make_all_live_states_final);
-        ltl2spec->add_option("formula", formula)->required();
-        ltl2spec->add_option("#vars", num_vars)->required();
+                           args.make_all_live_states_final);
+        ltl2spec->add_option("formula", args.formula)->required();
+        ltl2spec->add_option("#vars", args.num_vars)->required();
     }
     {
         CLI::App *spec2spec =
             app.add_subcommand("spec2spec", "Convert spec formats for HomFA");
-        spec2spec->parse_complete_callback([&] { type = TYPE::SPEC2SPEC; });
-        spec2spec->add_flag("--minimized", minimized);
-        spec2spec->add_flag("--reversed", reversed);
-        spec2spec->add_flag("--negated", negated);
-        spec2spec->add_option("SPEC-FILE", spec);
+        spec2spec->parse_complete_callback(
+            [&] { args.type = TYPE::SPEC2SPEC; });
+        spec2spec->add_flag("--minimized", args.minimized);
+        spec2spec->add_flag("--reversed", args.reversed);
+        spec2spec->add_flag("--negated", args.negated);
+        spec2spec->add_option("SPEC-FILE", args.spec);
     }
     {
         CLI::App *spec2dot = app.add_subcommand(
             "spec2dot", "Convert spec format for HomFA to dot script");
-        spec2dot->parse_complete_callback([&] { type = TYPE::SPEC2DOT; });
-        spec2dot->add_option("SPEC-FILE", spec);
+        spec2dot->parse_complete_callback([&] { args.type = TYPE::SPEC2DOT; });
+        spec2dot->add_option("SPEC-FILE", args.spec);
     }
     {
         CLI::App *spec2att = app.add_subcommand(
             "spec2att", "Convert spec format for HomFA to AT&T format");
-        spec2att->parse_complete_callback([&] { type = TYPE::SPEC2ATT; });
-        spec2att->add_option("SPEC-FILE", spec);
+        spec2att->parse_complete_callback([&] { args.type = TYPE::SPEC2ATT; });
+        spec2att->add_option("SPEC-FILE", args.spec);
     }
     {
         CLI::App *att2spec = app.add_subcommand(
             "att2spec", "Convert AT&T format to spec format for HomFA");
-        att2spec->parse_complete_callback([&] { type = TYPE::ATT2SPEC; });
-        att2spec->add_option("ATT-SPEC-FILE", spec);
+        att2spec->parse_complete_callback([&] { args.type = TYPE::ATT2SPEC; });
+        att2spec->add_option("ATT-SPEC-FILE", args.spec);
     }
     {
         CLI::App *run_plain =
             app.add_subcommand("run-dfa-plain", "Run DFA on plain text");
-        run_plain->parse_complete_callback([&] { type = TYPE::RUN_DFA_PLAIN; });
-        run_plain->add_option("--ap", num_ap)
+        run_plain->parse_complete_callback(
+            [&] { args.type = TYPE::RUN_DFA_PLAIN; });
+        run_plain->add_option("--ap", args.num_ap)
             ->required()
             ->check(CLI::PositiveNumber);
-        run_plain->add_option("--spec", spec)
+        run_plain->add_option("--spec", args.spec)
             ->required()
             ->check(CLI::ExistingFile);
-        run_plain->add_option("--in", input)
+        run_plain->add_option("--in", args.input)
             ->required()
             ->check(CLI::ExistingFile);
     }
 
     CLI11_PARSE(app, argc, argv);
 
-    if (quiet)
+    if (args.quiet)
         spdlog::set_level(spdlog::level::err);
-    if (verbose)
+    if (args.verbose)
         spdlog::set_level(spdlog::level::debug);
 
-    switch (type) {
+    switch (args.type) {
     case TYPE::GENKEY:
-        do_genkey(output.value());
+        do_genkey(args.output.value());
         break;
 
     case TYPE::GENBKEY:
-        do_genbkey(skey.value(), output.value());
+        do_genbkey(args.skey.value(), args.output.value());
         break;
 
     case TYPE::ENC:
-        do_enc(skey.value(), input.value(), output.value(), num_ap.value());
+        do_enc(args.skey.value(), args.input.value(), args.output.value(),
+               args.num_ap.value());
         break;
 
     case TYPE::RUN_OFFLINE_DFA:
-        do_run_offline_dfa(spec.value(), input.value(), output.value(),
-                           bootstrapping_freq.value(), bkey.value(),
-                           sanitize_result);
+        do_run_offline_dfa(args.spec.value(), args.input.value(),
+                           args.output.value(), args.bootstrapping_freq.value(),
+                           args.bkey.value(), args.sanitize_result);
         break;
 
     case TYPE::RUN_ONLINE_DFA:
-        if (!((output && !output_dir) || (!output && output_dir)))
+        if (!((args.output && !args.output_dir) ||
+              (!args.output && args.output_dir)))
             error::die("Use --out or --out-dir");
 
-        if (online_method == "qtrlwe") {
+        if (args.online_method == "qtrlwe") {
             spdlog::warn("FIXME: not support --out-dir and --output-freq");
-            assert(output);
-            do_run_online_dfa(spec.value(), input.value(), output.value(),
-                              bkey.value(), sanitize_result);
+            assert(args.output);
+            do_run_online_dfa(args.spec.value(), args.input.value(),
+                              args.output.value(), args.bkey.value(),
+                              args.sanitize_result);
         }
-        else if (online_method == "reversed") {
-            do_run_online_dfa2(spec.value(), input.value(), output, output_dir,
-                               output_freq.value(), bootstrapping_freq.value(),
-                               is_spec_reversed, bkey.value(), sanitize_result);
+        else if (args.online_method == "reversed") {
+            do_run_online_dfa2(
+                args.spec.value(), args.input.value(), args.output,
+                args.output_dir, args.output_freq.value(),
+                args.bootstrapping_freq.value(), args.is_spec_reversed,
+                args.bkey.value(), args.sanitize_result);
         }
-        else if (online_method == "block-backstream") {
-            do_run_online_dfa4(spec.value(), input.value(), output.value(),
-                               queue_size.value(), bkey.value(),
-                               sanitize_result);
+        else if (args.online_method == "block-backstream") {
+            do_run_online_dfa4(args.spec.value(), args.input.value(),
+                               args.output.value(), args.queue_size.value(),
+                               args.bkey.value(), args.sanitize_result);
         }
         else {
-            assert(online_method == "qtrlwe2");
-            do_run_online_dfa3(spec.value(), input.value(), output, output_dir,
-                               output_freq.value(), queue_size.value(),
-                               bootstrapping_freq.value(), bkey.value(),
-                               max_second_lut_depth.value(), debug_skey,
-                               sanitize_result);
+            assert(args.online_method == "qtrlwe2");
+            do_run_online_dfa3(
+                args.spec.value(), args.input.value(), args.output,
+                args.output_dir, args.output_freq.value(),
+                args.queue_size.value(), args.bootstrapping_freq.value(),
+                args.bkey.value(), args.max_second_lut_depth.value(),
+                args.debug_skey, args.sanitize_result);
         }
         break;
 
     case TYPE::DEC:
-        do_dec(skey.value(), input.value());
+        do_dec(args.skey.value(), args.input.value());
         break;
 
     case TYPE::LTL2SPEC:
-        do_ltl2spec(formula.value(), num_vars.value(),
-                    make_all_live_states_final);
+        do_ltl2spec(args.formula.value(), args.num_vars.value(),
+                    args.make_all_live_states_final);
         break;
 
     case TYPE::SPEC2SPEC:
-        do_spec2spec(spec, minimized, reversed, negated);
+        do_spec2spec(args.spec, args.minimized, args.reversed, args.negated);
         break;
 
     case TYPE::SPEC2DOT:
-        do_spec2dot(spec);
+        do_spec2dot(args.spec);
         break;
 
     case TYPE::SPEC2ATT:
-        do_spec2att(spec);
+        do_spec2att(args.spec);
         break;
 
     case TYPE::ATT2SPEC:
-        do_att2spec(spec);
+        do_att2spec(args.spec);
         break;
 
     case TYPE::RUN_DFA_PLAIN:
-        do_run_dfa_plain(spec.value(), input.value(), num_ap.value());
+        do_run_dfa_plain(args.spec.value(), args.input.value(),
+                         args.num_ap.value());
         break;
     }
 
