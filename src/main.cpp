@@ -25,16 +25,27 @@ enum class VERBOSITY { VERBOSE, NORMAL, QUIET };
 enum class TYPE {
     GENKEY,
     GENBKEY,
+
     ENC,
-    RUN_OFFLINE_DFA,
-    RUN_ONLINE_DFA,
     DEC,
+
+    RUN_OFFLINE,
+    RUN_REVERSE,
+    RUN_BLOCK,
+    RUN_FLUT,
+    RUN_PLAIN,
+
+    BENCH_OFFLINE,
+    BENCH_REVERSE,
+    BENCH_BLOCK,
+    BENCH_FLUT,
+    BENCH_PLAIN,
+
     LTL2SPEC,
     SPEC2SPEC,
     SPEC2DOT,
     ATT2SPEC,
     SPEC2ATT,
-    RUN_DFA_PLAIN,
 };
 
 struct Args {
@@ -61,7 +72,7 @@ void register_general_options(CLI::App &app, Args &args)
 void register_genkey(CLI::App &app, Args &args)
 {
     CLI::App *genkey = app.add_subcommand("genkey", "Generate secret key");
-    genkey->parse_complete_callback([&] { args.type = TYPE::GENKEY; });
+    genkey->parse_complete_callback([&args] { args.type = TYPE::GENKEY; });
     genkey->add_option("--out", args.output)->required();
 }
 
@@ -69,7 +80,7 @@ void register_genbkey(CLI::App &app, Args &args)
 {
     CLI::App *genbkey = app.add_subcommand(
         "genbkey", "Generate bootstrapping key from secret key");
-    genbkey->parse_complete_callback([&] { args.type = TYPE::GENBKEY; });
+    genbkey->parse_complete_callback([&args] { args.type = TYPE::GENBKEY; });
     genbkey->add_option("--key", args.skey)
         ->required()
         ->check(CLI::ExistingFile);
@@ -79,7 +90,7 @@ void register_genbkey(CLI::App &app, Args &args)
 void register_enc(CLI::App &app, Args &args)
 {
     CLI::App *enc = app.add_subcommand("enc", "Encrypt input file");
-    enc->parse_complete_callback([&] { args.type = TYPE::ENC; });
+    enc->parse_complete_callback([&args] { args.type = TYPE::ENC; });
     enc->add_option("--ap", args.num_ap)
         ->required()
         ->check(CLI::PositiveNumber);
@@ -91,9 +102,110 @@ void register_enc(CLI::App &app, Args &args)
 void register_dec(CLI::App &app, Args &args)
 {
     CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
-    dec->parse_complete_callback([&] { args.type = TYPE::DEC; });
+    dec->parse_complete_callback([&args] { args.type = TYPE::DEC; });
     dec->add_option("--key", args.skey)->required()->check(CLI::ExistingFile);
     dec->add_option("--in", args.input)->required()->check(CLI::ExistingFile);
+}
+
+void add_run_common_options(CLI::App *run, Args &args, bool benchmark)
+{
+    if (benchmark) {
+        run->add_option("--ap", args.num_ap)
+            ->required()
+            ->check(CLI::PositiveNumber);
+    }
+    else {  // not benchmark
+        run->add_option("--bkey", args.bkey)
+            ->required()
+            ->check(CLI::ExistingFile);
+        run->add_option("--out", args.output)->required();
+    }
+
+    run->add_option("--spec", args.spec)->required()->check(CLI::ExistingFile);
+    run->add_option("--in", args.input)->required()->check(CLI::ExistingFile);
+    run->add_option("--debug-secret-key", args.debug_skey)
+        ->check(CLI::ExistingFile);
+}
+
+void register_offline(CLI::App &app, Args &args, bool benchmark)
+{
+    CLI::App *run = app.add_subcommand("offline", "Run OFFLINE algorithm");
+    add_run_common_options(run, args, benchmark);
+    run->parse_complete_callback([&args, benchmark] {
+        args.type = benchmark ? TYPE::BENCH_OFFLINE : TYPE::RUN_OFFLINE;
+    });
+    run->add_option("--bootstrapping-freq", args.bootstrapping_freq)
+        ->required()
+        ->check(CLI::PositiveNumber);
+}
+
+void register_reverse(CLI::App &app, Args &args, bool benchmark)
+{
+    CLI::App *run = app.add_subcommand("reverse", "Run REVERSE algorithm");
+    run->alias("reversed");
+    add_run_common_options(run, args, benchmark);
+    run->parse_complete_callback([&args, benchmark] {
+        args.type = benchmark ? TYPE::BENCH_REVERSE : TYPE::RUN_REVERSE;
+    });
+    run->add_option("--out-freq", args.output_freq)
+        ->required()
+        ->check(CLI::PositiveNumber);
+    run->add_option("--bootstrapping-freq", args.bootstrapping_freq)
+        ->required()
+        ->check(CLI::PositiveNumber);
+    run->add_flag("--spec-reversed", args.is_spec_reversed);
+}
+
+void register_block(CLI::App &app, Args &args, bool benchmark)
+{
+    CLI::App *run = app.add_subcommand("block", "Run BLOCK algorithm");
+    run->alias("bbs");
+    run->alias("block-backstream");
+    add_run_common_options(run, args, benchmark);
+    run->parse_complete_callback([&args, benchmark] {
+        args.type = benchmark ? TYPE::BENCH_BLOCK : TYPE::RUN_BLOCK;
+    });
+    run->add_option("--out-freq", args.output_freq)
+        ->required()
+        ->check(CLI::PositiveNumber);
+    run->add_option("--queue-size", args.queue_size)
+        ->required()
+        ->check(CLI::PositiveNumber);
+}
+
+void register_flut(CLI::App &app, Args &args, bool benchmark)
+{
+    CLI::App *run = app.add_subcommand("flut", "Run FLUT algorithm");
+    run->alias("qtrlwe2");
+    add_run_common_options(run, args, benchmark);
+    run->parse_complete_callback([&args, benchmark] {
+        args.type = benchmark ? TYPE::BENCH_FLUT : TYPE::RUN_FLUT;
+    });
+    run->add_option("--out-freq", args.output_freq)
+        ->required()
+        ->check(CLI::PositiveNumber);
+    run->add_option("--queue-size", args.queue_size)
+        ->required()
+        ->check(CLI::PositiveNumber);
+    run->add_option("--max-second-lut-depth", args.max_second_lut_depth)
+        ->required()
+        ->check(CLI::PositiveNumber);
+    run->add_option("--bootstrapping-freq", args.bootstrapping_freq)
+        ->required()
+        ->check(CLI::PositiveNumber);
+}
+
+void register_plain(CLI::App &app, Args &args, bool benchmark)
+{
+    CLI::App *run = app.add_subcommand("plain", "Run DFA on plain text");
+    run->parse_complete_callback([&args, benchmark] {
+        args.type = benchmark ? TYPE::BENCH_PLAIN : TYPE::RUN_PLAIN;
+    });
+    run->add_option("--ap", args.num_ap)
+        ->required()
+        ->check(CLI::PositiveNumber);
+    run->add_option("--spec", args.spec)->required()->check(CLI::ExistingFile);
+    run->add_option("--in", args.input)->required()->check(CLI::ExistingFile);
 }
 
 std::string concat_paths(const std::string &lhs, const std::string &rhs)
@@ -169,6 +281,7 @@ void do_run_offline_dfa(const std::string &spec_filename,
     write_to_archive(output_filename, runner.result());
 }
 
+/*
 void do_run_online_dfa(const std::string &spec_filename,
                        const std::string &input_filename,
                        const std::string &output_filename,
@@ -193,6 +306,7 @@ void do_run_online_dfa(const std::string &spec_filename,
 
     write_to_archive(output_filename, runner.result());
 }
+*/
 
 void do_run_online_dfa2(const std::string &spec_filename,
                         const std::string &input_filename,
@@ -486,56 +600,12 @@ int main(int argc, char **argv)
     register_enc(app, args);
     register_dec(app, args);
     {
-        CLI::App *run =
-            app.add_subcommand("run-offline-dfa", "Run offline DFA");
-        run->parse_complete_callback(
-            [&] { args.type = TYPE::RUN_OFFLINE_DFA; });
-        run->add_option("--bkey", args.bkey)
-            ->required()
-            ->check(CLI::ExistingFile);
-        run->add_option("--spec", args.spec)
-            ->required()
-            ->check(CLI::ExistingFile);
-        run->add_option("--in", args.input)
-            ->required()
-            ->check(CLI::ExistingFile);
-        run->add_option("--out", args.output)->required();
-        run->add_option("--bootstrapping-freq", args.bootstrapping_freq)
-            ->required()
-            ->check(CLI::PositiveNumber);
-        run->add_option("--sanitize-result", args.sanitize_result);
-    }
-    {
-        CLI::App *run = app.add_subcommand("run-online-dfa", "Run online DFA");
-        run->parse_complete_callback([&] { args.type = TYPE::RUN_ONLINE_DFA; });
-        run->add_option("--bkey", args.bkey)
-            ->required()
-            ->check(CLI::ExistingFile);
-        run->add_option("--spec", args.spec)
-            ->required()
-            ->check(CLI::ExistingFile);
-        run->add_option("--in", args.input)
-            ->required()
-            ->check(CLI::ExistingFile);
-        run->add_option("--out", args.output);
-        run->add_option("--out-dir", args.output_dir);
-        run->add_option("--out-freq", args.output_freq)
-            ->required()
-            ->check(CLI::PositiveNumber);
-        run->add_option("--method", args.online_method)
-            ->required()
-            ->check(CLI::IsMember(
-                {"qtrlwe", "reversed", "qtrlwe2", "block-backstream"}));
-        run->add_option("--queue-size", args.queue_size)
-            ->check(CLI::PositiveNumber);
-        run->add_option("--bootstrapping-freq", args.bootstrapping_freq)
-            ->check(CLI::PositiveNumber);
-        run->add_option("--max-second-lut-depth", args.max_second_lut_depth)
-            ->check(CLI::PositiveNumber);
-        run->add_flag("--spec-reversed", args.is_spec_reversed);
-        run->add_option("--sanitize-result", args.sanitize_result);
-        run->add_option("--debug-secret-key", args.debug_skey)
-            ->check(CLI::ExistingFile);
+        CLI::App *run = app.add_subcommand("run", "Run DFA over ciphertexts");
+        register_offline(*run, args, false);
+        register_reverse(*run, args, false);
+        register_block(*run, args, false);
+        register_flut(*run, args, false);
+        register_plain(*run, args, false);
     }
     {
         CLI::App *ltl2spec = app.add_subcommand(
@@ -574,21 +644,6 @@ int main(int argc, char **argv)
         att2spec->parse_complete_callback([&] { args.type = TYPE::ATT2SPEC; });
         att2spec->add_option("ATT-SPEC-FILE", args.spec);
     }
-    {
-        CLI::App *run_plain =
-            app.add_subcommand("run-dfa-plain", "Run DFA on plain text");
-        run_plain->parse_complete_callback(
-            [&] { args.type = TYPE::RUN_DFA_PLAIN; });
-        run_plain->add_option("--ap", args.num_ap)
-            ->required()
-            ->check(CLI::PositiveNumber);
-        run_plain->add_option("--spec", args.spec)
-            ->required()
-            ->check(CLI::ExistingFile);
-        run_plain->add_option("--in", args.input)
-            ->required()
-            ->check(CLI::ExistingFile);
-    }
 
     CLI11_PARSE(app, argc, argv);
 
@@ -611,45 +666,41 @@ int main(int argc, char **argv)
                args.num_ap.value());
         break;
 
-    case TYPE::RUN_OFFLINE_DFA:
+    case TYPE::RUN_OFFLINE:
         do_run_offline_dfa(args.spec.value(), args.input.value(),
                            args.output.value(), args.bootstrapping_freq.value(),
                            args.bkey.value(), args.sanitize_result);
         break;
 
-    case TYPE::RUN_ONLINE_DFA:
+    case TYPE::RUN_REVERSE:
         if (!((args.output && !args.output_dir) ||
               (!args.output && args.output_dir)))
             error::die("Use --out or --out-dir");
+        do_run_online_dfa2(
+            args.spec.value(), args.input.value(), args.output, args.output_dir,
+            args.output_freq.value(), args.bootstrapping_freq.value(),
+            args.is_spec_reversed, args.bkey.value(), args.sanitize_result);
+        break;
 
-        if (args.online_method == "qtrlwe") {
-            spdlog::warn("FIXME: not support --out-dir and --output-freq");
-            assert(args.output);
-            do_run_online_dfa(args.spec.value(), args.input.value(),
-                              args.output.value(), args.bkey.value(),
-                              args.sanitize_result);
-        }
-        else if (args.online_method == "reversed") {
-            do_run_online_dfa2(
-                args.spec.value(), args.input.value(), args.output,
-                args.output_dir, args.output_freq.value(),
-                args.bootstrapping_freq.value(), args.is_spec_reversed,
-                args.bkey.value(), args.sanitize_result);
-        }
-        else if (args.online_method == "block-backstream") {
-            do_run_online_dfa4(args.spec.value(), args.input.value(),
-                               args.output.value(), args.queue_size.value(),
-                               args.bkey.value(), args.sanitize_result);
-        }
-        else {
-            assert(args.online_method == "qtrlwe2");
-            do_run_online_dfa3(
-                args.spec.value(), args.input.value(), args.output,
-                args.output_dir, args.output_freq.value(),
-                args.queue_size.value(), args.bootstrapping_freq.value(),
-                args.bkey.value(), args.max_second_lut_depth.value(),
-                args.debug_skey, args.sanitize_result);
-        }
+    case TYPE::RUN_BLOCK:
+        if (!((args.output && !args.output_dir) ||
+              (!args.output && args.output_dir)))
+            error::die("Use --out or --out-dir");
+        do_run_online_dfa4(args.spec.value(), args.input.value(),
+                           args.output.value(), args.queue_size.value(),
+                           args.bkey.value(), args.sanitize_result);
+        break;
+
+    case TYPE::RUN_FLUT:
+        if (!((args.output && !args.output_dir) ||
+              (!args.output && args.output_dir)))
+            error::die("Use --out or --out-dir");
+        do_run_online_dfa3(args.spec.value(), args.input.value(), args.output,
+                           args.output_dir, args.output_freq.value(),
+                           args.queue_size.value(),
+                           args.bootstrapping_freq.value(), args.bkey.value(),
+                           args.max_second_lut_depth.value(), args.debug_skey,
+                           args.sanitize_result);
         break;
 
     case TYPE::DEC:
@@ -677,10 +728,17 @@ int main(int argc, char **argv)
         do_att2spec(args.spec);
         break;
 
-    case TYPE::RUN_DFA_PLAIN:
+    case TYPE::RUN_PLAIN:
         do_run_dfa_plain(args.spec.value(), args.input.value(),
                          args.num_ap.value());
         break;
+
+    case TYPE::BENCH_OFFLINE:
+    case TYPE::BENCH_REVERSE:
+    case TYPE::BENCH_BLOCK:
+    case TYPE::BENCH_FLUT:
+    case TYPE::BENCH_PLAIN:
+        error::die("Not implemented for now");
     }
 
     return 0;
