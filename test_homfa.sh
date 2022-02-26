@@ -49,14 +49,12 @@ enc_run_dec(){
 
 check_true(){
     res=$(enc_run_dec "$1" "$2" "$3" "$4")
-    echo "$res" | grep "Result (bool): true" > /dev/null
-    [ $? -eq 0 ] || failwith "Expected true, got false >>> enc_run_dec \"$1\" \"$2\" \"$3\" \"$4\"\\$res"
+    [ $res = "1" ] || failwith "Expected true, got false >>> enc_run_dec \"$1\" \"$2\" \"$3\" \"$4\"\\$res"
 }
 
 check_false(){
     res=$(enc_run_dec "$1" "$2" "$3" "$4")
-    echo "$res" | grep "Result (bool): false" > /dev/null
-    [ $? -eq 0 ] || failwith "Expected false, got true >>> enc_run_dec \"$1\" \"$2\" \"$3\" \"$4\"\\$res"
+    [ $res = "0" ] || failwith "Expected false, got true >>> enc_run_dec \"$1\" \"$2\" \"$3\" \"$4\"\\$res"
 }
 
 ### Now start testing
