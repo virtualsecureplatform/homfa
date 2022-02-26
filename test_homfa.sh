@@ -4,6 +4,11 @@ BUILD_BIN=${BUILD_BIN:-"build/bin"}
 TEST0=$BUILD_BIN/test0
 TEST_PLAIN_RANDOM=$BUILD_BIN/test_plain_random
 HOMFA=$BUILD_BIN/homfa
+OFFLINE_BOOTSTRAPPING_FREQ=8000
+REVERSE_BOOTSTRAPPING_FREQ=8000
+FLUT_MAX_SECOND_LUT_DEPTH=8
+FLUT_QUEUE_SIZE=15
+OUTPUT_FREQ=15
 
 failwith(){
     echo -ne "\e[1;31m[ERROR]\e[0m "
@@ -13,28 +18,30 @@ failwith(){
 
 nostderr(){
     "$@" 2>> _test_stderr
+    local code=$?
+    [ $code -eq 0 ] || failwith "Exit code: $code"
 }
 
 enc_run_dec(){
     case "$1" in
         "offline-dfa" )
             nostderr $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
-            nostderr $HOMFA run-offline-dfa --bkey _test_bk --spec "$3" --in _test_in --out _test_out
+            nostderr $HOMFA run-offline-dfa --bkey _test_bk --spec "$3" --in _test_in --out _test_out --bootstrapping-freq $OFFLINE_BOOTSTRAPPING_FREQ
             nostderr $HOMFA dec --key _test_sk --in _test_out
             ;;
         "online-dfa-reversed" )
             nostderr $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
-            nostderr $HOMFA run-online-dfa --method reversed --bkey _test_bk --spec "$3" --in _test_in --out _test_out
+            nostderr $HOMFA run-online-dfa --method reversed --bkey _test_bk --spec "$3" --in _test_in --out _test_out --out-freq $OUTPUT_FREQ --bootstrapping-freq $REVERSE_BOOTSTRAPPING_FREQ
             nostderr $HOMFA dec --key _test_sk --in _test_out
             ;;
         "online-dfa-reversed-with-rev-spec" )
             nostderr $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
-            nostderr $HOMFA run-online-dfa --method reversed --bkey _test_bk --spec "$3" --in _test_in --out _test_out --spec-reversed
+            nostderr $HOMFA run-online-dfa --method reversed --bkey _test_bk --spec "$3" --in _test_in --out _test_out --spec-reversed --out-freq $OUTPUT_FREQ --bootstrapping-freq $REVERSE_BOOTSTRAPPING_FREQ
             nostderr $HOMFA dec --key _test_sk --in _test_out
             ;;
         "online-dfa-qtrlwe2" )
             nostderr $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
-            nostderr $HOMFA run-online-dfa --method qtrlwe2 --bkey _test_bk --spec "$3" --in _test_in --out _test_out
+            nostderr $HOMFA run-online-dfa --method qtrlwe2 --bkey _test_bk --spec "$3" --in _test_in --out _test_out --out-freq $OUTPUT_FREQ --max-second-lut-depth $FLUT_MAX_SECOND_LUT_DEPTH --queue-size $FLUT_QUEUE_SIZE --bootstrapping-freq 1
             nostderr $HOMFA dec --key _test_sk --in _test_out
             ;;
         "dfa-plain" )
@@ -42,7 +49,7 @@ enc_run_dec(){
             ;;
         "online-dfa-blockbackstream" )
             nostderr $HOMFA enc --ap "$2" --key _test_sk --in "$4" --out _test_in
-            nostderr $HOMFA run-online-dfa --method block-backstream --bkey _test_bk --spec "$3" --in _test_in --out _test_out
+            nostderr $HOMFA run-online-dfa --method block-backstream --bkey _test_bk --spec "$3" --in _test_in --out _test_out --out-freq $OUTPUT_FREQ --queue-size $OUTPUT_FREQ
             nostderr $HOMFA dec --key _test_sk --in _test_out
             ;;
         * )
