@@ -54,9 +54,9 @@ struct Args {
     VERBOSITY verbosity = VERBOSITY::NORMAL;
     TYPE type = TYPE::UNSPECIFIED;
 
-    bool verbose = false, quiet = false, minimized = false, reversed = false,
-         negated = false, make_all_live_states_final = false,
-         is_spec_reversed = false, sanitize_result = false;
+    bool minimized = false, reversed = false, negated = false,
+         make_all_live_states_final = false, is_spec_reversed = false,
+         sanitize_result = false;
     std::optional<std::string> spec, skey, bkey, input, output, output_dir,
         debug_skey, formula, online_method;
     std::optional<size_t> num_vars, queue_size, bootstrapping_freq,
@@ -590,7 +590,6 @@ void dumpBasicInfo(int argc, char **argv)
 int main(int argc, char **argv)
 {
     error::initialize("homfa");
-    dumpBasicInfo(argc, argv);
 
     Args args;
     CLI::App app{
@@ -649,10 +648,17 @@ int main(int argc, char **argv)
 
     CLI11_PARSE(app, argc, argv);
 
-    if (args.quiet)
+    switch (args.verbosity) {
+    case VERBOSITY::QUIET:
         spdlog::set_level(spdlog::level::err);
-    if (args.verbose)
+        break;
+    case VERBOSITY::VERBOSE:
         spdlog::set_level(spdlog::level::debug);
+        break;
+    default:;
+    }
+
+    dumpBasicInfo(argc, argv);
 
     switch (args.type) {
     case TYPE::GENKEY:
