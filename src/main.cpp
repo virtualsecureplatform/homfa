@@ -23,6 +23,8 @@ namespace {
 enum class VERBOSITY { VERBOSE, NORMAL, QUIET };
 
 enum class TYPE {
+    UNSPECIFIED,
+
     GENKEY,
     GENBKEY,
 
@@ -50,7 +52,7 @@ enum class TYPE {
 
 struct Args {
     VERBOSITY verbosity = VERBOSITY::NORMAL;
-    TYPE type;
+    TYPE type = TYPE::UNSPECIFIED;
 
     bool verbose = false, quiet = false, minimized = false, reversed = false,
          negated = false, make_all_live_states_final = false,
@@ -594,7 +596,6 @@ int main(int argc, char **argv)
     CLI::App app{
         "HomFA -- Oblivious Online LTL Monitor via Fully Homomorphic "
         "Encryption"};
-    app.require_subcommand();
     register_general_options(app, args);
     register_genkey(app, args);
     register_genbkey(app, args);
@@ -739,6 +740,9 @@ int main(int argc, char **argv)
     case TYPE::BENCH_FLUT:
     case TYPE::BENCH_PLAIN:
         error::die("Not implemented for now");
+
+    case TYPE::UNSPECIFIED:
+        error::die("Please specify subcommand");
     }
 
     return 0;
