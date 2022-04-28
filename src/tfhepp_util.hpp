@@ -125,11 +125,12 @@ struct BKey {
     {
     }
 
-    BKey(const SecretKey &skey)
+    BKey(const SecretKey &skey, bool need_circuit_key)
         : gkey(std::make_shared<GateKey>(skey)),
           tlwel1_trlwel1_ikskey(
               std::make_shared<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>()),
-          circuit_key(std::make_shared<CircuitKey>(skey))
+          circuit_key(need_circuit_key ? std::make_shared<CircuitKey>(skey)
+                                       : nullptr)
     {
         TFHEpp::tlwe2trlweikskkgen<TFHEpp::lvl11param>(*tlwel1_trlwel1_ikskey,
                                                        skey);
