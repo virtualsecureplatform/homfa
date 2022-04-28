@@ -34,7 +34,7 @@ void do_genbkey(const std::string &skey_filename,
                 const std::string &output_filename)
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
-    BKey bkey{skey};
+    BKey bkey{skey, true};
     write_to_archive(output_filename, bkey);
 }
 

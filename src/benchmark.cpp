@@ -278,7 +278,7 @@ void do_offline(const std::string& spec_filename,
 
     auto skey_elapsed = timeit([&] { skey_opt.emplace(); });
     const SecretKey& skey = skey_opt.value();
-    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey); });
+    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey, false); });
     const BKey& bkey = bkey_opt.value();
 
     print("skey", skey_elapsed.count());
@@ -336,7 +336,7 @@ void do_reversed(const std::string& spec_filename,
 
     auto skey_elapsed = timeit([&] { skey_opt.emplace(); });
     const SecretKey& skey = skey_opt.value();
-    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey); });
+    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey, false); });
     const BKey& bkey = bkey_opt.value();
 
     print("skey", skey_elapsed.count());
@@ -379,7 +379,7 @@ void do_qtrlwe2(const std::string& spec_filename,
 
     auto skey_elapsed = timeit([&] { skey_opt.emplace(); });
     const SecretKey& skey = skey_opt.value();
-    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey); });
+    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey, false); });
     const BKey& bkey = bkey_opt.value();
 
     print("skey", skey_elapsed.count());
@@ -419,7 +419,7 @@ void do_bbs(const std::string& spec_filename, const std::string& input_filename,
 
     auto skey_elapsed = timeit([&] { skey_opt.emplace(); });
     const SecretKey& skey = skey_opt.value();
-    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey); });
+    auto bkey_elapsed = timeit([&] { bkey_opt.emplace(skey, true); });
     const BKey& bkey = bkey_opt.value();
 
     print("skey", skey_elapsed.count());
