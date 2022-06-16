@@ -1,67 +1,42 @@
 # HomFA
 
-Homomorphic Final Answer
+HomFA enables you to run a DFA __obliviously__, i.e., without revealing any information about its input and structure. Please see [our paper](#Publication) for the details.
 
-## Build and run
+## Notice on CAV'22
+
+If you would like to obtain the artifact we submitted to CAV'22 (34th International Conference on Computer Aided Verification), plaese visit [here](https://doi.org/10.5281/zenodo.6558657) (Faster mirrors: [Backblaze B2 us-west](https://anqou-share.s3.us-west-000.backblazeb2.com/homfa_cav22_1.zip) and [Scaleway pl-waw](https://anqou-share.s3.pl-waw.scw.cloud/homfa_cav22_1.zip)). This GitHub repository is used for our development and is not fully documented, while the artifact has a detailed README and a Docker image. You may also find [this repo](https://github.com/virtualsecureplatform/homfa-cav22) interesting, which is used to generate our artifact.
+
+## Build and Run
+
+We use Ubuntu 20.04.4 LTS for our development.
+Please install Clang 10 and [Spot 2.9.7](http://www.lrde.epita.fr/dload/spot/spot-2.9.7.tar.gz) in advance.
 
 ```sh
 $ mkdir build
 $ cd build
-$ cmake ..
+$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-10 -DCMAKE_CXX_COMPILER=clang++-10 ..
 $ make
 $ bin/homfa genkey --out sk
 $ bin/homfa genbkey --key sk --out bk
-$ bin/homfa enc --key sk --in ../test/01-01.in --out enc_in
-$ bin/homfa run-offline-dfa --bkey bk --spec ../test/01.spec --in enc_in --out enc_out
+$ bin/homfa enc --key sk --in ../test/01-01.in --out enc_in --ap 2
+$ bin/homfa run offline --bkey bk --spec ../test/01.spec --in enc_in --out enc_out --bootstrapping-freq 100000
 $ bin/homfa dec --key sk --in enc_out
 ```
 
 ```sh
-
 ./homfa ltl2spec 'G((!p0 & !p1 & !p2 &  p3 &  p4) | ( p0 &  p1 &  p2 & !p3 &  p4) | (!p0 &  p1 &  p2 & !p3 &  p4) | ( p0 & !p1 &  p2 & !p3 &  p4) | (!p0 & !p1 &  p2 & !p3 &  p4) | ( p0 &  p1 & !p2 & !p3 &  p4) | (!p0 &  p1 & !p2 & !p3 &  p4) | ( p0 & !p1 & !p2 & !p3 &  p4) | (!p0 & !p1 & !p2 & !p3 &  p4) | ( p0 &  p1 &  p2 &  p3 & !p4) | (!p0 &  p1 &  p2 &  p3 & !p4) | ( p0 & !p1 &  p2 &  p3 & !p4))' 5 | \
 ./homfa spec2spec --minimized | \
 ./homfa spec2dot | \
 dot -Tpng > ../../graph.png
 ```
 
-## Build 色々
+## Enable Profiling by Pprof
 
-Ubuntu 20.04 LTS なら下のコマンドでだいたい間に合う。全て`build`ディレクトリ内での実行を想定。
+Build with a CMake option `-DHOMFA_ENABLE_PROFILE=On`.
+Then use environment variables `HEAPPROFILE=filename` and `CPUPROFILE=filename`.
 
-```sh
-# homfaとtest0をリリースビルド
-$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 ..
-# あるいは
-$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-10 -DCMAKE_CXX_COMPILER=clang++-10 ..
+## Publication
 
-# homfaとtest0とtest_plain_randomとtest_crypto_randomをリリースビルド
-$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 -DHOMFA_BUILD_TEST_PLAIN_RANDOM=On -DHOMFA_BUILD_TEST_CRYPTO_RANDOM=On ..
-# あるいは
-$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-10 -DCMAKE_CXX_COMPILER=clang++-10 -DHOMFA_BUILD_TEST_PLAIN_RANDOM=On -DHOMFA_BUILD_TEST_CRYPTO_RANDOM=On ..
-```
-
-## Build and Run tests from source
-
-```sh
-$ sudo apt install build-essential gcc-10 g++-10 clang-10 libtbb-dev cmake multitime
-$ wget http://www.lrde.epita.fr/dload/spot/spot-2.9.7.tar.gz
-$ tar -xvf spot-2.9.7.tar.gz
-$ cd spot-2.9.7.tar.gz
-$ ./configure --disable-python
-$ make -j30
-$ sudo make install
-$ cd ~
-$ git clone https://github.com/virtualsecureplatform/homfa
-$ cd homfa
-$ mkdir build_rel
-$ cd build_rel
-$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-10 -DCMAKE_CXX_COMPILER=g++-10 ..
-$ make -j30
-$ ../
-$ ./bench.sh
-```
-
-## Enable profiling
-
-Pprof によるプロファイリングをサポートする。
-`cmake`を打つときに`-DHOMFA_ENABLE_PROFILE=On`をつけてビルドする。その後`HEAPPROFILE=filename`と`CPUPROFILE=filename`環境変数を使うことでプロファイルが取れる。
+- Ryotaro Banno, Kotaro Matsuoka, Naoki Matsumoto, Song Bian, Masaki Waga, & Kohei Suenaga. (2022). Oblivious Online Monitoring for Safety LTL Specification via Fully Homomorphic Encryption.
+  - To appear in [CAV'22](http://i-cav.org/2022/).
+  - Extended version on [arXiv](https://arxiv.org/abs/2206.03582) and [lab](https://www.fos.kuis.kyoto-u.ac.jp/~banno/cav22.pdf).
