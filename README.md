@@ -4,7 +4,13 @@ HomFA enables you to run a DFA __obliviously__, i.e., without revealing any info
 
 ## On the Artifact Submitted to CAV'22
 
-If you would like to obtain the artifact we submitted to CAV'22 (34th International Conference on Computer Aided Verification), plaese visit [here](https://doi.org/10.5281/zenodo.6558657) (faster mirrors: [Backblaze B2 us-west](https://anqou-share.s3.us-west-000.backblazeb2.com/homfa_cav22_1.zip) and [Scaleway pl-waw](https://anqou-share.s3.pl-waw.scw.cloud/homfa_cav22_1.zip)). This GitHub repository is used for our development and is not fully documented, while the artifact has a detailed README and a Docker image. You can also pull the Docker image by `docker pull anqou/homfa:cav22`. You may also find [this repo](https://github.com/virtualsecureplatform/homfa-cav22) interesting, which is used to generate our artifact.
+The artifact we submitted to CAV'22 (34th International Conference on Computer Aided Verification) is uploaded [here](https://doi.org/10.5281/zenodo.6558657) (faster mirrors: [Backblaze B2 us-west](https://anqou-share.s3.us-west-000.backblazeb2.com/homfa_cav22_1.zip) and [Scaleway pl-waw](https://anqou-share.s3.pl-waw.scw.cloud/homfa_cav22_1.zip)). It contains a detailed [README](https://github.com/virtualsecureplatform/homfa-cav22/blob/master/artifact-evaluation/zip/README.md) and a Docker image to run HomFA. The Docker image can also be downloaded from DockerHub and run like the following:
+
+- `docker pull anqou/homfa:cav22`
+- `docker run -it -v $PWD/log:/log anqou/homfa:cav22`
+- Follow the instructions written [here](https://github.com/virtualsecureplatform/homfa-cav22/blob/master/artifact-evaluation/zip/README.md#how-to-replicate-the-results-in-the-paper).
+
+You may also find [this repo](https://github.com/virtualsecureplatform/homfa-cav22) interesting, which is used to generate our artifact.
 
 ## Build and Run
 
