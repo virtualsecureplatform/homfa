@@ -2,7 +2,7 @@
 
 HomFA enables you to run a DFA __obliviously__, i.e., without revealing any information about its input and structure. Please see [our paper](#Publication) for the details.
 
-## Notice on CAV'22
+## On the Artifact Submitted to CAV'22
 
 If you would like to obtain the artifact we submitted to CAV'22 (34th International Conference on Computer Aided Verification), plaese visit [here](https://doi.org/10.5281/zenodo.6558657) (faster mirrors: [Backblaze B2 us-west](https://anqou-share.s3.us-west-000.backblazeb2.com/homfa_cav22_1.zip) and [Scaleway pl-waw](https://anqou-share.s3.pl-waw.scw.cloud/homfa_cav22_1.zip)). This GitHub repository is used for our development and is not fully documented, while the artifact has a detailed README and a Docker image. You may also find [this repo](https://github.com/virtualsecureplatform/homfa-cav22) interesting, which is used to generate our artifact.
 
@@ -30,7 +30,7 @@ $ bin/homfa dec --key sk --in enc_out
 dot -Tpng > ../../graph.png
 ```
 
-## Enable Profiling by Pprof
+## To Enable Profiling by Pprof
 
 Build with a CMake option `-DHOMFA_ENABLE_PROFILE=On`.
 Then use environment variables `HEAPPROFILE=filename` and `CPUPROFILE=filename`.
