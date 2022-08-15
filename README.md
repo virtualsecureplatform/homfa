@@ -44,7 +44,7 @@ Then use environment variables `HEAPPROFILE=filename` and `CPUPROFILE=filename`.
 ## Publication
 
 - Ryotaro Banno, Kotaro Matsuoka, Naoki Matsumoto, Song Bian, Masaki Waga, & Kohei Suenaga. (2022). Oblivious Online Monitoring for Safety LTL Specification via Fully Homomorphic Encryption.
-  - To appear in [CAV'22](http://i-cav.org/2022/).
+  - Accepted in [CAV'22](http://i-cav.org/2022/). [Slides.](https://speakerdeck.com/anqou/oblivious-online-monitoring-for-safety-ltl-specification-via-fully-homomorphic-encryption)
   - Extended version on [arXiv](https://arxiv.org/abs/2206.03582) and [lab](https://www.fos.kuis.kyoto-u.ac.jp/~banno/cav22.pdf).
   - > In many Internet of Things (IoT) applications, data sensed by an IoT device are continuously sent to the server and monitored against a specification. Since the data often contain sensitive information, and the monitored specification is usually proprietary, both must be kept private from the other end. We propose a protocol to conduct oblivious online monitoring -- online monitoring conducted without revealing the private information of each party to the other -- against a safety LTL specification. In our protocol, we first convert a safety LTL formula into a DFA and conduct online monitoring with the DFA. Based on fully homomorphic encryption (FHE), we propose two online algorithms (Reverse and Block) to run a DFA obliviously. We prove the correctness and security of our entire protocol. We also show the scalability of our algorithms theoretically and empirically. Our case study shows that our algorithms are fast enough to monitor blood glucose levels online, demonstrating our protocol's practical relevance.
 
