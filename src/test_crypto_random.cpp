@@ -286,8 +286,8 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
                 bool got = TFHEpp::tlweSymDecrypt<Lvl1>(runner.result(),
                                                         skey.key.lvl1);
                 if (expected != got)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(in), expected, got);
+                    error_die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                              bvec2str(in), expected, got);
                 break;
             }
 
@@ -299,8 +299,8 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
                 bool got = TFHEpp::tlweSymDecrypt<Lvl1>(runner.result(),
                                                         skey.key.lvl1);
                 if (expected != got)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(in), expected, got);
+                    error_die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                              bvec2str(in), expected, got);
                 break;
             }
 
@@ -314,8 +314,8 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
                 bool got = TFHEpp::tlweSymDecrypt<Lvl1>(runner.result(),
                                                         skey.key.lvl1);
                 if (expected != got)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(in), expected, got);
+                    error_die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                              bvec2str(in), expected, got);
                 break;
             }
             }

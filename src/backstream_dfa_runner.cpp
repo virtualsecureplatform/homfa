@@ -23,7 +23,7 @@ BackstreamDFARunner::BackstreamDFARunner(Graph graph, size_t boot_interval,
     assert(gate_key_);
 
     if (sanitize_result_)
-        error::die("Sanitization of results is not implemented");
+        error_die("Sanitization of results is not implemented");
 
     if (input_size_)
         graph_.reserve_states_at_depth(*input_size_);

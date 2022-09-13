@@ -185,38 +185,38 @@ void test_from_ltl_formula(std::istream& is, size_t num_ap, size_t num_test,
             {
                 bool got = check_if_accept(gr, in);
                 if (expected != got)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(in), expected, got);
+                    error_die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                              bvec2str(in), expected, got);
             }
             if (mgr) {
                 bool got = check_if_accept(*mgr, in);
                 if (expected != got)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(in), expected, got);
+                    error_die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                              bvec2str(in), expected, got);
             }
             {
                 bool got = check_if_accept(rgr, rin);
                 if (expected != got)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(rin), expected, got);
+                    error_die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                              bvec2str(rin), expected, got);
             }
             if (mrgr) {
                 bool got = check_if_accept(*mrgr, rin);
                 if (expected != got)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(rin), expected, got);
+                    error_die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                              bvec2str(rin), expected, got);
             }
             {
                 bool got = check_if_accept(rgr2, rin);
                 if (expected != got)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(rin), expected, got);
+                    error_die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                              bvec2str(rin), expected, got);
             }
             if (mrgr2) {
                 bool got = check_if_accept(*mrgr2, rin);
                 if (expected != got)
-                    error::die("[{}] [{}] [{}] {} != {}", fml, i + 1,
-                               bvec2str(rin), expected, got);
+                    error_die("[{}] [{}] [{}] {} != {}", fml, i + 1,
+                              bvec2str(rin), expected, got);
             }
         }
     }

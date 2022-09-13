@@ -20,30 +20,6 @@ inline void initialize(const std::string& tag)
     spdlog::set_pattern("[%Y-%m-%dT%T.%e%z] [%n] [%^%l%$]\t%v");
 }
 
-template <class... Args>
-[[noreturn]] void die(Args... args)
-{
-    using namespace backward;
-
-    spdlog::error(std::forward<Args>(args)...);
-
-#ifndef NDEBUG
-    {
-        // Print backtrace
-        spdlog::error("Preparing backtrace...");
-        std::stringstream ss;
-        StackTrace st;
-        st.load_here(32);
-        Printer p;
-        p.print(st, ss);
-        spdlog::error(ss.str());
-    }
-#endif
-
-    // Abort
-    std::exit(EXIT_FAILURE);
-}
-
 class Stack {
 private:
     std::vector<std::string> msgs_;
@@ -72,5 +48,32 @@ public:
 };
 
 }  // namespace error
+
+// Define die macro. Use macros here instead of template funcs because spdlog's
+// compile-time checking of format strings will be available.
+#ifdef NDEBUG
+#define error_die(...)              \
+    do {                            \
+        spdlog::error(__VA_ARGS__); \
+        std::exit(EXIT_FAILURE);    \
+    } while (0);
+#else
+#define error_die(...)                               \
+    do {                                             \
+        spdlog::error(__VA_ARGS__);                  \
+        {                                            \
+            /* Print backtrace */                    \
+            using namespace backward;                \
+            spdlog::error("Preparing backtrace..."); \
+            std::stringstream ss;                    \
+            StackTrace st;                           \
+            st.load_here(32);                        \
+            Printer p;                               \
+            p.print(st, ss);                         \
+            spdlog::error(ss.str());                 \
+        }                                            \
+        std::exit(EXIT_FAILURE);                     \
+    } while (0);
+#endif
 
 #endif

@@ -687,7 +687,7 @@ int main(int argc, char **argv)
     case TYPE::RUN_REVERSE:
         if (!((args.output && !args.output_dir) ||
               (!args.output && args.output_dir)))
-            error::die("Use --out or --out-dir");
+            error_die("Use --out or --out-dir");
         do_run_reverse(args.spec.value(), args.input.value(), args.output,
                        args.output_dir, args.output_freq.value(),
                        args.bootstrapping_freq.value(), args.is_spec_reversed,
@@ -697,7 +697,7 @@ int main(int argc, char **argv)
     case TYPE::RUN_BLOCK:
         if (!((args.output && !args.output_dir) ||
               (!args.output && args.output_dir)))
-            error::die("Use --out or --out-dir");
+            error_die("Use --out or --out-dir");
         do_run_block(args.spec.value(), args.input.value(), args.output.value(),
                      args.queue_size.value(), args.bkey.value(),
                      args.sanitize_result);
@@ -706,7 +706,7 @@ int main(int argc, char **argv)
     case TYPE::RUN_FLUT:
         if (!((args.output && !args.output_dir) ||
               (!args.output && args.output_dir)))
-            error::die("Use --out or --out-dir");
+            error_die("Use --out or --out-dir");
         do_run_flut(args.spec.value(), args.input.value(), args.output,
                     args.output_dir, args.output_freq.value(),
                     args.queue_size.value(), args.bootstrapping_freq.value(),
@@ -745,10 +745,10 @@ int main(int argc, char **argv)
     case TYPE::BENCH_BLOCK:
     case TYPE::BENCH_FLUT:
     case TYPE::BENCH_PLAIN:
-        error::die("Not implemented for now");
+        error_die("Not implemented for now");
 
     case TYPE::UNSPECIFIED:
-        error::die("Please specify subcommand");
+        error_die("Please specify subcommand");
     }
 
     return 0;

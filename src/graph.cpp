@@ -120,7 +120,7 @@ Graph Graph::from_istream(std::istream &is)
                 ret.push_back(std::stoi(field));
         }
         catch (const std::invalid_argument &e) {
-            error::die(
+            error_die(
                 "Expected number as comma separted state, but got {} ({})",
                 field, e.what());
         }
@@ -148,8 +148,8 @@ Graph Graph::from_istream(std::istream &is)
 
         // validate
         if (q != std::stoi(match[2].str()))
-            error::die("Invalid state number: {} != {}",
-                       std::stoi(match[2].str()), q);
+            error_die("Invalid state number: {} != {}",
+                      std::stoi(match[2].str()), q);
 
         if (initial)
             init_sts.insert(q);
@@ -220,14 +220,14 @@ Graph Graph::from_att_istream(std::istream &is)
             else if (ch == 1)
                 std::get<2>(delta.at(from)).push_back(to);
             else
-                error::die("Invalid letter: {}", ch);
+                error_die("Invalid letter: {}", ch);
         }
         else if (std::regex_match(line, match, re2)) {  // Format: st
             int st = std::stoi(match[1].str());
             final_sts.insert(st);
         }
         else {
-            error::die("Invalid line: {}", line);
+            error_die("Invalid line: {}", line);
         }
     }
 
@@ -238,7 +238,7 @@ Graph Graph::from_att_file(const std::string &filename)
 {
     std::ifstream ifs{filename};
     if (!ifs)
-        error::die("Invalid filename: {}", filename);
+        error_die("Invalid filename: {}", filename);
     return Graph::from_att_istream(ifs);
 }
 

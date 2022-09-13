@@ -21,7 +21,7 @@ OnlineDFARunner::OnlineDFARunner(const Graph &graph,
     assert(gate_key_);
 
     if (sanitize_result_)
-        error::die("Sanitization of results is not implemented (qtrlwe)");
+        error_die("Sanitization of results is not implemented (qtrlwe)");
 
     for (Graph::State st = 0; st < graph_.size(); st++)
         if (st == graph_.initial_state())
@@ -139,7 +139,7 @@ OnlineDFARunner3::OnlineDFARunner3(
       sanitize_result_(sanitize_result)
 {
     if (sanitize_result_)
-        error::die("Sanitization of results is not implemented");
+        error_die("Sanitization of results is not implemented");
 
     for (Graph::State st : graph_.all_states())
         if (st == graph_.initial_state())
@@ -269,7 +269,7 @@ void OnlineDFARunner3::eval_queued_inputs()
     spdlog::debug("next live states: {}", next_live_states.size());
 
     if (next_live_states.size() >= (1 << max_second_lut_depth_))
-        error::die(
+        error_die(
             "The number of next live states ({}) must be smaller than "
             "2^max_second_lut_depth ({})",
             next_live_states.size(), 1 << max_second_lut_depth_);
@@ -388,7 +388,7 @@ OnlineDFARunner4::OnlineDFARunner4(Graph graph, size_t queue_size,
       timer_()
 {
     if (sanitize_result_)
-        error::die("Sanitization of results is not implemented");
+        error_die("Sanitization of results is not implemented");
 }
 
 TLWELvl1 OnlineDFARunner4::result()
