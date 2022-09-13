@@ -1,8 +1,28 @@
-option(HOMFA_BUILD_HOMFA "Build homfa" ON)
-option(HOMFA_BUILD_TEST0 "Build test0" ON)
+option(HOMFA_BUILD_COUNTER "Build counter" ON)
+option(HOMFA_BUILD_HOMFA "Build homfa" OFF)
+option(HOMFA_BUILD_TEST0 "Build test0" OFF)
 option(HOMFA_BUILD_TEST_PLAIN_RANDOM "Build test_plain_random" OFF)
 option(HOMFA_BUILD_TEST_CRYPTO_RANDOM "Build test_crypto_random" OFF)
 option(HOMFA_BUILD_BENCHMARK "Build benchmark" OFF)
+
+if(HOMFA_BUILD_COUNTER)
+    add_executable(counter
+        counter.cpp
+        tfhepp_util.cpp
+        error.cpp
+    )
+    add_sanitizers(counter)
+    target_compile_options(counter PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")
+    target_compile_options(counter PUBLIC "$<$<CONFIG:RELEASE>:${HOMFA_CXXFLAGS_RELEASE}>")
+    target_link_libraries(counter ${HOMFA_LIBS})
+    target_include_directories(counter PRIVATE ${HOMFA_INCLUDE_DIRS})
+    target_compile_definitions(counter PRIVATE ${HOMFA_COMPILE_DEFINITIONS})
+    set_target_properties(counter
+        PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+    install(TARGETS counter DESTINATION bin)
+endif()
 
 if(HOMFA_BUILD_HOMFA)
     add_executable(homfa
