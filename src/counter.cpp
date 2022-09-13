@@ -13,13 +13,83 @@ const uint32_t one_over_eight = (1u << 29), minus_one_over_eight = -(1u << 29);
 
 class Weight {
 private:
-    std::array<TRLWELvl1, 2> w;
+    std::array<TRLWELvl1, 10 + 1> w;
+
+private:
+    void mark_res_bit(size_t i)
+    {
+        PolyLvl1 poly = {};
+        poly[i] = (1 << 30);  // 1/4
+        TRLWELvl1 t = trivial_TRLWELvl1(poly);
+        TRLWELvl1_add(res(), t);
+    }
 
 public:
     Weight()
     {
-        for (auto&& c : w)
-            c = trivial_TRLWELvl1_zero();
+        /*
+           index    bit
+           0
+                    0    accept
+                    1..  state #
+                    n/2  borrow mark
+
+           1..      0    i-th bit of the counter
+                    1..  unused
+        */
+        res() = trivial_TRLWELvl1_zero();
+        set_state_number(0);
+        set_counter(0);
+    }
+
+    constexpr size_t counter_width() const
+    {
+        return w.size() - 1;
+    }
+
+    TRLWELvl1& counter_bit(size_t i)
+    {
+        return w.at(i + 1);
+    }
+
+    const TRLWELvl1& counter_bit(size_t i) const
+    {
+        return w.at(i + 1);
+    }
+
+    void set_state_number(uint64_t val)
+    {
+        PolyLvl1 poly = {};
+        for (size_t i = 0; i < 64; i++) {
+            bool b = ((val >> i) & 1) != 0;
+            poly[i + 1] = (b ? one_over_eight : minus_one_over_eight);
+        }
+        poly[0] = poly[Lvl1::n / 2] = minus_one_over_eight;
+        res() = trivial_TRLWELvl1(poly);
+    }
+
+    void set_counter(size_t val)
+    {
+        for (size_t i = 0; i < counter_width(); i++) {
+            bool b = ((val >> i) & 1) != 0;
+            counter_bit(i) = (b ? trivial_TRLWELvl1_1over8()
+                                : trivial_TRLWELvl1_minus_1over8());
+        }
+    }
+
+    void mark_counter()
+    {
+        mark_res_bit(Lvl1::n / 2);
+    }
+
+    void get_counter_mark(TLWELvl1& out)
+    {
+        TFHEpp::SampleExtractIndex<Lvl1>(out, res(), Lvl1::n / 2);
+    }
+
+    void mark_accept()
+    {
+        mark_res_bit(0);
     }
 
     size_t size() const
@@ -37,11 +107,6 @@ public:
         return w.at(0);
     }
 
-    TRLWELvl1& counter(size_t i)
-    {
-        return w.at(1 + i);
-    }
-
     const TRLWELvl1& at(size_t i) const
     {
         return w.at(i);
@@ -50,11 +115,6 @@ public:
     const TRLWELvl1& res() const
     {
         return w.at(0);
-    }
-
-    const TRLWELvl1& counter(size_t i) const
-    {
-        return w.at(1 + i);
     }
 
     std::tuple<bool, uint64_t, uint64_t> decrypt(const SecretKey& key,
@@ -72,31 +132,36 @@ public:
         }
 
         uint64_t cnt = 0;
-        {
+        for (size_t i = 0; i < counter_width(); i++) {
             std::array<bool, Lvl1::n> poly =
-                TFHEpp::trlweSymDecrypt<Lvl1>(this->counter(0), key.key.lvl1);
-            for (bool b : poly)
-                std::cerr << b;
-            for (; cnt < Lvl1::n; cnt++)
-                if (poly[cnt])
-                    break;
-            cnt = Lvl1::n - cnt;
+                TFHEpp::trlweSymDecrypt<Lvl1>(counter_bit(i), key.key.lvl1);
+            if (poly[0])
+                cnt |= (1u << i);
         }
 
         return std::make_tuple(accept, res, cnt);
     }
+
+    void dump(std::ostream& os, const SecretKey& skey) const
+    {
+        auto [accept, res, cnt] = decrypt(skey, 4);
+        os << "\n"
+           << "acc: " << accept << "\n"
+           << "res: " << res << "\n"
+           << "cnt: " << cnt << "\n";
+    }
 };
 
 Weight alter_weight(const Weight& src, bool inc_res, bool reset_counter,
-                    bool inc_counter, const TRLWELvl1& counter_zero)
+                    bool inc_counter, size_t counter_init_value)
 {
     Weight ret{src};
     if (inc_res)
-        TRLWELvl1_add(ret.res(), trivial_TRLWELvl1_1over8());
+        ret.mark_accept();
     if (reset_counter)
-        ret.counter(0) = counter_zero;
+        ret.set_counter(counter_init_value);
     if (inc_counter)
-        TRLWELvl1_mult_X_k(ret.counter(0), src.counter(0), 1);
+        ret.mark_counter();
     return ret;
 }
 
@@ -137,9 +202,15 @@ void lookup_table(std::vector<Weight>& table,
     }
 }
 
-void f(Weight& state, const TRGSWLvl1FFT& raw_input,
-       const TRLWELvl1& counter_zero, const GateKey& gate_key,
-       const CircuitKey& circuit_key)
+void copy_counter(Weight& dst, const Weight& src)
+{
+    for (size_t i = 0; i < dst.counter_width(); i++)
+        dst.counter_bit(i) = src.counter_bit(i);
+}
+
+void f(Weight& state, size_t counter_init_value, const TRGSWLvl1FFT& raw_input,
+       const GateKey& gate_key, const CircuitKey& circuit_key,
+       const SecretKey& debug_secret_key)
 {
     std::cerr << ".";
 
@@ -149,28 +220,27 @@ void f(Weight& state, const TRGSWLvl1FFT& raw_input,
     weight.resize(num_states);
     for (size_t i = 1; i <= 3; i++) {
         // Store state #
-        for (size_t j = 0; j < 4; j++)
-            if (((i >> j) & 1u) == 0)
-                weight.at(i).res()[1][j + 1] = -(1u << 29);  // -1/8
-            else
-                weight.at(i).res()[1][j + 1] = (1u << 29);  // 1/8
-
+        weight.at(i).set_state_number(i);
         // Store counter
-        weight.at(i).counter(0) = state.counter(0);
+        copy_counter(weight.at(i), state);
     }
 
-    TRGSWLvl1FFT counter_bootstrapped;
+    TRGSWLvl1FFT counter_cond;
     {
-        TLWELvl1 t1;
-        TFHEpp::SampleExtractIndex<Lvl1>(t1, state.counter(0), 0);
-        TLWELvl0 t0;
-        TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1, gate_key.ksk);
-        CircuitBootstrappingFFTLvl01(counter_bootstrapped, t0, circuit_key);
+        TLWELvl0 acc = trivial_TLWELvl0_minus_1over8();
+        for (size_t i = 0; i < state.counter_width(); i++) {
+            TLWELvl1 t1;
+            TFHEpp::SampleExtractIndex<Lvl1>(t1, state.counter_bit(i), 0);
+            TLWELvl0 t0;
+            TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1, gate_key.ksk);
+            TFHEpp::HomOR(acc, acc, t0, gate_key);
+        }
+        TFHEpp::HomNOT(acc, acc);
+        CircuitBootstrappingFFTLvl01(counter_cond, acc, circuit_key);
     }
 
     std::vector<TRGSWLvl1FFT> inputs = {
-        // FIXME CB to countre
-        counter_bootstrapped,
+        counter_cond,
         raw_input,
     };
 
@@ -206,10 +276,12 @@ void f(Weight& state, const TRGSWLvl1FFT& raw_input,
             Weight& out = temp.at(i);
             auto&& d0 = delta.at(i * 2 + 0);
             auto&& d1 = delta.at(i * 2 + 1);
-            Weight in0 = alter_weight(weight.at(get<0>(d0)), get<1>(d0),
-                                      get<2>(d0), get<3>(d0), counter_zero);
-            Weight in1 = alter_weight(weight.at(get<0>(d1)), get<1>(d1),
-                                      get<2>(d1), get<3>(d1), counter_zero);
+            Weight in0 =
+                alter_weight(weight.at(get<0>(d0)), get<1>(d0), get<2>(d0),
+                             get<3>(d0), counter_init_value);
+            Weight in1 =
+                alter_weight(weight.at(get<0>(d1)), get<1>(d1), get<2>(d1),
+                             get<3>(d1), counter_init_value);
             cmux(out, input, in1, in0);
         }
         weight.swap(temp);
@@ -228,56 +300,61 @@ void f(Weight& state, const TRGSWLvl1FFT& raw_input,
         TLWELvl1 t1;
         TFHEpp::SampleExtractIndex<Lvl1>(t1, state.res(), i + 1);
         TLWELvl0 t0;
-        TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1, gate_key.ksk);
-        CircuitBootstrappingFFTLvl01(cond.at(i), t0, circuit_key);
+        TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1,
+        gate_key.ksk); CircuitBootstrappingFFTLvl01(cond.at(i), t0,
+        circuit_key);
     });
     */
 
     weight.resize(1 << log2_num_states);
     lookup_table(weight, cond.begin(), cond.end(), temp);
     state = weight.at(0);
+
+    // Refresh state
+    {
+        TLWELvl1 borrow_l1;
+        state.get_counter_mark(borrow_l1);
+        TLWELvl0 borrow;
+        TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(borrow, borrow_l1,
+                                                      gate_key.ksk);
+
+        for (size_t i = 0; i < state.counter_width(); i++) {
+            // Minus 1
+            TLWELvl1 t1;
+            TFHEpp::SampleExtractIndex<Lvl1>(t1, state.counter_bit(i), 0);
+            TLWELvl0 t0, new_bit;
+            TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1, gate_key.ksk);
+            TFHEpp::HomXOR(new_bit, t0, borrow, gate_key);
+            TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(
+                state.counter_bit(i), new_bit, gate_key.bkfftlvl01);
+            TFHEpp::HomANDNY(borrow, t0, borrow, gate_key);
+        }
+    }
 }
 
 void test(const SecretKey& skey, const BKey& bkey)
 {
-    const size_t alpha = 100;
+    const size_t alpha = 10;
 
     TRGSWLvl1FFT b1 = encrypt_bit_to_TRGSWLvl1FFT(true, skey);
     TRGSWLvl1FFT b0 = encrypt_bit_to_TRGSWLvl1FFT(false, skey);
 
-    TRLWELvl1 counter_zero;
-    {
-        PolyLvl1 poly;
-        for (size_t i = 0; i < Lvl1::n; i++) {
-            poly[i] =
-                (i < Lvl1::n - alpha) ? minus_one_over_eight : one_over_eight;
-        }
-        counter_zero = trivial_TRLWELvl1(poly);
-    }
-
     Weight state;
-    state.counter(0) = counter_zero;
-    {
-        PolyLvl1 poly;
-        for (size_t i = 0; i < Lvl1::n; i++)
-            poly[i] = minus_one_over_eight;
-        state.res() = trivial_TRLWELvl1(poly);
-    }
+    state.set_counter(alpha);
 
     // 0 -> 4 -> 1
-    f(state, b1, counter_zero, *bkey.gkey, *bkey.circuit_key);
+    f(state, alpha, b1, *bkey.gkey, *bkey.circuit_key, skey);
+    state.dump(std::cerr, skey);
     // 1 -> 5 -> 2
-    f(state, b0, counter_zero, *bkey.gkey, *bkey.circuit_key);
+    f(state, alpha, b0, *bkey.gkey, *bkey.circuit_key, skey);
+    state.dump(std::cerr, skey);
     // 2 -> 7 -> 2 -> 7 -> 2 -> ... -> 2
-    for (int i = 0; i < 98; i++) {
-        f(state, b0, counter_zero, *bkey.gkey, *bkey.circuit_key);
+    for (int i = 0; i < 11; i++) {
+        f(state, alpha, b0, *bkey.gkey, *bkey.circuit_key, skey);
 
-        auto [accept, res, cnt] = state.decrypt(skey, 4);
-        std::cout << "\n"
-                  << "acc: " << accept << "\n"
-                  << "res: " << res << "\n"
-                  << "cnt: " << cnt << "\n";
+        state.dump(std::cerr, skey);
     }
+    state.dump(std::cerr, skey);
 }
 
 int main(int argc, char** argv)
