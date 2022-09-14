@@ -63,15 +63,12 @@ public:
                    const GateKey& gate_key)
     {
         // FIXME: parallel_policy?
-        // FIXME: Implement and use HomXORwoSEI
         for (size_t i = 0; i < bit_width_; i++) {
             TLWELvl1 t1;
             TFHEpp::SampleExtractIndex<Lvl1>(t1, c_.at(i), 0);
-            TLWELvl0 t0, new_bit;
+            TLWELvl0 t0;
             TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1, gate_key.ksk);
-            TFHEpp::HomXOR(new_bit, t0, borrow, gate_key);
-            TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(
-                c_.at(i), new_bit, gate_key.bkfftlvl01);
+            HomXORwoSE(c_.at(i), t0, borrow, gate_key);
             TFHEpp::HomANDNY(borrow, t0, borrow, gate_key);
         }
     }

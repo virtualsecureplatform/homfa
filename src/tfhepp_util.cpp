@@ -445,3 +445,14 @@ void CircuitBootstrappingFFTLvl01(TRGSWLvl1FFT &out, const TLWELvl0 &src,
     TFHEpp::CircuitBootstrappingFFT<TFHEpp::lvl02param, TFHEpp::lvl21param>(
         out, src, circuit_key);
 }
+
+void HomXORwoSE(TRLWELvl1 &out, const TLWELvl0 &lhs, const TLWELvl0 &rhs,
+                const GateKey &gate_key)
+{
+    TLWELvl0 temp;
+    for (int i = 0; i <= Lvl0::n; i++)
+        temp[i] = 2 * lhs[i] + 2 * rhs[i];
+    temp[Lvl0::n] += 2 * Lvl0::μ;
+    TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(
+        out, temp, gate_key.bkfftlvl01);
+}

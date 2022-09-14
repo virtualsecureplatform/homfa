@@ -172,5 +172,7 @@ void dump_weight(std::ostream &os, const PolyLvl1 &w);
 std::string weight2bitstring(const PolyLvl1 &w);
 void CircuitBootstrappingFFTLvl01(TRGSWLvl1FFT &out, const TLWELvl0 &src,
                                   const CircuitKey &circuit_key);
+void HomXORwoSE(TRLWELvl1 &out, const TLWELvl0 &lhs, const TLWELvl0 &rhs,
+                const GateKey &gate_key);
 
 #endif
