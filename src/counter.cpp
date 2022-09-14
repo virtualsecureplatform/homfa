@@ -10,7 +10,22 @@
 
 namespace {
 const uint32_t one_over_eight = (1u << 29), minus_one_over_eight = -(1u << 29);
+
+template <class F>
+void parallel_for(std::execution::parallel_policy, size_t start, size_t end,
+                  F&& f)
+{
+    tbb::parallel_for(start, end, f);
 }
+
+template <class F>
+void parallel_for(std::execution::sequenced_policy, size_t start, size_t end,
+                  F&& f)
+{
+    for (size_t i = start; i < end; i++)
+        f(i);
+}
+}  // namespace
 
 class Weight;
 
@@ -169,46 +184,47 @@ public:
         counter_.at(i).reset();
     }
 
-    void get_counter_condition(std::execution::sequenced_policy,
+    template <class ExecutionPolicy>
+    void get_counter_condition(ExecutionPolicy&& exec,
                                std::vector<TRGSWLvl1FFT>& out,
                                const GateKey& gate_key,
                                const CircuitKey& circuit_key) const
     {
         out.resize(counter_.size());
-        for (size_t i = 0; i < counter_.size(); i++) {
+        parallel_for(exec, 0, counter_.size(), [&](size_t i) {
             TLWELvl0 temp;
-            counter_.at(i).is_zero(std::execution::seq, temp, gate_key);
+            counter_.at(i).is_zero(exec, temp, gate_key);
             CircuitBootstrappingFFTLvl01(out.at(i), temp, circuit_key);
-        }
+        });
     }
 
-    void get_selectors(std::execution::sequenced_policy,
-                       std::vector<TRGSWLvl1FFT>& out, size_t log2_num_states,
-                       const GateKey& gate_key,
+    template <class ExecutionPolicy>
+    void get_selectors(ExecutionPolicy&& exec, std::vector<TRGSWLvl1FFT>& out,
+                       size_t log2_num_states, const GateKey& gate_key,
                        const CircuitKey& circuit_key) const
     {
         out.resize(log2_num_states);
-        for (size_t i = 0; i < log2_num_states; i++) {
+        parallel_for(exec, 0, log2_num_states, [&](size_t i) {
             TLWELvl1 t1;
             TFHEpp::SampleExtractIndex<Lvl1>(t1, general_, i + 1);
             TLWELvl0 t0;
             TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1, gate_key.ksk);
             CircuitBootstrappingFFTLvl01(out.at(i), t0, circuit_key);
-        }
+        });
     }
 
     // For each counter, get its borrow and subtract it
-    void update_counters(std::execution::sequenced_policy,
-                         const GateKey& gate_key)
+    template <class ExecutionPolicy>
+    void update_counters(ExecutionPolicy&& exec, const GateKey& gate_key)
     {
-        for (size_t i = 0; i < counter_.size(); i++) {
+        parallel_for(exec, 0, counter_.size(), [&](size_t i) {
             TLWELvl1 borrow_l1;
             get_general_bit(borrow_l1, Lvl1::n / 2 + i);
             TLWELvl0 borrow;
             TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(borrow, borrow_l1,
                                                           gate_key.ksk);
             counter_.at(i).minus_one(std::execution::seq, borrow, gate_key);
-        }
+        });
     }
 
     std::tuple<bool, size_t, size_t> decrypt(const SecretKey& skey) const
@@ -268,7 +284,8 @@ Weight alter_weight(const Weight& src, bool inc_res, bool reset_counter,
     return ret;
 }
 
-void lookup_table(std::vector<Weight>& table,
+template <class ExecutionPolicy>
+void lookup_table(ExecutionPolicy&& exec, std::vector<Weight>& table,
                   std::vector<TRGSWLvl1FFT>::const_iterator input_begin,
                   std::vector<TRGSWLvl1FFT>::const_iterator input_end,
                   std::vector<Weight>& workspace)
@@ -284,19 +301,17 @@ void lookup_table(std::vector<Weight>& table,
 
     size_t i = 0;
     for (auto it = input_begin; it != input_end; ++it, ++i) {
-        for (size_t j = 0; j < 1 << (input_size - i - 1); j++) {
+        parallel_for(exec, 0, 1 << (input_size - i - 1), [&](size_t j) {
             Weight::cmux(tmp.at(j), *it, table.at(j * 2 + 1), table.at(j * 2));
-        }
-        // tbb::parallel_for(0, 1 << (input_size - i - 1), [&](size_t j) {
-        //     TFHEpp::CMUXFFT<Lvl1>(tmp.at(j), *it, table.at(j * 2 + 1),
-        //                           table.at(j * 2));
-        // });
+        });
         tmp.swap(table);
     }
 }
 
-void f(Weight& state, const TRGSWLvl1FFT& raw_input, const GateKey& gate_key,
-       const CircuitKey& circuit_key, const SecretKey& debug_secret_key)
+template <class ExecutionPolicy>
+void f(ExecutionPolicy&& exec, Weight& state, const TRGSWLvl1FFT& raw_input,
+       const GateKey& gate_key, const CircuitKey& circuit_key,
+       const SecretKey& debug_secret_key)
 {
     std::cerr << ".";
 
@@ -332,8 +347,7 @@ void f(Weight& state, const TRGSWLvl1FFT& raw_input, const GateKey& gate_key,
 
     // Prepare inputs
     std::vector<TRGSWLvl1FFT> inputs;
-    state.get_counter_condition(std::execution::seq, inputs, gate_key,
-                                circuit_key);
+    state.get_counter_condition(exec, inputs, gate_key, circuit_key);
     inputs.push_back(raw_input);
 
     // Let's do this
@@ -341,7 +355,7 @@ void f(Weight& state, const TRGSWLvl1FFT& raw_input, const GateKey& gate_key,
     temp.resize(weight.size(), state /* dummy */);
     for (int i = inputs.size() - 1; i >= 0; i--) {
         auto&& input = inputs.at(i);
-        for (size_t i = 0; i < num_states; i++) {
+        parallel_for(exec, 0, num_states, [&](size_t i) {
             using std::get;
 
             Weight& out = temp.at(i);
@@ -352,23 +366,24 @@ void f(Weight& state, const TRGSWLvl1FFT& raw_input, const GateKey& gate_key,
             Weight in1 = alter_weight(weight.at(get<0>(d1)), get<1>(d1),
                                       get<2>(d1), get<3>(d1));
             Weight::cmux(out, input, in1, in0);
-        }
+        });
         weight.swap(temp);
     }
 
     std::vector<TRGSWLvl1FFT> selectors;
-    state.get_selectors(std::execution::seq, selectors, log2_num_states,
-                        gate_key, circuit_key);
+    state.get_selectors(exec, selectors, log2_num_states, gate_key,
+                        circuit_key);
     weight.resize(1 << log2_num_states, state /* dummy */);
-    lookup_table(weight, selectors.begin(), selectors.end(), temp);
+    lookup_table(exec, weight, selectors.begin(), selectors.end(), temp);
 
     state = weight.at(0);
-    state.update_counters(std::execution::seq, gate_key);
+    state.update_counters(exec, gate_key);
 }
 
 void test(const SecretKey& skey, const BKey& bkey)
 {
     const size_t alpha = 10;
+    auto exec = std::execution::par;
 
     TRGSWLvl1FFT b1 = encrypt_bit_to_TRGSWLvl1FFT(true, skey);
     TRGSWLvl1FFT b0 = encrypt_bit_to_TRGSWLvl1FFT(false, skey);
@@ -376,14 +391,14 @@ void test(const SecretKey& skey, const BKey& bkey)
     Weight state{0, std::vector{std::tuple<size_t, uint64_t>{10, alpha}}};
 
     // 0 -> 4 -> 1
-    f(state, b1, *bkey.gkey, *bkey.circuit_key, skey);
+    f(exec, state, b1, *bkey.gkey, *bkey.circuit_key, skey);
     state.dump(std::cerr, skey);
     // 1 -> 5 -> 2
-    f(state, b0, *bkey.gkey, *bkey.circuit_key, skey);
+    f(exec, state, b0, *bkey.gkey, *bkey.circuit_key, skey);
     state.dump(std::cerr, skey);
     // 2 -> 7 -> 2 -> 7 -> 2 -> ... -> 2
     for (int i = 0; i < 11; i++) {
-        f(state, b0, *bkey.gkey, *bkey.circuit_key, skey);
+        f(exec, state, b0, *bkey.gkey, *bkey.circuit_key, skey);
 
         state.dump(std::cerr, skey);
     }
