@@ -37,17 +37,25 @@ public:
         }
     }
 
-    void is_zero(std::execution::sequenced_policy, TLWELvl0& out,
+    template <class ExecutionPolicy>
+    void is_zero(ExecutionPolicy&& exec, TLWELvl0& out,
                  const GateKey& gate_key) const
     {
-        out = trivial_TLWELvl0_minus_1over8();
-        for (size_t i = 0; i < bit_width_; i++) {
-            TLWELvl1 t1;
-            TFHEpp::SampleExtractIndex<Lvl1>(t1, c_.at(i), 0);
-            TLWELvl0 t0;
-            TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1, gate_key.ksk);
-            TFHEpp::HomOR(out, out, t0, gate_key);
-        }
+        out = std::transform_reduce(
+            exec, c_.begin(), c_.end(), trivial_TLWELvl0_minus_1over8(),
+            [&gate_key](const TLWELvl0& acc, const TLWELvl0& c) {  // reduce
+                TLWELvl0 t;
+                TFHEpp::HomOR(t, acc, c, gate_key);
+                return t;
+            },
+            [&gate_key](const TRLWELvl1& c) {  // transform
+                TLWELvl1 t1;
+                TFHEpp::SampleExtractIndex<Lvl1>(t1, c, 0);
+                TLWELvl0 t0;
+                TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1,
+                                                              gate_key.ksk);
+                return t0;
+            });
         TFHEpp::HomNOT(out, out);
     }
 
