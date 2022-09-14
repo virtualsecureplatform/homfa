@@ -45,7 +45,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 endif()
 
 if(HOMFA_ENABLE_PROFILE)
-    list(APPEND profiler tcmalloc)
+    list(APPEND HOMFA_LIBS -Wl,--no-as-needed -lprofiler -ltcmalloc -Wl,--as-needed)
     list(APPEND HOMFA_COMPILE_DEFINITIONS HOMFA_ENABLE_PROFILE)
 endif()
 
