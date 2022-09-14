@@ -74,18 +74,25 @@ public:
         TFHEpp::HomNOT(out, out);
     }
 
-    void minus_one(std::execution::sequenced_policy, TLWELvl0 borrow,
+    template <class ExecutionPolicy>
+    void minus_one(ExecutionPolicy&& exec, TLWELvl0 borrow,
                    const GateKey& gate_key)
     {
-        // FIXME: parallel_policy?
+        std::vector<TLWELvl0> memo;
+        memo.reserve(bit_width_ * 2);
         for (size_t i = 0; i < bit_width_; i++) {
             TLWELvl1 t1;
             TFHEpp::SampleExtractIndex<Lvl1>(t1, c_.at(i), 0);
             TLWELvl0 t0;
             TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1, gate_key.ksk);
-            HomXORwoSE(c_.at(i), t0, borrow, gate_key);
+            memo.emplace_back(t0);
+            memo.emplace_back(borrow);
             TFHEpp::HomANDNY(borrow, t0, borrow, gate_key);
         }
+
+        parallel_for(exec, 0, bit_width_, [&](size_t i) {
+            HomXORwoSE(c_.at(i), memo.at(i * 2), memo.at(i * 2 + 1), gate_key);
+        });
     }
 
     uint64_t decrypt(const SecretKey& skey) const
@@ -223,7 +230,7 @@ public:
             TLWELvl0 borrow;
             TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(borrow, borrow_l1,
                                                           gate_key.ksk);
-            counter_.at(i).minus_one(std::execution::seq, borrow, gate_key);
+            counter_.at(i).minus_one(exec, borrow, gate_key);
         });
     }
 
