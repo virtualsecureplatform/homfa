@@ -1,4 +1,5 @@
 #include "archive.hpp"
+#include "graph.hpp"
 #include "tfhepp_util.hpp"
 
 #include <tbb/parallel_for.h>
@@ -26,6 +27,83 @@ void parallel_for(std::execution::sequenced_policy, size_t start, size_t end,
         f(i);
 }
 }  // namespace
+
+// Binarized Temporal Tester (?)
+class BTT {
+public:
+    using State = int;
+    using CounterNo = size_t;
+
+    struct Edge {
+        State from, to;
+        bool input, accept;
+        std::vector<CounterNo> reset, inc;
+        std::optional<CounterNo> check;
+
+        Edge(State from, bool input, State to, bool accept,
+             std::vector<CounterNo> reset, std::vector<CounterNo> inc,
+             std::optional<CounterNo> check)
+            : from(from),
+              to(to),
+              input(input),
+              accept(accept),
+              reset(std::move(reset)),
+              inc(std::move(inc)),
+              check(std::move(check))
+        {
+        }
+    };
+
+    using Delta = std::vector<Edge>;
+
+private:
+    Delta delta_;
+
+public:
+    BTT(State init_state, const Delta& delta);
+
+    static BTT from_istream(std::istream& is);
+
+    Graph to_graph() const;
+
+    size_t size() const
+    {
+        return delta_.size() / 2;
+    }
+
+    State initial_state() const
+    {
+        return 0;
+    }
+
+    std::pair<Edge, Edge> get_edge(State state) const
+    {
+        return std::make_pair(delta_.at(state * 2), delta_.at(state * 2 + 1));
+    }
+};
+
+BTT::BTT(State init_state, const Delta& delta) : delta_(delta)
+{
+    // Sanity check
+    assert(init_state == 0);  // FIXME: Relax this condition
+    assert(delta.size() % 2 == 0);
+    for (size_t i = 0; i < delta.size(); i++) {
+        assert(delta.at(i).from == i / 2);
+        assert(delta.at(i).input == (i % 2 != 0));
+    }
+}
+
+Graph BTT::to_graph() const
+{
+    std::set<State> final_states;
+    Graph::DFADelta delta;
+    for (size_t q = 0; q < size(); q++) {
+        auto [e0, e1] = get_edge(q);
+        delta.emplace_back(q, e0.to, e1.to);
+        final_states.insert(q);
+    }
+    return Graph{initial_state(), final_states, delta};
+}
 
 class Weight;
 
@@ -278,16 +356,17 @@ public:
     }
 };
 
-Weight alter_weight(const Weight& src, bool inc_res, bool reset_counter,
-                    bool inc_counter)
+Weight alter_weight(const Weight& src, bool accept,
+                    const std::vector<size_t>& reset_counter,
+                    const std::vector<size_t>& inc_counter)
 {
     Weight ret{src};
-    if (inc_res)
+    if (accept)
         ret.mark_accept();
-    if (reset_counter)
-        ret.reset_counter(0);
-    if (inc_counter)
-        ret.mark_counter(0);
+    for (size_t i : reset_counter)
+        ret.reset_counter(i);
+    for (size_t i : inc_counter)
+        ret.mark_counter(i);
     return ret;
 }
 
@@ -322,28 +401,32 @@ void f(ExecutionPolicy&& exec, Weight& state, const TRGSWLvl1FFT& raw_input,
 {
     std::cerr << ".";
 
-    const size_t num_states = 9, log2_num_states = 4;
-    const std::vector<std::tuple<size_t, bool, bool, bool>> delta = {
-        /* state input dst inc_res reset_counter inc_counter */
-        /* 0 0 */ {4, false, false, false},
-        /* 0 1 */ {4, false, false, false},
-        /* 1 0 */ {5, false, false, false},
-        /* 1 1 */ {5, false, false, false},
-        /* 2 0 */ {7, false, false, false},
-        /* 2 1 */ {6, false, false, false},
-        /* 3 0 */ {8, false, false, false},
-        /* 3 1 */ {8, false, false, false},
-        /* 4 0 */ {3, false, false, false},
-        /* 4 1 */ {1, true, false, false},
-        /* 5 0 */ {2, true, true, false},
-        /* 5 1 */ {1, true, false, false},
-        /* 6 0 */ {3, false, false, false},
-        /* 6 1 */ {1, true, false, false},
-        /* 7 0 */ {2, true, false, true},
-        /* 7 1 */ {1, true, false, false},
-        /* 8 0 */ {3, false, false, false},
-        /* 8 1 */ {1, true, false, false},
+    BTT graph{
+        0,
+        {
+            // from, input, to, accept, reset, inc, check
+            {0, 0, 4, false, {}, {}, 0},
+            {0, 1, 4, false, {}, {}, 0},
+            {1, 0, 5, false, {}, {}, 0},
+            {1, 1, 5, false, {}, {}, 0},
+            {2, 0, 7, false, {}, {}, 0},
+            {2, 1, 6, false, {}, {}, 0},
+            {3, 0, 8, false, {}, {}, 0},
+            {3, 1, 8, false, {}, {}, 0},
+            {4, 0, 3, false, {}, {}, std::nullopt},
+            {4, 1, 1, true, {}, {}, std::nullopt},
+            {5, 0, 2, true, {0}, {}, std::nullopt},
+            {5, 1, 1, true, {}, {}, std::nullopt},
+            {6, 0, 3, false, {}, {}, std::nullopt},
+            {6, 1, 1, true, {}, {}, std::nullopt},
+            {7, 0, 2, true, {}, {0}, std::nullopt},
+            {7, 1, 1, true, {}, {}, std::nullopt},
+            {8, 0, 3, false, {}, {}, std::nullopt},
+            {8, 1, 1, true, {}, {}, std::nullopt},
+        },
     };
+    const size_t num_states = graph.size(),
+                 log2_num_states = std::ceil(std::log2(num_states));
 
     // Prepare weights
     std::vector<Weight> weight;
@@ -366,12 +449,11 @@ void f(ExecutionPolicy&& exec, Weight& state, const TRGSWLvl1FFT& raw_input,
             using std::get;
 
             Weight& out = temp.at(i);
-            auto&& d0 = delta.at(i * 2 + 0);
-            auto&& d1 = delta.at(i * 2 + 1);
-            Weight in0 = alter_weight(weight.at(get<0>(d0)), get<1>(d0),
-                                      get<2>(d0), get<3>(d0));
-            Weight in1 = alter_weight(weight.at(get<0>(d1)), get<1>(d1),
-                                      get<2>(d1), get<3>(d1));
+            auto [e0, e1] = graph.get_edge(i);
+            Weight in0 =
+                alter_weight(weight.at(e0.to), e0.accept, e0.reset, e0.inc);
+            Weight in1 =
+                alter_weight(weight.at(e1.to), e1.accept, e1.reset, e1.inc);
             Weight::cmux(out, input, in1, in0);
         });
         weight.swap(temp);

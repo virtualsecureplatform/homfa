@@ -8,8 +8,9 @@ option(HOMFA_BUILD_BENCHMARK "Build benchmark" OFF)
 if(HOMFA_BUILD_COUNTER)
     add_executable(counter
         counter.cpp
-        tfhepp_util.cpp
         error.cpp
+        graph.cpp
+        tfhepp_util.cpp
     )
     add_sanitizers(counter)
     target_compile_options(counter PUBLIC "$<$<CONFIG:DEBUG>:${HOMFA_CXXFLAGS_DEBUG}>")
