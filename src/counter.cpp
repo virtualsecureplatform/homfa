@@ -26,6 +26,17 @@ void parallel_for(std::execution::sequenced_policy, size_t start, size_t end,
     for (size_t i = start; i < end; i++)
         f(i);
 }
+
+template <class T>
+std::vector<T> unwrap_optional(const std::vector<std::optional<T>>& src,
+                               T default_value)
+{
+    std::vector<T> ret;
+    ret.reserve(src.size());
+    for (auto&& elm : src)
+        ret.push_back(elm.value_or(default_value));
+    return ret;
+}
 }  // namespace
 
 // Binarized Temporal Tester (?)
@@ -33,6 +44,7 @@ class BTT {
 public:
     using State = int;
     using CounterNo = size_t;
+    using CounterSpec = std::tuple<CounterNo, uint64_t>;
 
     struct Edge {
         State from, to;
@@ -58,9 +70,11 @@ public:
 
 private:
     Delta delta_;
+    std::vector<CounterSpec> counters_spec_;
 
 public:
-    BTT(State init_state, const Delta& delta);
+    BTT(State init_state, const Delta& delta,
+        std::vector<CounterSpec> counters_spec);
 
     static BTT from_istream(std::istream& is);
 
@@ -76,13 +90,20 @@ public:
         return 0;
     }
 
+    std::vector<CounterSpec> counters_spec() const
+    {
+        return counters_spec_;
+    }
+
     std::pair<Edge, Edge> get_edge(State state) const
     {
         return std::make_pair(delta_.at(state * 2), delta_.at(state * 2 + 1));
     }
 };
 
-BTT::BTT(State init_state, const Delta& delta) : delta_(delta)
+BTT::BTT(State init_state, const Delta& delta,
+         std::vector<CounterSpec> counters_spec)
+    : delta_(delta), counters_spec_(std::move(counters_spec))
 {
     // Sanity check
     assert(init_state == 0);  // FIXME: Relax this condition
@@ -254,6 +275,11 @@ public:
         initialize_general(state_no);
     }
 
+    void get_accept(TLWELvl1& out)
+    {
+        get_general_bit(out, 0);
+    }
+
     void mark_accept()
     {
         mark_general_bit(0);
@@ -284,11 +310,12 @@ public:
     }
 
     template <class ExecutionPolicy>
-    void get_selectors(ExecutionPolicy&& exec, std::vector<TRGSWLvl1FFT>& out,
-                       size_t log2_num_states, const GateKey& gate_key,
-                       const CircuitKey& circuit_key) const
+    std::vector<TRGSWLvl1FFT> get_selectors(ExecutionPolicy&& exec,
+                                            size_t log2_num_states,
+                                            const GateKey& gate_key,
+                                            const CircuitKey& circuit_key) const
     {
-        out.resize(log2_num_states);
+        std::vector<TRGSWLvl1FFT> out(log2_num_states);
         parallel_for(exec, 0, log2_num_states, [&](size_t i) {
             TLWELvl1 t1;
             TFHEpp::SampleExtractIndex<Lvl1>(t1, general_, i + 1);
@@ -296,6 +323,7 @@ public:
             TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(t0, t1, gate_key.ksk);
             CircuitBootstrappingFFTLvl01(out.at(i), t0, circuit_key);
         });
+        return out;
     }
 
     // For each counter, get its borrow and subtract it
@@ -312,7 +340,8 @@ public:
         });
     }
 
-    std::tuple<bool, size_t, size_t> decrypt(const SecretKey& skey) const
+    std::tuple<bool, size_t, size_t, std::vector<uint64_t>> decrypt(
+        const SecretKey& skey) const
     {
         auto poly = TFHEpp::trlweSymDecrypt<Lvl1>(general_, skey.key.lvl1);
 
@@ -328,19 +357,11 @@ public:
             if (poly[Lvl1::n / 2 + i])
                 counter_info |= (1 << i);
 
-        return std::make_tuple(accept, state_no, counter_info);
-    }
+        std::vector<uint64_t> counter;
+        for (auto&& c : counter_)
+            counter.push_back(c.decrypt(skey));
 
-    void dump(std::ostream& os, const SecretKey& skey) const
-    {
-        auto [accept, state_no, counter_info] = decrypt(skey);
-        os << "\n"
-           << "acc:  " << accept << "\n"
-           << "st#:  " << state_no << "\n"
-           << "info: " << counter_info << "\n";
-        for (size_t i = 0; i < counter_.size(); i++)
-            os << "cnt" << i << ": " << counter_.at(i).decrypt(skey);
-        os << "\n";
+        return std::make_tuple(accept, state_no, counter_info, counter);
     }
 
     static void cmux(Weight& out, const TRGSWLvl1FFT& sel, const Weight& in1,
@@ -373,15 +394,14 @@ Weight alter_weight(const Weight& src, bool accept,
 template <class ExecutionPolicy>
 void lookup_table(ExecutionPolicy&& exec, std::vector<Weight>& table,
                   std::vector<TRGSWLvl1FFT>::const_iterator input_begin,
-                  std::vector<TRGSWLvl1FFT>::const_iterator input_end,
-                  std::vector<Weight>& workspace)
+                  std::vector<TRGSWLvl1FFT>::const_iterator input_end)
 {
     const size_t input_size = std::distance(input_begin, input_end);
     assert(table.size() == (1 << input_size));  // FIXME: relax this condition
     if (input_size == 0)
         return;
 
-    std::vector<Weight>& tmp = workspace;
+    std::vector<Weight> tmp;
     tmp.clear();
     tmp.resize(1 << (input_size - 1), table.at(0) /* dummy */);
 
@@ -394,14 +414,187 @@ void lookup_table(ExecutionPolicy&& exec, std::vector<Weight>& table,
     }
 }
 
-template <class ExecutionPolicy>
-void f(ExecutionPolicy&& exec, Weight& state, const TRGSWLvl1FFT& raw_input,
-       const GateKey& gate_key, const CircuitKey& circuit_key,
-       const SecretKey& debug_secret_key)
-{
-    std::cerr << ".";
+class BTTRunner {
+private:
+    BTT btt_;
+    Graph graph_;
+    const GateKey& gate_key_;
+    const CircuitKey& circuit_key_;
+    size_t queue_size_;
+    std::vector<TRGSWLvl1FFT> queued_inputs_;
+    Weight state_;
+    std::vector<Graph::State> live_states_;
 
-    BTT graph{
+public:
+    BTTRunner(const BTT& btt, size_t queue_size, const GateKey& gate_key,
+              const CircuitKey& circuit_key);
+
+    const Graph& graph() const
+    {
+        return graph_;
+    }
+
+    size_t queue_size() const
+    {
+        return queue_size_;
+    }
+
+    size_t num_live_states() const
+    {
+        return live_states_.size();
+    }
+
+    TLWELvl1 result();
+    void eval_one(const TRGSWLvl1FFT& input);
+
+    void dump(std::ostream& os, const SecretKey& skey);
+
+private:
+    void eval_queued_inputs();
+
+    template <class ExecutionPolicy>
+    void eval_block_cmuxs(
+        ExecutionPolicy&& exec, std::vector<std::optional<Weight>>& weight,
+        const std::vector<TRGSWLvl1FFT>& inputs,
+        const std::vector<std::vector<Graph::State>>& live_states_at_depth);
+};
+
+BTTRunner::BTTRunner(const BTT& btt, size_t queue_size, const GateKey& gate_key,
+                     const CircuitKey& circuit_key)
+    : btt_(btt),
+      graph_(btt.to_graph()),
+      gate_key_(gate_key),
+      circuit_key_(circuit_key),
+      queue_size_(queue_size),
+      queued_inputs_(),
+      state_(btt.initial_state(), btt.counters_spec()),
+      live_states_({btt.initial_state()})
+{
+}
+
+TLWELvl1 BTTRunner::result()
+{
+    eval_queued_inputs();
+    TLWELvl1 ret;
+    state_.get_accept(ret);
+    return ret;
+}
+
+void BTTRunner::eval_one(const TRGSWLvl1FFT& input)
+{
+    queued_inputs_.push_back(input);
+    if (queued_inputs_.size() < queue_size_)
+        return;
+    eval_queued_inputs();
+}
+
+void BTTRunner::dump(std::ostream& os, const SecretKey& skey)
+{
+    auto [accept, state_no, counter_info, counter] = state_.decrypt(skey);
+    os << "\n"
+       << "acc:  " << accept << "\n"
+       << "st#:  " << live_states_.at(state_no) << "\n"
+       << "info: " << counter_info << "\n";
+    for (size_t i = 0; i < counter.size(); i++)
+        os << "cnt" << i << ": " << counter.at(i) << "\n";
+    os << "\n";
+}
+
+template <class ExecutionPolicy>
+void BTTRunner::eval_block_cmuxs(
+    ExecutionPolicy&& exec, std::vector<std::optional<Weight>>& weight,
+    const std::vector<TRGSWLvl1FFT>& inputs,
+    const std::vector<std::vector<Graph::State>>& live_states_at_depth)
+{
+    std::vector<std::optional<Weight>> temp(weight.size());
+    for (int i = inputs.size() - 1; i >= 0; i--) {
+        auto&& input = inputs.at(i);
+        const auto& states = live_states_at_depth.at(i);
+        std::for_each(exec, states.begin(), states.end(), [&](Graph::State q) {
+            auto [e0, e1] = btt_.get_edge(q);
+            Weight in0 = alter_weight(weight.at(e0.to).value(), e0.accept,
+                                      e0.reset, e0.inc);
+            Weight in1 = alter_weight(weight.at(e1.to).value(), e1.accept,
+                                      e1.reset, e1.inc);
+            auto& out = temp.at(q);
+            out.emplace(0, state_ /* dummy */);
+            Weight::cmux(out.value(), input, in1, in0);
+        });
+        weight.swap(temp);
+    }
+}
+
+void BTTRunner::eval_queued_inputs()
+{
+    auto exec = std::execution::par;
+
+    // Prepare inputs
+    std::vector<TRGSWLvl1FFT> inputs;
+    state_.get_counter_condition(exec, inputs, gate_key_, circuit_key_);
+    std::copy(queued_inputs_.begin(), queued_inputs_.end(),
+              std::back_inserter(inputs));
+    queued_inputs_.clear();
+
+    // Calculate live states
+    const std::vector<Graph::State> all_states = graph_.all_states();
+    const std::vector<Graph::State> live_states = live_states_;
+    const std::vector<std::vector<Graph::State>> live_states_at_depth =
+        graph_.track_live_states(live_states, inputs.size());
+    const std::vector<Graph::State> next_live_states =
+        live_states_at_depth.back();
+
+    // Update live_states_ to next live states.
+    // Note that live_states (not suffixed a '_') have current live states.
+    live_states_ = next_live_states;
+
+    // Map from next live state to index
+    std::vector<int> next_live_to_index(graph_.size(), -1);
+    for (size_t i = 0; i < next_live_states.size(); i++)
+        next_live_to_index.at(next_live_states.at(i)) = i;
+
+    const size_t num_states = btt_.size();
+
+    // Prepare weights
+    std::vector<std::optional<Weight>> weight(num_states);
+    for (Graph::State q : next_live_states)
+        weight.at(q).emplace(next_live_to_index.at(q), state_);
+
+    // Let's do this
+    eval_block_cmuxs(exec, weight, inputs, live_states_at_depth);
+
+    // Select the correct candidate
+    if (live_states.size() == 1) {
+        state_ = weight.at(0).value();
+    }
+    else {
+        // Extract selectors
+        const size_t width = std::ceil(std::log2(live_states.size()));
+        std::vector<TRGSWLvl1FFT> selectors =
+            state_.get_selectors(exec, width, gate_key_, circuit_key_);
+
+        // Select
+        std::vector<Weight> weight_nonopt;
+        weight_nonopt.reserve(live_states.size());
+        for (size_t i = 0; i < live_states.size(); i++)
+            weight_nonopt.push_back(weight.at(live_states.at(i)).value());
+        weight_nonopt.resize(1 << width, Weight{0, state_} /* dummy */);
+        lookup_table(exec, weight_nonopt, selectors.begin(), selectors.end());
+        state_ = weight_nonopt.at(0);
+    }
+
+    // Update
+    state_.update_counters(exec, gate_key_);
+}
+
+void test(const SecretKey& skey, const BKey& bkey)
+{
+    const size_t alpha = 10;
+    auto exec = std::execution::par;
+
+    TRGSWLvl1FFT b1 = encrypt_bit_to_TRGSWLvl1FFT(true, skey);
+    TRGSWLvl1FFT b0 = encrypt_bit_to_TRGSWLvl1FFT(false, skey);
+
+    BTT btt{
         0,
         {
             // from, input, to, accept, reset, inc, check
@@ -424,74 +617,20 @@ void f(ExecutionPolicy&& exec, Weight& state, const TRGSWLvl1FFT& raw_input,
             {8, 0, 3, false, {}, {}, std::nullopt},
             {8, 1, 1, true, {}, {}, std::nullopt},
         },
+        {
+            {10, alpha},
+        },
     };
-    const size_t num_states = graph.size(),
-                 log2_num_states = std::ceil(std::log2(num_states));
 
-    // Prepare weights
-    std::vector<Weight> weight;
-    weight.reserve(num_states);
-    for (size_t i = 0; i < num_states; i++) {
-        weight.emplace_back(i, state);
+    BTTRunner runner{btt, 1, *bkey.gkey, *bkey.circuit_key};
+    runner.eval_one(b1);
+    runner.dump(std::cerr, skey);
+    runner.eval_one(b0);
+    runner.dump(std::cerr, skey);
+    for (size_t i = 0; i < 11; i++) {
+        runner.eval_one(b0);
+        runner.dump(std::cerr, skey);
     }
-
-    // Prepare inputs
-    std::vector<TRGSWLvl1FFT> inputs;
-    state.get_counter_condition(exec, inputs, gate_key, circuit_key);
-    inputs.push_back(raw_input);
-
-    // Let's do this
-    std::vector<Weight> temp;
-    temp.resize(weight.size(), state /* dummy */);
-    for (int i = inputs.size() - 1; i >= 0; i--) {
-        auto&& input = inputs.at(i);
-        parallel_for(exec, 0, num_states, [&](size_t i) {
-            using std::get;
-
-            Weight& out = temp.at(i);
-            auto [e0, e1] = graph.get_edge(i);
-            Weight in0 =
-                alter_weight(weight.at(e0.to), e0.accept, e0.reset, e0.inc);
-            Weight in1 =
-                alter_weight(weight.at(e1.to), e1.accept, e1.reset, e1.inc);
-            Weight::cmux(out, input, in1, in0);
-        });
-        weight.swap(temp);
-    }
-
-    std::vector<TRGSWLvl1FFT> selectors;
-    state.get_selectors(exec, selectors, log2_num_states, gate_key,
-                        circuit_key);
-    weight.resize(1 << log2_num_states, state /* dummy */);
-    lookup_table(exec, weight, selectors.begin(), selectors.end(), temp);
-
-    state = weight.at(0);
-    state.update_counters(exec, gate_key);
-}
-
-void test(const SecretKey& skey, const BKey& bkey)
-{
-    const size_t alpha = 10;
-    auto exec = std::execution::par;
-
-    TRGSWLvl1FFT b1 = encrypt_bit_to_TRGSWLvl1FFT(true, skey);
-    TRGSWLvl1FFT b0 = encrypt_bit_to_TRGSWLvl1FFT(false, skey);
-
-    Weight state{0, std::vector{std::tuple<size_t, uint64_t>{10, alpha}}};
-
-    // 0 -> 4 -> 1
-    f(exec, state, b1, *bkey.gkey, *bkey.circuit_key, skey);
-    state.dump(std::cerr, skey);
-    // 1 -> 5 -> 2
-    f(exec, state, b0, *bkey.gkey, *bkey.circuit_key, skey);
-    state.dump(std::cerr, skey);
-    // 2 -> 7 -> 2 -> 7 -> 2 -> ... -> 2
-    for (int i = 0; i < 11; i++) {
-        f(exec, state, b0, *bkey.gkey, *bkey.circuit_key, skey);
-
-        state.dump(std::cerr, skey);
-    }
-    state.dump(std::cerr, skey);
 }
 
 int main(int argc, char** argv)

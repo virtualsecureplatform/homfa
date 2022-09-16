@@ -51,6 +51,8 @@ public:
     void reserve_states_at_depth(size_t depth);
     std::vector<State> states_at_depth(size_t depth) const;
     std::vector<State> all_states() const;
+    std::vector<std::vector<State>> track_live_states(
+        const std::vector<State>& init_live_states, size_t max_depth);
     Graph reversed() const;
     Graph minimized() const;
     Graph removed_unreachable() const;

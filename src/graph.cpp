@@ -406,6 +406,31 @@ std::vector<Graph::State> Graph::all_states() const
     return ret;
 }
 
+std::vector<std::vector<Graph::State>> Graph::track_live_states(
+    const std::vector<Graph::State> &init_live_states, size_t max_depth)
+{
+    std::vector<std::vector<Graph::State>> at_depth;
+    at_depth.push_back(init_live_states);
+
+    std::set<Graph::State> tmp1(init_live_states.begin(),
+                                init_live_states.end()),
+        tmp2;
+    for (size_t i = 0; i < max_depth; i++) {
+        tmp2.clear();
+        for (Graph::State q : tmp1) {
+            tmp2.insert(next_state(q, true));
+            tmp2.insert(next_state(q, false));
+        }
+        {
+            using std::swap;
+            swap(tmp1, tmp2);
+        }
+        at_depth.emplace_back(tmp1.begin(), tmp1.end());
+    }
+
+    return at_depth;
+}
+
 Graph Graph::reversed() const
 {
     NFADelta delta(size());
