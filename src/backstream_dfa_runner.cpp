@@ -41,9 +41,9 @@ TLWELvl1 BackstreamDFARunner::result() const
     return ret;
 }
 
-void BackstreamDFARunner::eval(const TRGSWLvl1FFT &input)
+void BackstreamDFARunner::eval(const TRGSWLvl1FFT& input)
 {
-    std::vector<TRLWELvl1> &out = workspace_;
+    std::vector<TRLWELvl1>& out = workspace_;
     out.resize(graph_.size());
 
     std::optional<std::vector<Graph::State>> states;
@@ -79,13 +79,13 @@ void BackstreamDFARunner::eval(const TRGSWLvl1FFT &input)
 }
 
 void BackstreamDFARunner::bootstrap_weight(
-    const std::vector<Graph::State> &targets)
+    const std::vector<Graph::State>& targets)
 {
     assert(gate_key_);
     timer_.timeit(TimeRecorder::TARGET::BOOTSTRAPPING, targets.size(), [&] {
         std::for_each(std::execution::par, targets.begin(), targets.end(),
                       [&](Graph::State q) {
-                          TRLWELvl1 &w = weight_.at(q);
+                          TRLWELvl1& w = weight_.at(q);
                           do_SEI_IKS_GBTLWE2TRLWE_2(w, *gate_key_);
                       });
     });

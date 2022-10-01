@@ -3,7 +3,7 @@
 
 ////////// TRGSWLvl1FFTSerializer
 
-TRGSWLvl1FFTSerializer::TRGSWLvl1FFTSerializer(std::ostream &os) : os_(os)
+TRGSWLvl1FFTSerializer::TRGSWLvl1FFTSerializer(std::ostream& os) : os_(os)
 {
     assert(os);
 
@@ -12,15 +12,15 @@ TRGSWLvl1FFTSerializer::TRGSWLvl1FFTSerializer(std::ostream &os) : os_(os)
     // Thanks to:
     // https://github.com/USCiLab/cereal/blob/46a4a910077bf9e9f8327c8f6ea761c89b06da53/include/cereal/archives/portable_binary.hpp#L42
     static std::int32_t test = 1;
-    assert(*reinterpret_cast<std::int8_t *>(&test) == 1);
+    assert(*reinterpret_cast<std::int8_t*>(&test) == 1);
 }
 
-void TRGSWLvl1FFTSerializer::save_binary(const void *data, size_t size)
+void TRGSWLvl1FFTSerializer::save_binary(const void* data, size_t size)
 {
     // Thanks to:
     // https://github.com/USCiLab/cereal/blob/46a4a910077bf9e9f8327c8f6ea761c89b06da53/include/cereal/archives/portable_binary.hpp#L132
     size_t written_size =
-        os_.rdbuf()->sputn(reinterpret_cast<const char *>(data), size);
+        os_.rdbuf()->sputn(reinterpret_cast<const char*>(data), size);
     assert(written_size == size);
 }
 
@@ -30,7 +30,7 @@ void TRGSWLvl1FFTSerializer::save_double(double src)
     save_binary(&src, sizeof(src));
 }
 
-void TRGSWLvl1FFTSerializer::save(const TRGSWLvl1FFT &src)
+void TRGSWLvl1FFTSerializer::save(const TRGSWLvl1FFT& src)
 {
     for (size_t i = 0; i < 2 * Lvl1::l; i++)
         for (size_t j = 0; j < 2; j++)
@@ -40,7 +40,7 @@ void TRGSWLvl1FFTSerializer::save(const TRGSWLvl1FFT &src)
 
 ////////// TRGSWLvl1FFTDeserializer
 
-TRGSWLvl1FFTDeserializer::TRGSWLvl1FFTDeserializer(std::istream &is) : is_(is)
+TRGSWLvl1FFTDeserializer::TRGSWLvl1FFTDeserializer(std::istream& is) : is_(is)
 {
     assert(is);
 
@@ -49,18 +49,18 @@ TRGSWLvl1FFTDeserializer::TRGSWLvl1FFTDeserializer(std::istream &is) : is_(is)
     // Thanks to:
     // https://github.com/USCiLab/cereal/blob/46a4a910077bf9e9f8327c8f6ea761c89b06da53/include/cereal/archives/portable_binary.hpp#L42
     static std::int32_t test = 1;
-    assert(*reinterpret_cast<std::int8_t *>(&test) == 1);
+    assert(*reinterpret_cast<std::int8_t*>(&test) == 1);
 }
 
-void TRGSWLvl1FFTDeserializer::load_binary(void *const data, size_t size)
+void TRGSWLvl1FFTDeserializer::load_binary(void* const data, size_t size)
 {
     // Thanks to:
     // https://github.com/USCiLab/cereal/blob/master/include/cereal/archives/portable_binary.hpp#L239
-    size_t read_size = is_.rdbuf()->sgetn(reinterpret_cast<char *>(data), size);
+    size_t read_size = is_.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
     assert(read_size == size);
 }
 
-void TRGSWLvl1FFTDeserializer::load_double(double &out)
+void TRGSWLvl1FFTDeserializer::load_double(double& out)
 {
     static_assert(std::numeric_limits<double>::is_iec559);
     load_binary(&out, sizeof(out));
@@ -88,7 +88,7 @@ void TRGSWLvl1FFTDeserializer::seek(int off, std::ios_base::seekdir dir)
     is_.seekg(off * BLOCK_SIZE, dir);
 }
 
-void TRGSWLvl1FFTDeserializer::load(TRGSWLvl1FFT &out)
+void TRGSWLvl1FFTDeserializer::load(TRGSWLvl1FFT& out)
 {
     for (size_t i = 0; i < 2 * Lvl1::l; i++)
         for (size_t j = 0; j < 2; j++)
@@ -99,7 +99,7 @@ void TRGSWLvl1FFTDeserializer::load(TRGSWLvl1FFT &out)
 ////////// TRGSWLvl1InputStreamFromCtxtFile
 
 TRGSWLvl1InputStreamFromCtxtFile::TRGSWLvl1InputStreamFromCtxtFile(
-    const std::string &filename)
+    const std::string& filename)
     : ifs_(filename),
       deser_(ifs_),
       pool_(1),
@@ -142,7 +142,7 @@ TRGSWLvl1FFT TRGSWLvl1InputStreamFromCtxtFile::next()
 ////////// ReversedTRGSWLvl1InputStreamFromCtxtFile
 
 ReversedTRGSWLvl1InputStreamFromCtxtFile::
-    ReversedTRGSWLvl1InputStreamFromCtxtFile(const std::string &filename)
+    ReversedTRGSWLvl1InputStreamFromCtxtFile(const std::string& filename)
     : ifs_(filename), deser_(ifs_), pool_(1), current_size_(0)
 {
     deser_.seek(0, std::ios_base::end);
@@ -181,7 +181,7 @@ TRGSWLvl1FFT ReversedTRGSWLvl1InputStreamFromCtxtFile::next()
 
 //////////
 
-TRLWELvl1 trivial_TRLWELvl1(const PolyLvl1 &src)
+TRLWELvl1 trivial_TRLWELvl1(const PolyLvl1& src)
 {
     TRLWELvl1 ret = {};
     ret[1] = src;
@@ -243,20 +243,20 @@ TRLWELvl1 trivial_TRLWELvl1_1over2()
     return ret;
 }
 
-void TLWELvl0_add(TLWELvl0 &lhs, const TLWELvl0 &rhs)
+void TLWELvl0_add(TLWELvl0& lhs, const TLWELvl0& rhs)
 {
     for (size_t i = 0; i <= Lvl0::n; i++)
         lhs[i] += rhs[i];
 }
 
-void TLWELvl1_add(TLWELvl1 &lhs, const TLWELvl1 &rhs)
+void TLWELvl1_add(TLWELvl1& lhs, const TLWELvl1& rhs)
 {
     for (size_t i = 0; i <= Lvl1::n; i++)
         lhs[i] += rhs[i];
 }
 
 // out += src
-void TRLWELvl1_add(TRLWELvl1 &out, const TRLWELvl1 &src)
+void TRLWELvl1_add(TRLWELvl1& out, const TRLWELvl1& src)
 {
     for (size_t i = 0; i < Lvl1::n; i++) {
         out[0][i] += src[0][i];
@@ -265,7 +265,7 @@ void TRLWELvl1_add(TRLWELvl1 &out, const TRLWELvl1 &src)
 }
 
 namespace {
-void PolyLvl1_mult_X_k(PolyLvl1 &out, const PolyLvl1 &src, size_t k)
+void PolyLvl1_mult_X_k(PolyLvl1& out, const PolyLvl1& src, size_t k)
 {
     constexpr size_t n = Lvl1::n;
 
@@ -289,13 +289,13 @@ void PolyLvl1_mult_X_k(PolyLvl1 &out, const PolyLvl1 &src, size_t k)
 }  // namespace
 
 // out = src * X^k
-void TRLWELvl1_mult_X_k(TRLWELvl1 &out, const TRLWELvl1 &src, size_t k)
+void TRLWELvl1_mult_X_k(TRLWELvl1& out, const TRLWELvl1& src, size_t k)
 {
     PolyLvl1_mult_X_k(out[0], src[0], k);
     PolyLvl1_mult_X_k(out[1], src[1], k);
 }
 
-uint32_t phase_of_TLWELvl1(const TLWELvl1 &src, const SecretKey &skey)
+uint32_t phase_of_TLWELvl1(const TLWELvl1& src, const SecretKey& skey)
 {
     uint32_t phase = src[Lvl1::n];
     for (size_t i = 0; i < Lvl1::n; i++)
@@ -303,7 +303,7 @@ uint32_t phase_of_TLWELvl1(const TLWELvl1 &src, const SecretKey &skey)
     return phase;
 }
 
-PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1 &src, const SecretKey &skey)
+PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1& src, const SecretKey& skey)
 {
     PolyLvl1 as;
     TFHEpp::PolyMul<Lvl1>(as, src[0], skey.key.lvl1);
@@ -314,7 +314,7 @@ PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1 &src, const SecretKey &skey)
 }
 
 // w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
-void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKey &gk)
+void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1& w, const GateKey& gk)
 {
     TLWELvl1 tlwel1;
     TFHEpp::SampleExtractIndex<Lvl1>(tlwel1, w, 0);
@@ -327,8 +327,8 @@ void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1 &w, const GateKey &gk)
 // BootstrappingTLWE-to-TRLWE
 // {0, 1/2} -> {0, 1/2}
 // NOTE: src is MODIFIED for efficiency!
-void BS_TLWE_0_1o2_to_TRLWE_0_1o2(TRLWELvl1 &out, TLWELvl0 &src,
-                                  const GateKey &gk)
+void BS_TLWE_0_1o2_to_TRLWE_0_1o2(TRLWELvl1& out, TLWELvl0& src,
+                                  const GateKey& gk)
 {
     using namespace TFHEpp;
 
@@ -344,8 +344,8 @@ void BS_TLWE_0_1o2_to_TRLWE_0_1o2(TRLWELvl1 &out, TLWELvl0 &src,
 // BootstrappingTLWE-to-TRLWE
 // {0, 1/2} -> {-1/8, 1/8}
 // NOTE: src is MODIFIED for efficiency!
-void BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(TRLWELvl1 &out, TLWELvl0 &src,
-                                     const GateKey &gk)
+void BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(TRLWELvl1& out, TLWELvl0& src,
+                                     const GateKey& gk)
 {
     using namespace TFHEpp;
 
@@ -358,7 +358,7 @@ void BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(TRLWELvl1 &out, TLWELvl0 &src,
 
 // w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
 // {0, 1/2} -> {0, 1/2}
-void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1 &w, const GateKey &gk)
+void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1& w, const GateKey& gk)
 {
     using namespace TFHEpp;
 
@@ -373,7 +373,7 @@ void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1 &w, const GateKey &gk)
 
 // w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
 // {0, 1/2} -> {-1/8, 1/8}
-void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1 &w, const GateKey &gk)
+void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1& w, const GateKey& gk)
 {
     using namespace TFHEpp;
 
@@ -385,12 +385,12 @@ void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1 &w, const GateKey &gk)
     BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(w, tlwel0, gk);
 }
 
-TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey &skey)
+TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey& skey)
 {
     return TFHEpp::trgswfftSymEncrypt<Lvl1>({b}, Lvl1::α, skey.key.lvl1);
 }
 
-bool decrypt_TLWELvl1_to_bit(const TLWELvl1 &c, const SecretKey &skey)
+bool decrypt_TLWELvl1_to_bit(const TLWELvl1& c, const SecretKey& skey)
 {
     // Use {0, 1/2} as message space
     uint32_t phase = c[Lvl1::n];
@@ -417,7 +417,7 @@ bool between_25_75(uint32_t n)
     return mu25 <= n && n <= mu75;
 }
 
-void dump_weight(std::ostream &os, const PolyLvl1 &w)
+void dump_weight(std::ostream& os, const PolyLvl1& w)
 {
     for (size_t i = 0; i < Lvl1::n; i++) {
         if (i % 32 == 0)
@@ -432,22 +432,22 @@ void dump_weight(std::ostream &os, const PolyLvl1 &w)
     os << "\n";
 }
 
-std::string weight2bitstring(const PolyLvl1 &w)
+std::string weight2bitstring(const PolyLvl1& w)
 {
     std::stringstream ss;
     dump_weight(ss, w);
     return ss.str();
 }
 
-void CircuitBootstrappingFFTLvl01(TRGSWLvl1FFT &out, const TLWELvl0 &src,
-                                  const CircuitKey &circuit_key)
+void CircuitBootstrappingFFTLvl01(TRGSWLvl1FFT& out, const TLWELvl0& src,
+                                  const CircuitKey& circuit_key)
 {
     TFHEpp::CircuitBootstrappingFFT<TFHEpp::lvl02param, TFHEpp::lvl21param>(
         out, src, circuit_key);
 }
 
-void HomXORwoSE(TRLWELvl1 &out, const TLWELvl0 &lhs, const TLWELvl0 &rhs,
-                const GateKey &gate_key)
+void HomXORwoSE(TRLWELvl1& out, const TLWELvl0& lhs, const TLWELvl0& rhs,
+                const GateKey& gate_key)
 {
     TLWELvl0 temp;
     for (int i = 0; i <= Lvl0::n; i++)

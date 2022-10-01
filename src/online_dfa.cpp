@@ -8,7 +8,7 @@
 #include <tbb/parallel_for.h>
 
 /* OnlineDFARunner */
-OnlineDFARunner::OnlineDFARunner(const Graph &graph,
+OnlineDFARunner::OnlineDFARunner(const Graph& graph,
                                  std::shared_ptr<GateKey> gate_key,
                                  bool sanitize_result)
     : graph_(graph),
@@ -57,7 +57,7 @@ TLWELvl1 OnlineDFARunner::result()
     return ret;
 }
 
-void OnlineDFARunner::eval_one(const TRGSWLvl1FFT &input)
+void OnlineDFARunner::eval_one(const TRGSWLvl1FFT& input)
 {
     std::vector<TRLWELvl1> out{weight_.size()};
     std::vector<Graph::State> states = graph_.all_states();
@@ -93,11 +93,11 @@ void OnlineDFARunner::bootstrap_weight()
     assert(gate_key_);
     std::for_each(
         std::execution::par, weight_.begin(), weight_.end(),
-        [&](TRLWELvl1 &w) { do_SEI_IKS_GBTLWE2TRLWE(w, *gate_key_); });
+        [&](TRLWELvl1& w) { do_SEI_IKS_GBTLWE2TRLWE(w, *gate_key_); });
 }
 
 /* OnlineDFARunner2 */
-OnlineDFARunner2::OnlineDFARunner2(const Graph &graph, size_t boot_interval,
+OnlineDFARunner2::OnlineDFARunner2(const Graph& graph, size_t boot_interval,
                                    bool is_spec_reversed,
                                    std::shared_ptr<GateKey> gate_key,
                                    bool sanitize_result)
@@ -111,7 +111,7 @@ TLWELvl1 OnlineDFARunner2::result() const
     return runner_.result();
 }
 
-void OnlineDFARunner2::eval_one(const TRGSWLvl1FFT &input)
+void OnlineDFARunner2::eval_one(const TRGSWLvl1FFT& input)
 {
     return runner_.eval(input);
 }
@@ -119,8 +119,8 @@ void OnlineDFARunner2::eval_one(const TRGSWLvl1FFT &input)
 /* OnlineDFARunner3 */
 OnlineDFARunner3::OnlineDFARunner3(
     Graph graph, size_t max_second_lut_depth, size_t queue_size,
-    size_t bootstrapping_freq, const GateKey &gate_key,
-    const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param> &tlwel1_trlwel1_iks_key,
+    size_t bootstrapping_freq, const GateKey& gate_key,
+    const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>& tlwel1_trlwel1_iks_key,
     std::optional<SecretKey> debug_skey, bool sanitize_result)
     : graph_(std::move(graph)),
       gate_key_(gate_key),
@@ -179,7 +179,7 @@ TLWELvl1 OnlineDFARunner3::result()
     return ret;
 }
 
-void OnlineDFARunner3::eval_one(const TRGSWLvl1FFT &input)
+void OnlineDFARunner3::eval_one(const TRGSWLvl1FFT& input)
 {
     queued_inputs_.push_back(input);
     if (queued_inputs_.size() < queue_size_)
@@ -187,17 +187,17 @@ void OnlineDFARunner3::eval_one(const TRGSWLvl1FFT &input)
     eval_queued_inputs();
 }
 
-void lookup_table(std::vector<TRLWELvl1> &table,
+void lookup_table(std::vector<TRLWELvl1>& table,
                   std::vector<TRGSWLvl1FFT>::const_iterator input_begin,
                   std::vector<TRGSWLvl1FFT>::const_iterator input_end,
-                  std::vector<TRLWELvl1> &workspace)
+                  std::vector<TRLWELvl1>& workspace)
 {
     const size_t input_size = std::distance(input_begin, input_end);
     assert(table.size() == (1 << input_size));  // FIXME: relax this condition
     if (input_size == 0)
         return;
 
-    std::vector<TRLWELvl1> &tmp = workspace;
+    std::vector<TRLWELvl1>& tmp = workspace;
     tmp.clear();
     tmp.resize(1 << (input_size - 1));
 
@@ -213,17 +213,17 @@ void lookup_table(std::vector<TRLWELvl1> &table,
 }
 
 void lookup_table_with_timer(
-    std::vector<TRLWELvl1> &table,
+    std::vector<TRLWELvl1>& table,
     std::vector<TRGSWLvl1FFT>::const_iterator input_begin,
     std::vector<TRGSWLvl1FFT>::const_iterator input_end,
-    std::vector<TRLWELvl1> &workspace, TimeRecorder &timer)
+    std::vector<TRLWELvl1>& workspace, TimeRecorder& timer)
 {
     const size_t input_size = std::distance(input_begin, input_end);
     assert(table.size() == (1 << input_size));  // FIXME: relax this condition
     if (input_size == 0)
         return;
 
-    std::vector<TRLWELvl1> &tmp = workspace;
+    std::vector<TRLWELvl1>& tmp = workspace;
     tmp.clear();
     tmp.resize(1 << (input_size - 1));
 
@@ -247,7 +247,7 @@ void OnlineDFARunner3::eval_queued_inputs()
     if (input_size == 0)
         return;
     const std::vector<Graph::State> all_states = graph_.all_states();
-    const std::vector<Graph::State> &memo = memo_transition_.at(input_size);
+    const std::vector<Graph::State>& memo = memo_transition_.at(input_size);
 
     // Calculate next live states
     std::vector<Graph::State> next_live_states = [&] {
@@ -287,8 +287,8 @@ void OnlineDFARunner3::eval_queued_inputs()
     second_lut_depth_ = second_lut_depth;
 
     // Prepare workspace avoiding malloc in eval
-    std::vector<TRLWELvl1> &table = workspace_table1_,
-                           &workspace = workspace_table2_;
+    std::vector<TRLWELvl1>&table = workspace_table1_,
+    &workspace = workspace_table2_;
     table.clear();
     table.resize(1 << first_lut_depth, trivial_TRLWELvl1_zero());
 
@@ -324,7 +324,7 @@ void OnlineDFARunner3::eval_queued_inputs()
     lookup_table(table, queued_inputs_.begin() + first_lut_depth,
                  queued_inputs_.end(), workspace);
 
-    const TRLWELvl1 &next_trlwe = table.at(0);
+    const TRLWELvl1& next_trlwe = table.at(0);
 
     /*
     if (debug_skey_) {
@@ -374,8 +374,8 @@ void OnlineDFARunner3::eval_queued_inputs()
 
 /* OnlineDFARunner4 */
 OnlineDFARunner4::OnlineDFARunner4(Graph graph, size_t queue_size,
-                                   const GateKey &gate_key,
-                                   const CircuitKey &circuit_key,
+                                   const GateKey& gate_key,
+                                   const CircuitKey& circuit_key,
                                    bool sanitize_result)
     : graph_(std::move(graph)),
       gate_key_(gate_key),
@@ -402,7 +402,7 @@ TLWELvl1 OnlineDFARunner4::result()
     return ret;
 }
 
-void OnlineDFARunner4::eval_one(const TRGSWLvl1FFT &input)
+void OnlineDFARunner4::eval_one(const TRGSWLvl1FFT& input)
 {
     queued_inputs_.push_back(input);
     if (queued_inputs_.size() < queue_size_)
@@ -451,7 +451,7 @@ void OnlineDFARunner4::eval_queued_inputs()
     for (size_t i = 0; i < next_live_states.size(); i++)
         next_live_to_index.at(next_live_states.at(i)) = i;
 
-    std::vector<TRLWELvl1> &weight = workspace1_, &out = workspace2_;
+    std::vector<TRLWELvl1>&weight = workspace1_, &out = workspace2_;
     weight.clear();
     out.clear();
     weight.resize(graph_.size(), trivial_TRLWELvl1_zero());
@@ -479,7 +479,7 @@ void OnlineDFARunner4::eval_queued_inputs()
 
     // Propagate weight from back to front
     for (int i = input_size - 1; i >= 0; i--) {
-        const auto &states = live_states_at_depth.at(i);
+        const auto& states = live_states_at_depth.at(i);
         timer_.timeit(TimeRecorder::TARGET::CMUX, states.size(), [&] {
             std::for_each(std::execution::par, states.begin(), states.end(),
                           [&](Graph::State q) {
@@ -509,10 +509,10 @@ void OnlineDFARunner4::eval_queued_inputs()
 
     // First apply CB to get the selector in TRGSW
     size_t width = std::floor(std::log2(live_states.size())) + 1;
-    std::vector<TRGSWLvl1FFT> &cond = workspace3_;
+    std::vector<TRGSWLvl1FFT>& cond = workspace3_;
     cond.clear();
     cond.resize(width);
-    const TRLWELvl1 &sel = *selector_;
+    const TRLWELvl1& sel = *selector_;
     workspace4_.resize(width);
     tbb::parallel_for(0ul, width, [&](size_t i) {
         TLWELvl1 tlwel1;

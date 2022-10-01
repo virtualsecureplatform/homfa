@@ -27,21 +27,21 @@ public:
                         std::shared_ptr<GateKey> gate_key,
                         bool sanitize_result);
 
-    const Graph &graph() const
+    const Graph& graph() const
     {
         return graph_;
     }
 
-    const TimeRecorder &timer() const
+    const TimeRecorder& timer() const
     {
         return timer_;
     }
 
     TLWELvl1 result() const;
-    void eval(const TRGSWLvl1FFT &input);
+    void eval(const TRGSWLvl1FFT& input);
 
 private:
-    void bootstrap_weight(const std::vector<Graph::State> &targets);
+    void bootstrap_weight(const std::vector<Graph::State>& targets);
 };
 
 #endif

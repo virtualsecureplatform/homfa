@@ -54,9 +54,9 @@ public:
     }
 };
 
-void nfa_dump_dot(std::ostream &os, const std::set<Graph::State> &init_sts,
-                  const std::set<Graph::State> &final_sts,
-                  const Graph::NFADelta &delta)
+void nfa_dump_dot(std::ostream& os, const std::set<Graph::State>& init_sts,
+                  const std::set<Graph::State>& final_sts,
+                  const Graph::NFADelta& delta)
 {
     os << "digraph \"graph\" {\n"
        << "rankdir=\"LR\""
@@ -66,7 +66,7 @@ void nfa_dump_dot(std::ostream &os, const std::set<Graph::State> &init_sts,
        << "  I0 [label=\"\"]\n";
     for (Graph::State q : init_sts)
         os << "  I0 -> " << q << " [label=\"ε\"]\n";
-    for (auto &&[q, q0s, q1s] : delta) {
+    for (auto&& [q, q0s, q1s] : delta) {
         os << "  " << q << " [label=\"" << q << "\""
            << (final_sts.contains(q) ? ", peripheries=2" : "") << "]";
         for (Graph::State q0 : q0s) {
@@ -86,8 +86,8 @@ Graph::Graph()
 {
 }
 
-Graph::Graph(State init_st, const std::set<State> &final_sts,
-             const DFADelta &delta)
+Graph::Graph(State init_st, const std::set<State>& final_sts,
+             const DFADelta& delta)
     : delta_(delta),
       parents0_(delta.size()),
       parents1_(delta.size()),
@@ -96,7 +96,7 @@ Graph::Graph(State init_st, const std::set<State> &final_sts,
       final_state_vec_(delta.size(), false),
       init_state_(init_st)
 {
-    for (auto &&[q, q0, q1] : delta) {
+    for (auto&& [q, q0, q1] : delta) {
         parents0_.at(q0).push_back(q);
         parents1_.at(q1).push_back(q);
     }
@@ -104,11 +104,11 @@ Graph::Graph(State init_st, const std::set<State> &final_sts,
         final_state_vec_.at(q) = true;
 }
 
-Graph Graph::from_istream(std::istream &is)
+Graph Graph::from_istream(std::istream& is)
 {
     std::string field;
     auto load_comma_separated_states =
-        [](const std::string &s) -> std::vector<State> {
+        [](const std::string& s) -> std::vector<State> {
         if (s == "_")
             return {};
 
@@ -120,7 +120,7 @@ Graph Graph::from_istream(std::istream &is)
             while (std::getline(iss, field, ','))
                 ret.push_back(std::stoi(field));
         }
-        catch (const std::invalid_argument &e) {
+        catch (const std::invalid_argument& e) {
             error_die(
                 "Expected number as comma separted state, but got {} ({})",
                 field, e.what());
@@ -183,7 +183,7 @@ Graph Graph::from_istream(std::istream &is)
     if (is_dfa) {
         assert(init_sts.size() == 1);
         DFADelta new_delta;
-        for (auto &&[q, q0s, q1s] : delta) {
+        for (auto&& [q, q0s, q1s] : delta) {
             assert(q0s.size() == 1 && q1s.size() == 1);
             new_delta.emplace_back(q, q0s.at(0), q1s.at(0));
         }
@@ -193,14 +193,14 @@ Graph Graph::from_istream(std::istream &is)
     return Graph::from_nfa(init_sts, final_sts, delta);
 }
 
-Graph Graph::from_file(const std::string &filename)
+Graph Graph::from_file(const std::string& filename)
 {
     std::ifstream ifs{filename};
     assert(ifs);
     return Graph::from_istream(ifs);
 }
 
-Graph Graph::from_att_istream(std::istream &is)
+Graph Graph::from_att_istream(std::istream& is)
 {
     assert(is);
 
@@ -235,7 +235,7 @@ Graph Graph::from_att_istream(std::istream &is)
     return Graph::from_nfa(init_sts, final_sts, delta);
 }
 
-Graph Graph::from_att_file(const std::string &filename)
+Graph Graph::from_att_file(const std::string& filename)
 {
     std::ifstream ifs{filename};
     if (!ifs)
@@ -245,8 +245,8 @@ Graph Graph::from_att_file(const std::string &filename)
 
 // Input  NFA Mn: (Qn, {0, 1}, dn, q0n, Fn)
 // Output DFA Md: (Qd, {0, 1}, df, q0f, Ff)
-Graph Graph::from_nfa(const std::set<State> &q0n, const std::set<State> &Fn,
-                      const NFADelta &dn)
+Graph Graph::from_nfa(const std::set<State>& q0n, const std::set<State>& Fn,
+                      const NFADelta& dn)
 {
     using StateSubset = std::set<State>;
 
@@ -257,7 +257,7 @@ Graph Graph::from_nfa(const std::set<State> &q0n, const std::set<State> &Fn,
     // Ff
     std::set<State> Ff;
 
-    auto get_or_create_state = [&](const StateSubset &qs) {
+    auto get_or_create_state = [&](const StateSubset& qs) {
         auto it = st_map.find(qs);
         if (it != st_map.end())
             return it->second;
@@ -289,7 +289,7 @@ Graph Graph::from_nfa(const std::set<State> &q0n, const std::set<State> &Fn,
 
         StateSubset qs0, qs1;
         for (State q : qs) {
-            auto &&[q_, dst0, dst1] = dn.at(q);
+            auto&& [q_, dst0, dst1] = dn.at(q);
             qs0.insert(dst0.begin(), dst0.end());
             qs1.insert(dst1.begin(), dst1.end());
         }
@@ -310,7 +310,7 @@ Graph Graph::from_nfa(const std::set<State> &q0n, const std::set<State> &Fn,
     return Graph{get_or_create_state(q0n), Ff, df};
 }
 
-Graph Graph::from_ltl_formula(const std::string &formula, size_t var_size,
+Graph Graph::from_ltl_formula(const std::string& formula, size_t var_size,
                               bool make_all_live_states_final)
 {
     auto [init_sts, final_sts, delta] =
@@ -318,7 +318,7 @@ Graph Graph::from_ltl_formula(const std::string &formula, size_t var_size,
     return Graph::from_nfa(init_sts, final_sts, delta);
 }
 
-Graph Graph::from_ltl_formula_reversed(const std::string &formula,
+Graph Graph::from_ltl_formula_reversed(const std::string& formula,
                                        size_t var_size,
                                        bool make_all_live_states_final)
 {
@@ -341,11 +341,11 @@ bool Graph::is_final_state(State state) const
 
 Graph::State Graph::next_state(State state, bool input) const
 {
-    auto &t = delta_.at(state);
+    auto& t = delta_.at(state);
     return input ? std::get<2>(t) : std::get<1>(t);
 }
 
-const std::vector<Graph::State> &Graph::prev_states(State state,
+const std::vector<Graph::State>& Graph::prev_states(State state,
                                                     bool input) const
 {
     if (input)
@@ -407,7 +407,7 @@ std::vector<Graph::State> Graph::all_states() const
 }
 
 std::vector<std::vector<Graph::State>> Graph::track_live_states(
-    const std::vector<Graph::State> &init_live_states, size_t max_depth)
+    const std::vector<Graph::State>& init_live_states, size_t max_depth)
 {
     std::vector<std::vector<Graph::State>> at_depth;
     at_depth.push_back(init_live_states);
@@ -471,7 +471,7 @@ Graph Graph::removed_unreachable() const
         if (reachable.contains(q))
             final_sts.insert(old2new.at(q));
     DFADelta delta(reachable.size());
-    for (auto &&[index, child0, child1] : delta_) {
+    for (auto&& [index, child0, child1] : delta_) {
         if (!reachable.contains(index))
             continue;
         State q = old2new.at(index), q0 = old2new.at(child0),
@@ -545,7 +545,7 @@ Graph Graph::grouped_nondistinguishable() const
     std::set<State> final_sts;
     DFADelta delta;
     for (size_t q = 0; q < st.size(); q++) {
-        std::set<State> &s = st.at(q);
+        std::set<State>& s = st.at(q);
         State repr = *s.begin();
 
         bool initial = std::any_of(s.begin(), s.end(), [this](State q) {
@@ -574,7 +574,7 @@ Graph Graph::negated() const
     return Graph{init_state_, new_final, delta_};
 }
 
-void Graph::dump(std::ostream &os) const
+void Graph::dump(std::ostream& os) const
 {
     for (Graph::State q : all_states()) {
         if (initial_state() == q)
@@ -590,7 +590,7 @@ void Graph::dump(std::ostream &os) const
     }
 }
 
-void Graph::dump_dot(std::ostream &os) const
+void Graph::dump_dot(std::ostream& os) const
 {
     os << "digraph \"graph\" {\n"
        << "rankdir=\"LR\""
@@ -612,7 +612,7 @@ void Graph::dump_dot(std::ostream &os) const
     os << "}\n";
 }
 
-void Graph::dump_att(std::ostream &os) const
+void Graph::dump_att(std::ostream& os) const
 {
     for (Graph::State q : all_states()) {
         os << q << "\t" << next_state(q, false) << "\t0\n"
@@ -622,7 +622,7 @@ void Graph::dump_att(std::ostream &os) const
     }
 }
 
-spot::twa_graph_ptr ltl_to_monitor(const std::string &formula, size_t var_size,
+spot::twa_graph_ptr ltl_to_monitor(const std::string& formula, size_t var_size,
                                    bool deterministic)
 {
     spot::parsed_formula pf = spot::parse_infix_psl(formula);
@@ -640,7 +640,7 @@ spot::twa_graph_ptr ltl_to_monitor(const std::string &formula, size_t var_size,
 }
 
 std::tuple<std::set<Graph::State>, std::set<Graph::State>, Graph::NFADelta>
-Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size,
+Graph::ltl_to_nfa_tuple(const std::string& formula, size_t var_size,
                         bool make_all_live_states_final)
 {
     spot::twa_graph_ptr aut = ltl_to_monitor(formula, var_size, false);
@@ -662,7 +662,7 @@ Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size,
         delta.push_back({i, {}, {}});
     for (State src = 0; src < ns; src++) {
         spdlog::debug("{}/{}", src, ns);
-        for (auto &t : aut->out(src)) {
+        for (auto& t : aut->out(src)) {
             State dst = t.dst;
 
             spdlog::debug("{} {}", src, t.dst);
@@ -744,7 +744,7 @@ Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size,
                     continue;
                 visited.insert(cur_rq);
 
-                auto &&[q_, q0s, q1s, b_] = reversed.at(cur_rq);
+                auto&& [q_, q0s, q1s, b_] = reversed.at(cur_rq);
 
                 if (cur_var_idx == 0) {
                     assert(q0s.empty() && q1s.empty() && !src_alt);
@@ -852,11 +852,11 @@ Graph::ltl_to_nfa_tuple(const std::string &formula, size_t var_size,
     return std::make_tuple(init_sts, final_sts, delta);
 }
 
-Graph::NFADelta Graph::reversed_nfa_delta(const NFADelta &src)
+Graph::NFADelta Graph::reversed_nfa_delta(const NFADelta& src)
 {
     std::vector<std::vector<State>> prev0(src.size()), prev1(src.size());
     for (State q = 0; q < src.size(); q++) {
-        auto &&[q_, q0s, q1s] = src.at(q);
+        auto&& [q_, q0s, q1s] = src.at(q);
         for (State q0 : q0s)
             prev0.at(q0).push_back(q);
         for (State q1 : q1s)

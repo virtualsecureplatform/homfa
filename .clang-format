@@ -1,5 +1,5 @@
 BasedOnStyle: google
-Standard: Cpp11
+Standard: c++17
 IndentWidth: 4
 BreakBeforeBraces: Stroustrup
 AllowShortCaseLabelsOnASingleLine: false
@@ -10,3 +10,5 @@ AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 IncludeBlocks: Preserve
+DerivePointerAlignment: false
+PointerAlignment: Left

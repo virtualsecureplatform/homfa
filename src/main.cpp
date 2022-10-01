@@ -63,7 +63,7 @@ struct Args {
         max_second_lut_depth, num_ap, output_freq;
 };
 
-void register_general_options(CLI::App &app, Args &args)
+void register_general_options(CLI::App& app, Args& args)
 {
     app.add_flag_callback("--verbose",
                           [&] { args.verbosity = VERBOSITY::VERBOSE; });
@@ -71,16 +71,16 @@ void register_general_options(CLI::App &app, Args &args)
                           [&] { args.verbosity = VERBOSITY::QUIET; });
 }
 
-void register_genkey(CLI::App &app, Args &args)
+void register_genkey(CLI::App& app, Args& args)
 {
-    CLI::App *genkey = app.add_subcommand("genkey", "Generate secret key");
+    CLI::App* genkey = app.add_subcommand("genkey", "Generate secret key");
     genkey->parse_complete_callback([&args] { args.type = TYPE::GENKEY; });
     genkey->add_option("--out", args.output)->required();
 }
 
-void register_genbkey(CLI::App &app, Args &args)
+void register_genbkey(CLI::App& app, Args& args)
 {
-    CLI::App *genbkey = app.add_subcommand(
+    CLI::App* genbkey = app.add_subcommand(
         "genbkey", "Generate bootstrapping key from secret key");
     genbkey->parse_complete_callback([&args] { args.type = TYPE::GENBKEY; });
     genbkey->add_option("--key", args.skey)
@@ -89,9 +89,9 @@ void register_genbkey(CLI::App &app, Args &args)
     genbkey->add_option("--out", args.output)->required();
 }
 
-void register_enc(CLI::App &app, Args &args)
+void register_enc(CLI::App& app, Args& args)
 {
-    CLI::App *enc = app.add_subcommand("enc", "Encrypt input file");
+    CLI::App* enc = app.add_subcommand("enc", "Encrypt input file");
     enc->parse_complete_callback([&args] { args.type = TYPE::ENC; });
     enc->add_option("--ap", args.num_ap)
         ->required()
@@ -101,15 +101,15 @@ void register_enc(CLI::App &app, Args &args)
     enc->add_option("--out", args.output)->required();
 }
 
-void register_dec(CLI::App &app, Args &args)
+void register_dec(CLI::App& app, Args& args)
 {
-    CLI::App *dec = app.add_subcommand("dec", "Decrypt input file");
+    CLI::App* dec = app.add_subcommand("dec", "Decrypt input file");
     dec->parse_complete_callback([&args] { args.type = TYPE::DEC; });
     dec->add_option("--key", args.skey)->required()->check(CLI::ExistingFile);
     dec->add_option("--in", args.input)->required()->check(CLI::ExistingFile);
 }
 
-void add_run_common_options(CLI::App *run, Args &args, bool benchmark)
+void add_run_common_options(CLI::App* run, Args& args, bool benchmark)
 {
     if (benchmark) {
         run->add_option("--ap", args.num_ap)
@@ -129,9 +129,9 @@ void add_run_common_options(CLI::App *run, Args &args, bool benchmark)
         ->check(CLI::ExistingFile);
 }
 
-void register_offline(CLI::App &app, Args &args, bool benchmark)
+void register_offline(CLI::App& app, Args& args, bool benchmark)
 {
-    CLI::App *run = app.add_subcommand("offline", "Run OFFLINE algorithm");
+    CLI::App* run = app.add_subcommand("offline", "Run OFFLINE algorithm");
     add_run_common_options(run, args, benchmark);
     run->parse_complete_callback([&args, benchmark] {
         args.type = benchmark ? TYPE::BENCH_OFFLINE : TYPE::RUN_OFFLINE;
@@ -141,9 +141,9 @@ void register_offline(CLI::App &app, Args &args, bool benchmark)
         ->check(CLI::PositiveNumber);
 }
 
-void register_reverse(CLI::App &app, Args &args, bool benchmark)
+void register_reverse(CLI::App& app, Args& args, bool benchmark)
 {
-    CLI::App *run = app.add_subcommand("reverse", "Run REVERSE algorithm");
+    CLI::App* run = app.add_subcommand("reverse", "Run REVERSE algorithm");
     run->alias("reversed");
     add_run_common_options(run, args, benchmark);
     run->parse_complete_callback([&args, benchmark] {
@@ -158,9 +158,9 @@ void register_reverse(CLI::App &app, Args &args, bool benchmark)
     run->add_flag("--spec-reversed", args.is_spec_reversed);
 }
 
-void register_block(CLI::App &app, Args &args, bool benchmark)
+void register_block(CLI::App& app, Args& args, bool benchmark)
 {
-    CLI::App *run = app.add_subcommand("block", "Run BLOCK algorithm");
+    CLI::App* run = app.add_subcommand("block", "Run BLOCK algorithm");
     run->alias("bbs");
     run->alias("block-backstream");
     add_run_common_options(run, args, benchmark);
@@ -175,9 +175,9 @@ void register_block(CLI::App &app, Args &args, bool benchmark)
         ->check(CLI::PositiveNumber);
 }
 
-void register_flut(CLI::App &app, Args &args, bool benchmark)
+void register_flut(CLI::App& app, Args& args, bool benchmark)
 {
-    CLI::App *run = app.add_subcommand("flut", "Run FLUT algorithm");
+    CLI::App* run = app.add_subcommand("flut", "Run FLUT algorithm");
     run->alias("qtrlwe2");
     add_run_common_options(run, args, benchmark);
     run->parse_complete_callback([&args, benchmark] {
@@ -197,9 +197,9 @@ void register_flut(CLI::App &app, Args &args, bool benchmark)
         ->check(CLI::PositiveNumber);
 }
 
-void register_plain(CLI::App &app, Args &args, bool benchmark)
+void register_plain(CLI::App& app, Args& args, bool benchmark)
 {
-    CLI::App *run = app.add_subcommand("plain", "Run DFA on plain text");
+    CLI::App* run = app.add_subcommand("plain", "Run DFA on plain text");
     run->parse_complete_callback([&args, benchmark] {
         args.type = benchmark ? TYPE::BENCH_PLAIN : TYPE::RUN_PLAIN;
     });
@@ -210,7 +210,7 @@ void register_plain(CLI::App &app, Args &args, bool benchmark)
     run->add_option("--in", args.input)->required()->check(CLI::ExistingFile);
 }
 
-std::string concat_paths(const std::string &lhs, const std::string &rhs)
+std::string concat_paths(const std::string& lhs, const std::string& rhs)
 {
     return std::filesystem::path{lhs} / std::filesystem::path{rhs};
 }
@@ -221,22 +221,22 @@ void print_result(bool res)
     std::cout << res;  // FIXME: More appropriate or flexible way?
 }
 
-void do_genkey(const std::string &output_filename)
+void do_genkey(const std::string& output_filename)
 {
     SecretKey skey;
     write_to_archive(output_filename, skey);
 }
 
-void do_genbkey(const std::string &skey_filename,
-                const std::string &output_filename)
+void do_genbkey(const std::string& skey_filename,
+                const std::string& output_filename)
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
     BKey bkey{skey};
     write_to_archive(output_filename, bkey);
 }
 
-void do_enc(const std::string &skey_filename, const std::string &input_filename,
-            const std::string &output_filename, const size_t num_ap)
+void do_enc(const std::string& skey_filename, const std::string& input_filename,
+            const std::string& output_filename, const size_t num_ap)
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
 
@@ -249,10 +249,10 @@ void do_enc(const std::string &skey_filename, const std::string &input_filename,
     });
 }
 
-void do_run_offline(const std::string &spec_filename,
-                    const std::string &input_filename,
-                    const std::string &output_filename,
-                    size_t bootstrapping_freq, const std::string &bkey_filename,
+void do_run_offline(const std::string& spec_filename,
+                    const std::string& input_filename,
+                    const std::string& output_filename,
+                    size_t bootstrapping_freq, const std::string& bkey_filename,
                     bool sanitize_result)
 {
     ReversedTRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
@@ -310,12 +310,12 @@ void do_run_online_dfa(const std::string &spec_filename,
 }
 */
 
-void do_run_reverse(const std::string &spec_filename,
-                    const std::string &input_filename,
-                    const std::optional<std::string> &output_filename,
-                    const std::optional<std::string> &output_dirname,
+void do_run_reverse(const std::string& spec_filename,
+                    const std::string& input_filename,
+                    const std::optional<std::string>& output_filename,
+                    const std::optional<std::string>& output_dirname,
                     size_t output_freq, size_t bootstrapping_freq,
-                    bool is_spec_reversed, const std::string &bkey_filename,
+                    bool is_spec_reversed, const std::string& bkey_filename,
                     bool sanitize_result)
 {
     assert((output_filename && !output_dirname) ||
@@ -364,14 +364,14 @@ void do_run_reverse(const std::string &spec_filename,
     }
 }
 
-void do_run_flut(const std::string &spec_filename,
-                 const std::string &input_filename,
-                 const std::optional<std::string> &output_filename,
-                 const std::optional<std::string> &output_dirname,
+void do_run_flut(const std::string& spec_filename,
+                 const std::string& input_filename,
+                 const std::optional<std::string>& output_filename,
+                 const std::optional<std::string>& output_dirname,
                  size_t output_freq, size_t queue_size,
-                 size_t bootstrapping_freq, const std::string &bkey_filename,
-                 const std::optional<size_t> &max_second_lut_depth,
-                 const std::optional<std::string> &debug_skey_filename,
+                 size_t bootstrapping_freq, const std::string& bkey_filename,
+                 const std::optional<size_t>& max_second_lut_depth,
+                 const std::optional<std::string>& debug_skey_filename,
                  bool sanitize_result)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
@@ -432,10 +432,10 @@ void do_run_flut(const std::string &spec_filename,
     }
 }
 
-void do_run_block(const std::string &spec_filename,
-                  const std::string &input_filename,
-                  const std::string &output_filename, size_t queue_size,
-                  const std::string &bkey_filename, bool sanitize_result)
+void do_run_block(const std::string& spec_filename,
+                  const std::string& input_filename,
+                  const std::string& output_filename, size_t queue_size,
+                  const std::string& bkey_filename, bool sanitize_result)
 {
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     Graph gr = Graph::from_file(spec_filename);
@@ -463,7 +463,7 @@ void do_run_block(const std::string &spec_filename,
     write_to_archive(output_filename, res);
 }
 
-void do_dec(const std::string &skey_filename, const std::string &input_filename)
+void do_dec(const std::string& skey_filename, const std::string& input_filename)
 {
     auto skey = read_from_archive<SecretKey>(skey_filename);
     auto enc_res = read_from_archive<TLWELvl1>(input_filename);
@@ -471,7 +471,7 @@ void do_dec(const std::string &skey_filename, const std::string &input_filename)
     print_result(res);
 }
 
-void do_ltl2spec(const std::string &fml, size_t num_vars,
+void do_ltl2spec(const std::string& fml, size_t num_vars,
                  bool make_all_live_states_final)
 {
     Graph gr =
@@ -479,7 +479,7 @@ void do_ltl2spec(const std::string &fml, size_t num_vars,
     gr.dump(std::cout);
 }
 
-void do_spec2spec(const std::optional<std::string> &spec_filename_opt,
+void do_spec2spec(const std::optional<std::string>& spec_filename_opt,
                   bool minimized, bool reversed, bool negated)
 {
     std::string spec_filename = spec_filename_opt.value_or("-");
@@ -494,7 +494,7 @@ void do_spec2spec(const std::optional<std::string> &spec_filename_opt,
     gr.dump(std::cout);
 }
 
-void do_spec2dot(const std::optional<std::string> &spec_filename_opt)
+void do_spec2dot(const std::optional<std::string>& spec_filename_opt)
 {
     std::string spec_filename = spec_filename_opt.value_or("-");
     if (spec_filename == "-")
@@ -503,7 +503,7 @@ void do_spec2dot(const std::optional<std::string> &spec_filename_opt)
         Graph::from_file(spec_filename).dump_dot(std::cout);
 }
 
-void do_att2spec(const std::optional<std::string> &att_filename_opt)
+void do_att2spec(const std::optional<std::string>& att_filename_opt)
 {
     std::string att_filename = att_filename_opt.value_or("-");
     if (att_filename == "-")
@@ -512,7 +512,7 @@ void do_att2spec(const std::optional<std::string> &att_filename_opt)
         Graph::from_att_file(att_filename).dump(std::cout);
 }
 
-void do_spec2att(const std::optional<std::string> &spec_filename_opt)
+void do_spec2att(const std::optional<std::string>& spec_filename_opt)
 {
     std::string spec_filename = spec_filename_opt.value_or("-");
     if (spec_filename == "-")
@@ -521,8 +521,8 @@ void do_spec2att(const std::optional<std::string> &spec_filename_opt)
         Graph::from_file(spec_filename).dump_att(std::cout);
 }
 
-void do_run_dfa_plain(const std::string &spec_filename,
-                      const std::string &input_filename, size_t num_ap)
+void do_run_dfa_plain(const std::string& spec_filename,
+                      const std::string& input_filename, size_t num_ap)
 {
     Graph gr = Graph::from_file(spec_filename);
     auto dfa_state = gr.initial_state();
@@ -534,7 +534,7 @@ void do_run_dfa_plain(const std::string &spec_filename,
     print_result(res);
 }
 
-void dumpBasicInfo(int argc, char **argv)
+void dumpBasicInfo(int argc, char** argv)
 {
     spdlog::info(R"(===================================)");
 
@@ -575,9 +575,9 @@ void dumpBasicInfo(int argc, char **argv)
     }
     {
         std::stringstream ss;
-        if (char *envvar = std::getenv("CPUPROFILE"); envvar != nullptr)
+        if (char* envvar = std::getenv("CPUPROFILE"); envvar != nullptr)
             ss << "CPUPROFILE=" << envvar << " ";
-        if (char *envvar = std::getenv("HEAPPROFILE"); envvar != nullptr)
+        if (char* envvar = std::getenv("HEAPPROFILE"); envvar != nullptr)
             ss << "HEAPPROFILE=" << envvar << " ";
         spdlog::info("\tEnv var: {}", ss.str());
     }
@@ -587,7 +587,7 @@ void dumpBasicInfo(int argc, char **argv)
 }
 }  // namespace
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     error::initialize("homfa");
 
@@ -601,7 +601,7 @@ int main(int argc, char **argv)
     register_enc(app, args);
     register_dec(app, args);
     {
-        CLI::App *run = app.add_subcommand("run", "Run DFA over ciphertexts");
+        CLI::App* run = app.add_subcommand("run", "Run DFA over ciphertexts");
         register_offline(*run, args, false);
         register_reverse(*run, args, false);
         register_block(*run, args, false);
@@ -609,7 +609,7 @@ int main(int argc, char **argv)
         register_plain(*run, args, false);
     }
     {
-        CLI::App *ltl2spec = app.add_subcommand(
+        CLI::App* ltl2spec = app.add_subcommand(
             "ltl2spec", "Convert LTL to spec format for HomFA");
         ltl2spec->parse_complete_callback([&] { args.type = TYPE::LTL2SPEC; });
         ltl2spec->add_flag("--make-all-live-states-final",
@@ -618,7 +618,7 @@ int main(int argc, char **argv)
         ltl2spec->add_option("#vars", args.num_vars)->required();
     }
     {
-        CLI::App *spec2spec =
+        CLI::App* spec2spec =
             app.add_subcommand("spec2spec", "Convert spec formats for HomFA");
         spec2spec->parse_complete_callback(
             [&] { args.type = TYPE::SPEC2SPEC; });
@@ -628,19 +628,19 @@ int main(int argc, char **argv)
         spec2spec->add_option("SPEC-FILE", args.spec);
     }
     {
-        CLI::App *spec2dot = app.add_subcommand(
+        CLI::App* spec2dot = app.add_subcommand(
             "spec2dot", "Convert spec format for HomFA to dot script");
         spec2dot->parse_complete_callback([&] { args.type = TYPE::SPEC2DOT; });
         spec2dot->add_option("SPEC-FILE", args.spec);
     }
     {
-        CLI::App *spec2att = app.add_subcommand(
+        CLI::App* spec2att = app.add_subcommand(
             "spec2att", "Convert spec format for HomFA to AT&T format");
         spec2att->parse_complete_callback([&] { args.type = TYPE::SPEC2ATT; });
         spec2att->add_option("SPEC-FILE", args.spec);
     }
     {
-        CLI::App *att2spec = app.add_subcommand(
+        CLI::App* att2spec = app.add_subcommand(
             "att2spec", "Convert AT&T format to spec format for HomFA");
         att2spec->parse_complete_callback([&] { args.type = TYPE::ATT2SPEC; });
         att2spec->add_option("ATT-SPEC-FILE", args.spec);
