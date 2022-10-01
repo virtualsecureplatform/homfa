@@ -3,6 +3,7 @@
 #include "tfhepp_util.hpp"
 
 #include <tbb/parallel_for.h>
+#include <tbb/task_arena.h>
 #include <CLI/CLI.hpp>
 
 #include <execution>
@@ -37,6 +38,11 @@ std::vector<T> unwrap_optional(const std::vector<std::optional<T>>& src,
         ret.push_back(elm.value_or(default_value));
     return ret;
 }
+
+bool TLWELvl1_decrypt(const TLWELvl1& src, const SecretKey& skey)
+{
+    return TFHEpp::bootsSymDecrypt<Lvl1>({src}, skey).at(0);
+}
 }  // namespace
 
 // Binarized Temporal Tester (?)
@@ -44,7 +50,8 @@ class BTT {
 public:
     using State = int;
     using CounterNo = size_t;
-    using CounterSpec = std::tuple<CounterNo, uint64_t>;
+    using CounterSpec =
+        std::tuple<size_t /* bit width */, uint64_t /* init val */>;
 
     struct Edge {
         State from, to;
@@ -257,8 +264,7 @@ private:
     }
 
 public:
-    Weight(uint64_t state_no,
-           const std::vector<std::tuple<size_t, uint64_t>>& counter_spec)
+    Weight(uint64_t state_no, const std::vector<BTT::CounterSpec>& counter_spec)
     {
         initialize_general(state_no);
 
@@ -491,13 +497,11 @@ void BTTRunner::eval_one(const TRGSWLvl1FFT& input)
 void BTTRunner::dump(std::ostream& os, const SecretKey& skey)
 {
     auto [accept, state_no, counter_info, counter] = state_.decrypt(skey);
-    os << "\n"
-       << "acc:  " << accept << "\n"
+    os << "acc:  " << accept << "\n"
        << "st#:  " << live_states_.at(state_no) << "\n"
        << "info: " << counter_info << "\n";
     for (size_t i = 0; i < counter.size(); i++)
         os << "cnt" << i << ": " << counter.at(i) << "\n";
-    os << "\n";
 }
 
 template <class ExecutionPolicy>
@@ -527,6 +531,9 @@ void BTTRunner::eval_block_cmuxs(
 void BTTRunner::eval_queued_inputs()
 {
     auto exec = std::execution::par;
+
+    if (queued_inputs_.size() == 0)
+        return;
 
     // Prepare inputs
     std::vector<TRGSWLvl1FFT> inputs;
@@ -586,13 +593,66 @@ void BTTRunner::eval_queued_inputs()
     state_.update_counters(exec, gate_key_);
 }
 
+class BTTPlaintextRunner {
+private:
+    BTT btt_;
+    BTT::State cur_st_;
+    bool accept_;
+    std::vector<int> counter_;
+
+public:
+    BTTPlaintextRunner(BTT btt);
+
+    bool result() const;
+    void eval_one(bool input);
+    void dump(std::ostream& os) const;
+};
+
+BTTPlaintextRunner::BTTPlaintextRunner(BTT btt)
+    : btt_(std::move(btt)),
+      cur_st_(btt_.initial_state()),
+      accept_(false),
+      counter_(btt_.counters_spec().size(), 0)
+{
+}
+
+bool BTTPlaintextRunner::result() const
+{
+    return accept_;
+}
+
+void BTTPlaintextRunner::eval_one(bool input)
+{
+    auto counters_spec = btt_.counters_spec();
+    for (size_t i = 0; i < counters_spec.size(); i++) {
+        uint64_t target = 0;
+        std::tie(std::ignore, target) = counters_spec.at(i);
+        bool satisfied = (counter_.at(i) == target);
+        auto [e0, e1] = btt_.get_edge(cur_st_);
+        cur_st_ = (satisfied ? e1 : e0).to;
+    }
+
+    auto [e0, e1] = btt_.get_edge(cur_st_);
+    BTT::Edge e = (input ? e1 : e0);
+    cur_st_ = e.to;
+    accept_ = e.accept;
+    for (BTT::CounterNo i : e.reset)
+        counter_.at(i) = 0;
+    for (BTT::CounterNo i : e.inc)
+        counter_.at(i)++;
+}
+
+void BTTPlaintextRunner::dump(std::ostream& os) const
+{
+    os << "acc:  " << accept_ << "\n"
+       << "st#:  " << cur_st_ << "\n";
+    for (size_t i = 0; i < counter_.size(); i++)
+        os << "cnt" << i << ": " << counter_.at(i) << "\n";
+}
+
 void test(const SecretKey& skey, const BKey& bkey)
 {
     const size_t alpha = 10;
-    auto exec = std::execution::par;
-
-    TRGSWLvl1FFT b1 = encrypt_bit_to_TRGSWLvl1FFT(true, skey);
-    TRGSWLvl1FFT b0 = encrypt_bit_to_TRGSWLvl1FFT(false, skey);
 
     BTT btt{
         0,
@@ -622,6 +682,54 @@ void test(const SecretKey& skey, const BKey& bkey)
         },
     };
 
+    const size_t num_tests = 5;
+    std::atomic_bool should_abort{false};
+    std::array<std::string, num_tests> error_message;
+    parallel_for(std::execution::par, 0, num_tests, [&](size_t i_test) {
+        std::cerr << i_test << " ";
+        std::default_random_engine engine{std::random_device{}()};
+        std::binomial_distribution<> dist;
+        BTTPlaintextRunner prunner{btt};
+        BTTRunner runner{btt, 1, *bkey.gkey, *bkey.circuit_key};
+        std::vector<bool> history;
+        for (size_t i = 0; i < 10000; i++) {
+            if (should_abort.load())
+                return;
+            bool input = dist(engine);
+            history.push_back(input);
+            runner.eval_one(encrypt_bit_to_TRGSWLvl1FFT(input, skey));
+            bool result = TLWELvl1_decrypt(runner.result(), skey);
+            prunner.eval_one(input);
+            bool expected = prunner.result();
+            if (result != expected) {
+                std::stringstream ss;
+                ss << "======= TEST ERROR =======\n";
+                for (size_t i = 0; i < history.size(); i++)
+                    ss << "Input " << i << ":\t" << history.at(i) << "\n";
+                ss << "\nRunner result:\t" << result << "\n";
+                runner.dump(ss, skey);
+                ss << "\nPRunner result:\t" << expected << "\n";
+                prunner.dump(ss);
+                ss << "==========================\n";
+                error_message.at(i_test) = ss.str();
+                should_abort.store(true);
+                return;
+            }
+        }
+    });
+    if (should_abort.load()) {
+        for (size_t i = 0; i < error_message.size(); i++) {
+            if (error_message.at(i).empty())
+                continue;
+            std::cerr << "TEST " << i << "\n";
+            std::cerr << error_message.at(i) << "\n";
+        }
+    }
+
+    /*
+    TRGSWLvl1FFT b1 = encrypt_bit_to_TRGSWLvl1FFT(true, skey);
+    TRGSWLvl1FFT b0 = encrypt_bit_to_TRGSWLvl1FFT(false, skey);
+
     BTTRunner runner{btt, 1, *bkey.gkey, *bkey.circuit_key};
     runner.eval_one(b1);
     runner.dump(std::cerr, skey);
@@ -631,12 +739,15 @@ void test(const SecretKey& skey, const BKey& bkey)
         runner.eval_one(b0);
         runner.dump(std::cerr, skey);
     }
+    */
 }
 
 int main(int argc, char** argv)
 {
     CLI::App app{"Benchmark runner"};
     // app.require_subcommand();
+    std::optional<int> num_cpu_cores;
+    app.add_option("--cpu", num_cpu_cores, "Number of CPU cores we use");
     CLI11_PARSE(app, argc, argv);
 
     std::optional<SecretKey> skey;
@@ -656,6 +767,8 @@ int main(int argc, char** argv)
         write_to_archive(bkey_filename, *bkey);
     }
 
-    test(*skey, *bkey);
+    (num_cpu_cores ? tbb::task_arena(*num_cpu_cores) : tbb::task_arena())
+        .execute([&] { test(*skey, *bkey); });
+
     return 0;
 }
