@@ -5,6 +5,8 @@
 #include "tfhepp_util.hpp"
 #include "timeit.hpp"
 
+#include <optional>
+
 class BackstreamDFARunner {
 private:
     Graph graph_;
