@@ -1,9 +1,9 @@
-option(HOMFA_BUILD_COUNTER "Build counter" ON)
-option(HOMFA_BUILD_HOMFA "Build homfa" OFF)
+option(HOMFA_BUILD_COUNTER "Build counter" OFF)
+option(HOMFA_BUILD_HOMFA "Build homfa" ON)
 option(HOMFA_BUILD_TEST0 "Build test0" OFF)
 option(HOMFA_BUILD_TEST_PLAIN_RANDOM "Build test_plain_random" OFF)
 option(HOMFA_BUILD_TEST_CRYPTO_RANDOM "Build test_crypto_random" OFF)
-option(HOMFA_BUILD_BENCHMARK "Build benchmark" OFF)
+option(HOMFA_BUILD_BENCHMARK "Build benchmark" ON)
 
 if(HOMFA_BUILD_COUNTER)
     add_executable(counter
