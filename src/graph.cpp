@@ -5,6 +5,7 @@
 #include <fstream>
 #include <map>
 #include <numeric>
+#include <optional>
 #include <queue>
 #include <regex>
 #include <set>
