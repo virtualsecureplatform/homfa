@@ -260,7 +260,7 @@ void do_run_offline(const std::string& spec_filename,
 
     auto bkey = read_from_archive<BKey>(bkey_filename);
     OfflineDFARunner runner{Graph::from_file(spec_filename).minimized(),
-                            input_stream.size(), bootstrapping_freq, bkey.gkey,
+                            input_stream.size(), bootstrapping_freq, bkey.ekey,
                             sanitize_result};
 
     spdlog::info("Parameter:");
@@ -325,7 +325,7 @@ void do_run_reverse(const std::string& spec_filename,
     TRGSWLvl1InputStreamFromCtxtFile input_stream{input_filename};
     auto bkey = read_from_archive<BKey>(bkey_filename);
     OnlineDFARunner2 runner{Graph::from_file(spec_filename), bootstrapping_freq,
-                            is_spec_reversed, bkey.gkey, sanitize_result};
+                            is_spec_reversed, bkey.ekey, sanitize_result};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner2 (reversed)");
@@ -379,7 +379,7 @@ void do_run_flut(const std::string& spec_filename,
     Graph gr = Graph::from_file(spec_filename);
 
     auto bkey = read_from_archive<BKey>(bkey_filename);
-    assert(bkey.gkey && bkey.tlwel1_trlwel1_ikskey);
+    assert(bkey.ekey && bkey.tlwel1_trlwel1_ikskey);
 
     std::optional<SecretKey> debug_skey;
     if (debug_skey_filename)
@@ -387,7 +387,7 @@ void do_run_flut(const std::string& spec_filename,
 
     OnlineDFARunner3 runner{gr,         max_second_lut_depth.value_or(8),
                             queue_size, bootstrapping_freq,
-                            *bkey.gkey, *bkey.tlwel1_trlwel1_ikskey,
+                            *bkey.ekey, *bkey.tlwel1_trlwel1_ikskey,
                             debug_skey, sanitize_result};
 
     spdlog::info("Parameter:");
@@ -442,10 +442,9 @@ void do_run_block(const std::string& spec_filename,
     Graph gr = Graph::from_file(spec_filename);
 
     auto bkey = read_from_archive<BKey>(bkey_filename);
-    assert(bkey.gkey);
+    assert(bkey.ekey);
 
-    OnlineDFARunner4 runner{gr, queue_size, *bkey.gkey, *bkey.circuit_key,
-                            sanitize_result};
+    OnlineDFARunner4 runner{gr, queue_size, *bkey.ekey, sanitize_result};
 
     spdlog::info("Parameter:");
     spdlog::info("\tMode:\t{}", "Online FA Runner4 (block-backstream)");

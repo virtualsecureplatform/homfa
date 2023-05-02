@@ -7,11 +7,11 @@
 
 BackstreamDFARunner::BackstreamDFARunner(Graph graph, size_t boot_interval,
                                          std::optional<size_t> input_size,
-                                         std::shared_ptr<GateKey> gate_key,
+                                         std::shared_ptr<EvalKey> eval_key,
                                          bool sanitize_result)
     : graph_(std::move(graph)),
       weight_(graph_.size()),
-      gate_key_(std::move(gate_key)),
+      eval_key_(std::move(eval_key)),
       input_size_(std::move(input_size)),
       boot_interval_(boot_interval),
       num_processed_inputs_(0),
@@ -20,7 +20,7 @@ BackstreamDFARunner::BackstreamDFARunner(Graph graph, size_t boot_interval,
       sanitize_result_(sanitize_result),
       workspace_(graph_.size())
 {
-    assert(gate_key_);
+    assert(eval_key_);
 
     if (sanitize_result_)
         error_die("Sanitization of results is not implemented");
@@ -72,7 +72,7 @@ void BackstreamDFARunner::eval(const TRGSWLvl1FFT& input)
     }
 
     num_processed_inputs_++;
-    if (gate_key_ && num_processed_inputs_ % boot_interval_ == 0) {
+    if (eval_key_ && num_processed_inputs_ % boot_interval_ == 0) {
         spdlog::debug("Bootstrapping occurred");
         bootstrap_weight(*states);
     }
@@ -81,12 +81,12 @@ void BackstreamDFARunner::eval(const TRGSWLvl1FFT& input)
 void BackstreamDFARunner::bootstrap_weight(
     const std::vector<Graph::State>& targets)
 {
-    assert(gate_key_);
+    assert(eval_key_);
     timer_.timeit(TimeRecorder::TARGET::BOOTSTRAPPING, targets.size(), [&] {
         std::for_each(std::execution::par, targets.begin(), targets.end(),
                       [&](Graph::State q) {
                           TRLWELvl1& w = weight_.at(q);
-                          do_SEI_IKS_GBTLWE2TRLWE_2(w, *gate_key_);
+                          do_SEI_IKS_GBTLWE2TRLWE_2(w, *eval_key_);
                       });
     });
 }

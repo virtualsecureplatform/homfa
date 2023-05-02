@@ -72,7 +72,7 @@ public:
                        size_t boot_interval, const BKey& bkey,
                        bool sanitize_result)
         : runner_(Graph::from_file(spec_filename), input_size, boot_interval,
-                  bkey.gkey, sanitize_result),
+                  bkey.ekey, sanitize_result),
           result_(),
           remaining_input_size_(input_size)
     {
@@ -109,7 +109,7 @@ public:
                           size_t bootstrapping_freq, bool spec_reversed,
                           const BKey& bkey, bool sanitize_result)
         : runner_(Graph::from_file(spec_filename), bootstrapping_freq,
-                  spec_reversed, bkey.gkey, sanitize_result),
+                  spec_reversed, bkey.ekey, sanitize_result),
           output_freq_(output_freq),
           num_processed_(0)
     {
@@ -153,7 +153,7 @@ public:
                           size_t bootstrapping_freq, const BKey& bkey,
                           bool sanitize_result)
         : runner_(Graph::from_file(spec_filename), max_second_lut_depth,
-                  queue_size, bootstrapping_freq, *bkey.gkey,
+                  queue_size, bootstrapping_freq, *bkey.ekey,
                   *bkey.tlwel1_trlwel1_ikskey, std::nullopt, sanitize_result),
           output_freq_(output_freq),
           queue_size_(queue_size),
@@ -196,8 +196,8 @@ public:
     OnlineDFA4BenchRunner(const std::string& spec_filename, size_t output_freq,
                           size_t queue_size, const BKey& bkey,
                           bool sanitize_result)
-        : runner_(Graph::from_file(spec_filename), queue_size, *bkey.gkey,
-                  *bkey.circuit_key, sanitize_result),
+        : runner_(Graph::from_file(spec_filename), queue_size, *bkey.ekey,
+                  sanitize_result),
           output_freq_(output_freq),
           queue_size_(queue_size),
           num_processed_(0)

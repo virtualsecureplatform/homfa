@@ -314,28 +314,30 @@ PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1& src, const SecretKey& skey)
 }
 
 // w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
-void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1& w, const GateKey& gk)
+void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1& w, const EvalKey& ek)
 {
     TLWELvl1 tlwel1;
     TFHEpp::SampleExtractIndex<Lvl1>(tlwel1, w, 0);
     TLWELvl0 tlwel0;
-    TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(tlwel0, tlwel1, gk.ksk);
-    TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(w, tlwel0,
-                                                               gk.bkfftlvl01);
+    TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(
+        tlwel0, tlwel1, ek.getiksk<TFHEpp::lvl10param>());
+    TFHEpp::BlindRotate<TFHEpp::lvl01param>(
+        w, tlwel0, ek.getbkfft<TFHEpp::lvl01param>(),
+        TFHEpp::μpolygen<TFHEpp::lvl1param, TFHEpp::lvl1param::μ>());
 }
 
 // BootstrappingTLWE-to-TRLWE
 // {0, 1/2} -> {0, 1/2}
 // NOTE: src is MODIFIED for efficiency!
 void BS_TLWE_0_1o2_to_TRLWE_0_1o2(TRLWELvl1& out, TLWELvl0& src,
-                                  const GateKey& gk)
+                                  const EvalKey& ek)
 {
     using namespace TFHEpp;
 
     // Convert {0, 1/2} to {-1/4, 1/4}
     src[Lvl0::n] -= (1 << 30);  // 1/4
     // Bootstrapping without changing plaintext space
-    BlindRotate<lvl01param>(out, src, gk.bkfftlvl01,
+    BlindRotate<lvl01param>(out, src, ek.getbkfft<lvl01param>(),
                             μpolygen<Lvl1, (1 << 30) /* 1/4 */>());
     // Convert {-1/4, 1/4} to {0, 1/2}
     out[1][0] += (1 << 30);  // 1/4
@@ -345,20 +347,20 @@ void BS_TLWE_0_1o2_to_TRLWE_0_1o2(TRLWELvl1& out, TLWELvl0& src,
 // {0, 1/2} -> {-1/8, 1/8}
 // NOTE: src is MODIFIED for efficiency!
 void BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(TRLWELvl1& out, TLWELvl0& src,
-                                     const GateKey& gk)
+                                     const EvalKey& ek)
 {
     using namespace TFHEpp;
 
     // Convert {0, 1/2} to {-1/4, 1/4}
     src[Lvl0::n] -= (1 << 30);  // 1/4
     // Bootstrapping and convert {-1/4, 1/4} to {-1/8, 1/8}
-    BlindRotate<lvl01param>(out, src, gk.bkfftlvl01,
+    BlindRotate<lvl01param>(out, src, ek.getbkfft<lvl01param>(),
                             μpolygen<Lvl1, (1 << 29) /* 1/8 */>());
 }
 
 // w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
 // {0, 1/2} -> {0, 1/2}
-void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1& w, const GateKey& gk)
+void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1& w, const EvalKey& ek)
 {
     using namespace TFHEpp;
 
@@ -366,14 +368,14 @@ void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1& w, const GateKey& gk)
     SampleExtractIndex<Lvl1>(tlwel1, w, 0);
 
     TLWELvl0 tlwel0;
-    IdentityKeySwitch<lvl10param>(tlwel0, tlwel1, gk.ksk);
+    IdentityKeySwitch<lvl10param>(tlwel0, tlwel1, ek.getiksk<lvl10param>());
 
-    BS_TLWE_0_1o2_to_TRLWE_0_1o2(w, tlwel0, gk);
+    BS_TLWE_0_1o2_to_TRLWE_0_1o2(w, tlwel0, ek);
 }
 
 // w = w |> SEI |> IKS(gk) |> GateBootstrappingTLWE2TRLWE(gk)
 // {0, 1/2} -> {-1/8, 1/8}
-void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1& w, const GateKey& gk)
+void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1& w, const EvalKey& ek)
 {
     using namespace TFHEpp;
 
@@ -381,8 +383,8 @@ void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1& w, const GateKey& gk)
     SampleExtractIndex<Lvl1>(tlwel1, w, 0);
 
     TLWELvl0 tlwel0;
-    IdentityKeySwitch<lvl10param>(tlwel0, tlwel1, gk.ksk);
-    BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(w, tlwel0, gk);
+    IdentityKeySwitch<lvl10param>(tlwel0, tlwel1, ek.getiksk<lvl10param>());
+    BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(w, tlwel0, ek);
 }
 
 TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey& skey)
@@ -439,20 +441,21 @@ std::string weight2bitstring(const PolyLvl1& w)
     return ss.str();
 }
 
-void CircuitBootstrappingFFTLvl01(TRGSWLvl1FFT& out, const TLWELvl0& src,
-                                  const CircuitKey& circuit_key)
+void CircuitBootstrappingFFTLvl11(TRGSWLvl1FFT& out, const TLWELvl1& src,
+                                  const EvalKey& ek)
 {
-    TFHEpp::CircuitBootstrappingFFT<TFHEpp::lvl02param, TFHEpp::lvl21param>(
-        out, src, circuit_key);
+    TFHEpp::CircuitBootstrappingFFT<TFHEpp::lvl10param, TFHEpp::lvl02param,
+                                    TFHEpp::lvl21param>(out, src, ek);
 }
 
 void HomXORwoSE(TRLWELvl1& out, const TLWELvl0& lhs, const TLWELvl0& rhs,
-                const GateKey& gate_key)
+                const EvalKey& ek)
 {
     TLWELvl0 temp;
     for (int i = 0; i <= Lvl0::n; i++)
         temp[i] = 2 * lhs[i] + 2 * rhs[i];
     temp[Lvl0::n] += 2 * Lvl0::μ;
-    TFHEpp::GateBootstrappingTLWE2TRLWEFFT<TFHEpp::lvl01param>(
-        out, temp, gate_key.bkfftlvl01);
+    TFHEpp::BlindRotate<TFHEpp::lvl01param>(
+        out, temp, ek.getbkfft<TFHEpp::lvl01param>(),
+        TFHEpp::μpolygen<TFHEpp::lvl1param, TFHEpp::lvl1param::μ>());
 }

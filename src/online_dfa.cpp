@@ -9,16 +9,16 @@
 
 /* OnlineDFARunner */
 OnlineDFARunner::OnlineDFARunner(const Graph& graph,
-                                 std::shared_ptr<GateKey> gate_key,
+                                 std::shared_ptr<EvalKey> eval_key,
                                  bool sanitize_result)
     : graph_(graph),
       weight_(graph.size(), trivial_TRLWELvl1_zero()),
-      gate_key_(std::move(gate_key)),
+      eval_key_(std::move(eval_key)),
       bootstrap_interval_(0),
       num_processed_inputs_(0),
       sanitize_result_(sanitize_result)
 {
-    assert(gate_key_);
+    assert(eval_key_);
 
     if (sanitize_result_)
         error_die("Sanitization of results is not implemented (qtrlwe)");
@@ -90,19 +90,19 @@ void OnlineDFARunner::eval_one(const TRGSWLvl1FFT& input)
 
 void OnlineDFARunner::bootstrap_weight()
 {
-    assert(gate_key_);
+    assert(eval_key_);
     std::for_each(
         std::execution::par, weight_.begin(), weight_.end(),
-        [&](TRLWELvl1& w) { do_SEI_IKS_GBTLWE2TRLWE(w, *gate_key_); });
+        [&](TRLWELvl1& w) { do_SEI_IKS_GBTLWE2TRLWE(w, *eval_key_); });
 }
 
 /* OnlineDFARunner2 */
-OnlineDFARunner2::OnlineDFARunner2(const Graph& graph, size_t boot_interval,
+OnlineDFARunner2::OnlineDFARunner2(const Graph& graph, size_t boot_interval_,
                                    bool is_spec_reversed,
-                                   std::shared_ptr<GateKey> gate_key,
+                                   std::shared_ptr<EvalKey> eval_key,
                                    bool sanitize_result)
     : runner_(is_spec_reversed ? graph : graph.reversed().minimized(),
-              boot_interval, std::nullopt, gate_key, sanitize_result)
+              boot_interval_, std::nullopt, eval_key, sanitize_result)
 {
 }
 
@@ -119,11 +119,11 @@ void OnlineDFARunner2::eval_one(const TRGSWLvl1FFT& input)
 /* OnlineDFARunner3 */
 OnlineDFARunner3::OnlineDFARunner3(
     Graph graph, size_t max_second_lut_depth, size_t queue_size,
-    size_t bootstrapping_freq, const GateKey& gate_key,
+    size_t bootstrapping_freq, const EvalKey& eval_key,
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>& tlwel1_trlwel1_iks_key,
     std::optional<SecretKey> debug_skey, bool sanitize_result)
     : graph_(std::move(graph)),
-      gate_key_(gate_key),
+      eval_key_(eval_key),
       tlwel1_trlwel1_iks_key_(tlwel1_trlwel1_iks_key),
       weight_(graph_.size(), trivial_TRLWELvl1_zero()),
       queued_inputs_(0),
@@ -354,9 +354,9 @@ void OnlineDFARunner3::eval_queued_inputs()
                       if (should_bootstrap) {
                           // Bootstrap
                           TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(
-                              tlwe_l0, tlwe_l1, gate_key_.ksk);
+                              tlwe_l0, tlwe_l1, eval_key_.getiksk<TFHEpp::lvl10param>());
                           BS_TLWE_0_1o2_to_TRLWE_0_1o2(trlwe, tlwe_l0,
-                                                       gate_key_);
+                                                       eval_key_);
                           TFHEpp::SampleExtractIndex<Lvl1>(tlwe_l1, trlwe, 0);
                       }
                       // Convert
@@ -374,12 +374,10 @@ void OnlineDFARunner3::eval_queued_inputs()
 
 /* OnlineDFARunner4 */
 OnlineDFARunner4::OnlineDFARunner4(Graph graph, size_t queue_size,
-                                   const GateKey& gate_key,
-                                   const CircuitKey& circuit_key,
+                                   const EvalKey& eval_key,
                                    bool sanitize_result)
     : graph_(std::move(graph)),
-      gate_key_(gate_key),
-      circuit_key_(circuit_key),
+      eval_key_(eval_key),
       queue_size_(queue_size),
       queued_inputs_(),
       selector_(std::nullopt),
@@ -515,15 +513,12 @@ void OnlineDFARunner4::eval_queued_inputs()
     const TRLWELvl1& sel = *selector_;
     workspace4_.resize(width);
     tbb::parallel_for(0ul, width, [&](size_t i) {
-        TLWELvl1 tlwel1;
-        TFHEpp::SampleExtractIndex<Lvl1>(tlwel1, sel, i + 1);
-        TFHEpp::IdentityKeySwitch<TFHEpp::lvl10param>(workspace4_.at(i), tlwel1,
-                                                      gate_key_.ksk);
+        TFHEpp::SampleExtractIndex<Lvl1>(workspace4_.at(i), sel, i + 1);
     });
     timer_.timeit(TimeRecorder::TARGET::CIRCUIT_BOOTSTRAPPING, width, [&] {
         tbb::parallel_for(0ul, width, [&](size_t i) {
-            CircuitBootstrappingFFTLvl01(cond.at(i), workspace4_.at(i),
-                                         circuit_key_);
+            CircuitBootstrappingFFTLvl11(cond.at(i), workspace4_.at(i),
+                                         eval_key_);
         });
     });
     // Then choose the correct weight specified by the selector
