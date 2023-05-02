@@ -10,12 +10,12 @@ class OnlineDFARunner {
 private:
     Graph graph_;
     std::vector<TRLWELvl1> weight_;
-    std::shared_ptr<GateKey> gate_key_;
+    std::shared_ptr<EvalKey> eval_key_;
     size_t bootstrap_interval_, num_processed_inputs_;
     bool sanitize_result_;
 
 public:
-    OnlineDFARunner(const Graph& graph, std::shared_ptr<GateKey> gate_key,
+    OnlineDFARunner(const Graph& graph, std::shared_ptr<EvalKey> eval_key,
                     bool sanitize_result);
 
     TLWELvl1 result();
@@ -31,7 +31,7 @@ private:
 
 public:
     OnlineDFARunner2(const Graph& graph, size_t boot_interval_,
-                     bool is_spec_reversed, std::shared_ptr<GateKey> gate_key,
+                     bool is_spec_reversed, std::shared_ptr<EvalKey> eval_key,
                      bool sanitize_result);
 
     const Graph& graph() const
@@ -51,7 +51,7 @@ public:
 class OnlineDFARunner3 {
 private:
     Graph graph_;
-    const GateKey& gate_key_;
+    const EvalKey& eval_key_;
     const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>& tlwel1_trlwel1_iks_key_;
     std::vector<TRLWELvl1> weight_;
     std::vector<TRGSWLvl1FFT> queued_inputs_;
@@ -68,7 +68,7 @@ private:
 public:
     OnlineDFARunner3(Graph graph, size_t max_second_lut_depth,
                      size_t queue_size, size_t bootstrapping_freq,
-                     const GateKey& gate_key,
+                     const EvalKey& eval_key,
                      const TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>&
                          tlwel1_trlwel1_iks_key,
                      std::optional<SecretKey> debug_skey, bool sanitize_result);
@@ -108,8 +108,7 @@ private:
 class OnlineDFARunner4 {
 private:
     Graph graph_;
-    const GateKey& gate_key_;
-    const CircuitKey& circuit_key_;
+    const EvalKey& eval_key_;
     size_t queue_size_;
     std::vector<TRGSWLvl1FFT> queued_inputs_;
     std::optional<TRLWELvl1> selector_;
@@ -118,13 +117,13 @@ private:
 
     std::vector<TRLWELvl1> workspace1_, workspace2_;
     std::vector<TRGSWLvl1FFT> workspace3_;
-    std::vector<TLWELvl0> workspace4_;
+    std::vector<TLWELvl1> workspace4_;
 
     TimeRecorder timer_;
 
 public:
-    OnlineDFARunner4(Graph graph, size_t queue_size, const GateKey& gate_key,
-                     const CircuitKey& circuit_key, bool sanitize_result);
+    OnlineDFARunner4(Graph graph, size_t queue_size, const EvalKey& eval_key,
+                     bool sanitize_result);
 
     const Graph& graph() const
     {

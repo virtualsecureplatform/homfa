@@ -14,8 +14,7 @@ using TRGSWLvl1FFT = TFHEpp::TRGSWFFT<Lvl1>;
 using TRLWELvl1 = TFHEpp::TRLWE<Lvl1>;
 using PolyLvl1 = TFHEpp::Polynomial<Lvl1>;
 using SecretKey = TFHEpp::SecretKey;
-using GateKey = TFHEpp::GateKey;
-using CircuitKey = TFHEpp::CircuitKey<TFHEpp::lvl02param, TFHEpp::lvl21param>;
+using EvalKey = TFHEpp::EvalKey;
 
 class TRGSWLvl1FFTSerializer {
     static_assert(TRGSWLvl1FFT{}.size() == 2 * Lvl1::l);
@@ -116,21 +115,23 @@ public:
 
 // Bootstrapping key in the broad sense
 struct BKey {
-    std::shared_ptr<GateKey> gkey;
+    std::shared_ptr<EvalKey> ekey;
     std::shared_ptr<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>
         tlwel1_trlwel1_ikskey;
-    std::shared_ptr<CircuitKey> circuit_key;
 
     BKey()
     {
     }
 
     BKey(const SecretKey& skey)
-        : gkey(std::make_shared<GateKey>(skey)),
+        : ekey(std::make_shared<EvalKey>(skey)),
           tlwel1_trlwel1_ikskey(
-              std::make_shared<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>()),
-          circuit_key(std::make_shared<CircuitKey>(skey))
+              std::make_shared<TFHEpp::TLWE2TRLWEIKSKey<TFHEpp::lvl11param>>())
     {
+        ekey->emplaceiksk<TFHEpp::lvl10param>(skey);
+        ekey->emplacebkfft<TFHEpp::lvl01param>(skey);
+        ekey->emplacebkfft<TFHEpp::lvl02param>(skey);
+        ekey->emplaceprivksk4cb<TFHEpp::lvl21param>(skey);
         TFHEpp::tlwe2trlweikskkgen<TFHEpp::lvl11param>(*tlwel1_trlwel1_ikskey,
                                                        skey);
     }
@@ -138,7 +139,7 @@ struct BKey {
     template <class Archive>
     void serialize(Archive& ar)
     {
-        ar(gkey, tlwel1_trlwel1_ikskey, circuit_key);
+        ar(ekey, tlwel1_trlwel1_ikskey);
     }
 };
 
@@ -157,22 +158,22 @@ void TRLWELvl1_add(TRLWELvl1& out, const TRLWELvl1& src);
 void TRLWELvl1_mult_X_k(TRLWELvl1& out, const TRLWELvl1& src, size_t k);
 uint32_t phase_of_TLWELvl1(const TLWELvl1& src, const SecretKey& skey);
 PolyLvl1 phase_of_TRLWELvl1(const TRLWELvl1& src, const SecretKey& skey);
-void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1& w, const GateKey& gk);
-void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1& w, const GateKey& gk);
-void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1& w, const GateKey& gk);
+void do_SEI_IKS_GBTLWE2TRLWE(TRLWELvl1& w, const EvalKey& ek);
+void do_SEI_IKS_GBTLWE2TRLWE_2(TRLWELvl1& w, const EvalKey& ek);
+void do_SEI_IKS_GBTLWE2TRLWE_3(TRLWELvl1& w, const EvalKey& ek);
 void BS_TLWE_0_1o2_to_TRLWE_0_1o2(TRLWELvl1& out, TLWELvl0& src,
-                                  const GateKey& gk);
+                                  const EvalKey& ek);
 void BS_TLWE_0_1o2_to_TRLWE_m1o8_1o8(TRLWELvl1& out, TLWELvl0& src,
-                                     const GateKey& gk);
+                                     const EvalKey& ek);
 TRGSWLvl1FFT encrypt_bit_to_TRGSWLvl1FFT(bool b, const SecretKey& skey);
 bool decrypt_TLWELvl1_to_bit(const TLWELvl1& c, const SecretKey& skey);
 PolyLvl1 uint2weight(uint64_t n);
 bool between_25_75(uint32_t n);
 void dump_weight(std::ostream& os, const PolyLvl1& w);
 std::string weight2bitstring(const PolyLvl1& w);
-void CircuitBootstrappingFFTLvl01(TRGSWLvl1FFT& out, const TLWELvl0& src,
-                                  const CircuitKey& circuit_key);
+void CircuitBootstrappingFFTLvl11(TRGSWLvl1FFT& out, const TLWELvl1& src,
+                                  const EvalKey& ek);
 void HomXORwoSE(TRLWELvl1& out, const TLWELvl0& lhs, const TLWELvl0& rhs,
-                const GateKey& gate_key);
+                const EvalKey& ek);
 
 #endif

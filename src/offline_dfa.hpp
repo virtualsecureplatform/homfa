@@ -9,7 +9,7 @@ private:
 
 public:
     OfflineDFARunner(Graph graph, size_t input_size, size_t boot_interval,
-                     std::shared_ptr<GateKey> gate_key, bool sanitize_result);
+                     std::shared_ptr<EvalKey> eval_key, bool sanitize_result);
 
     const Graph& graph() const
     {

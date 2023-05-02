@@ -11,7 +11,7 @@ class BackstreamDFARunner {
 private:
     Graph graph_;
     std::vector<TRLWELvl1> weight_;
-    std::shared_ptr<GateKey> gate_key_;
+    std::shared_ptr<EvalKey> eval_key_;
     std::optional<size_t> input_size_;
     const size_t boot_interval_;
     size_t num_processed_inputs_;
@@ -26,7 +26,7 @@ private:
 public:
     BackstreamDFARunner(Graph graph, size_t boot_interval,
                         std::optional<size_t> input_size,
-                        std::shared_ptr<GateKey> gate_key,
+                        std::shared_ptr<EvalKey> eval_key,
                         bool sanitize_result);
 
     const Graph& graph() const
