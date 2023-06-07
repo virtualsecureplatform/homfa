@@ -132,7 +132,7 @@ struct BKey {
         ekey->emplacebkfft<TFHEpp::lvl01param>(skey);
         ekey->emplacebkfft<TFHEpp::lvl02param>(skey);
         ekey->emplaceprivksk4cb<TFHEpp::lvl21param>(skey);
-        TFHEpp::tlwe2trlweikskkgen<TFHEpp::lvl11param>(*tlwel1_trlwel1_ikskey,
+        TFHEpp::tlwe2trlweikskgen<TFHEpp::lvl11param>(*tlwel1_trlwel1_ikskey,
                                                        skey);
     }
 
