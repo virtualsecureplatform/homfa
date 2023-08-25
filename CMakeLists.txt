@@ -29,15 +29,20 @@ find_package(Backward)
 add_subdirectory(thirdparty/TFHEpp)
 add_subdirectory(thirdparty/spdlog)
 
+# Import spot
+find_package(PkgConfig)
+pkg_check_modules(SPOT REQUIRED libspot)
+
 set(HOMFA_CXXFLAGS -Wall -Wextra -pedantic -Wno-sign-compare)
 set(HOMFA_CXXFLAGS_DEBUG   ${HOMFA_CXXFLAGS} -O0 -g3)
 set(HOMFA_CXXFLAGS_RELEASE ${HOMFA_CXXFLAGS} -O3 -march=native -g3)
 set(HOMFA_INCLUDE_DIRS
+    ${SPOT_INCLUDE_DIRS}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/CLI11/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/spdlog/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ThreadPool>
 )
-set(HOMFA_LIBS tfhe++ Threads::Threads OpenMP::OpenMP_CXX Backward::Backward tbb libspot.a libbddx.a)
+set(HOMFA_LIBS tfhe++ Threads::Threads OpenMP::OpenMP_CXX Backward::Backward tbb ${SPOT_LIBRARIES} libbddx.a)
 set(HOMFA_COMPILE_DEFINITIONS )
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
