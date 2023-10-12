@@ -18,6 +18,9 @@
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twaalgos/translate.hh>
 
+#include <boost/unordered_map.hpp>
+#include <boost/unordered_set.hpp>
+
 // Thanks to:
 // https://helloacm.com/the-union-find-disjoint-set-implementation-in-java/
 class UnionFind {
@@ -248,10 +251,11 @@ Graph Graph::from_att_file(const std::string& filename)
 Graph Graph::from_nfa(const std::set<State>& q0n, const std::set<State>& Fn,
                       const NFADelta& dn)
 {
-    using StateSubset = std::set<State>;
+    // StateSubset must be sorted
+    using StateSubset = std::vector<State>;
 
     // 2^{Qn} -> Qd
-    std::map<StateSubset, State> st_map;
+    boost::unordered_map<StateSubset, State> st_map;
     // df
     DFADelta df;
     // Ff
@@ -277,22 +281,31 @@ Graph Graph::from_nfa(const std::set<State>& q0n, const std::set<State>& Fn,
         spdlog::info("{}", ss.str());
     };
     */
+    StateSubset q0nVec = std::vector<State>{q0n.begin(), q0n.end()};
+    std::sort(q0nVec.begin(), q0nVec.end());
 
-    std::set<StateSubset> visited;
     std::queue<StateSubset> que;
-    que.push(q0n);
+    que.push(q0nVec);
+    const auto visited = [&] (const StateSubset& qs) -> bool {
+        auto it = st_map.find(qs);
+        return it != st_map.end() && std::get<1>(df.at(it->second)) != -1;
+    };
     while (!que.empty()) {
         StateSubset qs = que.front();
         que.pop();
-        if (visited.contains(qs))
+        if (visited(qs))
             continue;
 
         StateSubset qs0, qs1;
         for (State q : qs) {
             auto&& [q_, dst0, dst1] = dn.at(q);
-            qs0.insert(dst0.begin(), dst0.end());
-            qs1.insert(dst1.begin(), dst1.end());
+            qs0.insert(qs0.end(), dst0.begin(), dst0.end());
+            qs1.insert(qs1.end(), dst1.begin(), dst1.end());
         }
+        std::sort(qs0.begin(), qs0.end());
+        qs0.erase(std::unique(qs0.begin(), qs0.end()), qs0.end());
+        std::sort(qs1.begin(), qs1.end());
+        qs1.erase(std::unique(qs1.begin(), qs1.end()), qs1.end());
         bool final = std::any_of(qs.begin(), qs.end(),
                                  [&Fn](size_t q) { return Fn.contains(q); });
 
@@ -300,14 +313,15 @@ Graph Graph::from_nfa(const std::set<State>& q0n, const std::set<State>& Fn,
               qs1d = get_or_create_state(qs1);
         df.at(qsd) = std::make_tuple(qsd, qs0d, qs1d);
 
-        visited.insert(qs);
         if (final)
             Ff.insert(qsd);
-        que.push(qs0);
-        que.push(qs1);
+        if (!visited(qs0))
+            que.push(qs0);
+        if (!visited(qs1))
+            que.push(qs1);
     }
 
-    return Graph{get_or_create_state(q0n), Ff, df};
+    return Graph{get_or_create_state(q0nVec), Ff, df};
 }
 
 Graph Graph::from_ltl_formula(const std::string& formula, size_t var_size,
